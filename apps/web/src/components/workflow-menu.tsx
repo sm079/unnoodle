@@ -2,9 +2,12 @@
 
 import { useRef, useState } from 'react';
 import { CheckIcon, ChevronRightIcon, SearchIcon, SparkleIcon } from 'lucide-react';
+import { m } from 'motion/react';
 import { NoodleGlyph } from '@/components/brand-mark';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RollingValue } from '@/components/rolling-value';
 import { capabilityLabels } from '@/lib/capabilities';
+import { menuItemClass, menuItemDelay } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import type { Capability, Workflow } from '@/lib/types';
 
@@ -22,6 +25,7 @@ export function WorkflowMenu({ workflows, value, onChange, className }: Workflow
   const searchRef = useRef<HTMLInputElement>(null);
 
   const terms = query.trim().toLowerCase();
+  let itemIndex = 0;
   const groups = new Map<Capability, Workflow[]>();
   for (const workflow of workflows) {
     const text = `${workflow.name} ${workflow.description} ${capabilityLabels[workflow.capability]}`.toLowerCase();
@@ -37,10 +41,15 @@ export function WorkflowMenu({ workflows, value, onChange, className }: Workflow
         if (!next) setQuery('');
       }}
     >
-      <PopoverTrigger aria-label={`Workflow: ${value.name}`} className={cn('group', className)}>
+      <PopoverTrigger
+        aria-label={`Workflow: ${value.name}`}
+        // The noodle straightens under the pointer and stays straight while the menu is open
+        render={<m.button initial={false} animate={open ? 'straight' : 'tangled'} whileHover="straight" />}
+        className={cn('group', className)}
+      >
         <NoodleGlyph className="text-lime" />
-        <span className="max-w-44 truncate">{value.name}</span>
-        <ChevronRightIcon className="text-[#8a8b8c] transition-transform group-data-[popup-open]:rotate-90" />
+        <RollingValue value={value.name} className="max-w-44" />
+        <ChevronRightIcon className="text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]:-rotate-90" />
       </PopoverTrigger>
       <PopoverContent
         side="top"
@@ -71,18 +80,27 @@ export function WorkflowMenu({ workflows, value, onChange, className }: Workflow
                 {items.map(workflow => {
                   const selected = workflow.id === value.id;
                   return (
-                    <li key={workflow.id}>
-                      <button
+                    <li key={workflow.id} style={menuItemDelay(itemIndex++)} className={menuItemClass}>
+                      <m.button
                         type="button"
                         aria-current={selected}
                         onClick={() => {
                           onChange(workflow);
                           setOpen(false);
                         }}
-                        className="flex w-full items-center gap-3 rounded-xl p-1.5 pr-3 text-left transition-colors hover:bg-white/[0.05] aria-[current=true]:bg-white/[0.07]"
+                        // The chosen workflow's noodle is already straight; the others straighten under the pointer
+                        initial={false}
+                        animate={selected ? 'straight' : 'tangled'}
+                        whileHover="straight"
+                        className="group/item flex w-full items-center gap-3 rounded-xl p-1.5 pr-3 text-left transition-[background-color,scale] duration-200 ease-spring hover:bg-white/[0.05] active:scale-[0.98] aria-[current=true]:bg-white/[0.07]"
                       >
-                        <span className="flex size-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06]">
-                          <NoodleGlyph className={cn('size-5', selected ? 'text-lime' : 'text-[#8a8b8c]')} />
+                        <span className="flex size-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] transition-colors duration-200 group-hover/item:bg-white/[0.09]">
+                          <NoodleGlyph
+                            className={cn(
+                              'size-5 transition-colors duration-200',
+                              selected ? 'text-lime' : 'text-[#8a8b8c] group-hover/item:text-white'
+                            )}
+                          />
                         </span>
                         <span className="flex min-w-0 flex-1 flex-col gap-1">
                           <span className="flex flex-wrap items-center gap-1.5">
@@ -96,7 +114,7 @@ export function WorkflowMenu({ workflows, value, onChange, className }: Workflow
                           <span className="truncate text-[13px] text-[#8a8b8c]">{workflow.description}</span>
                         </span>
                         {selected && <CheckIcon className="size-5 shrink-0 text-lime" />}
-                      </button>
+                      </m.button>
                     </li>
                   );
                 })}

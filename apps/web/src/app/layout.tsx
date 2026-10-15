@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Archivo, Geist, Geist_Mono } from 'next/font/google';
+import { MotionProvider } from '@/components/motion-provider';
 import { cn } from '@/lib/utils';
 import './globals.css';
 
@@ -23,7 +24,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={cn('dark', geist.variable, geistMono.variable, archivo.variable)}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <MotionProvider>{children}</MotionProvider>
+      </body>
     </html>
   );
 }
