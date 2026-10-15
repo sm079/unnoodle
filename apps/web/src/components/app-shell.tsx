@@ -6,10 +6,7 @@ import { m } from 'motion/react';
 import {
   ArchiveIcon,
   ArrowDownWideNarrowIcon,
-  AtSignIcon,
-  BellIcon,
   ChevronRightIcon,
-  GemIcon,
   HeartIcon,
   HouseIcon,
   MenuIcon,
@@ -22,7 +19,7 @@ import {
 import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import type { Project, User } from '@/lib/types';
+import type { Project } from '@/lib/types';
 
 interface NavItem {
   label: string;
@@ -36,17 +33,15 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Home', icon: HouseIcon, tile: 'from-[#d4d4d4] to-[#4d4d4d]', href: '/generate' },
   { label: 'My generations', icon: SparklesIcon, tile: 'from-[#8de7f5] to-[#2687b3]' },
-  { label: 'My elements', icon: AtSignIcon, tile: 'from-[#8db5ff] to-[#2c58d0]' },
   { label: 'My favorites', icon: HeartIcon, tile: 'from-[#ffa1cb] to-[#d23c7c]' }
 ];
 
 interface AppShellProps {
   projects: Project[];
-  user: User;
   children: ReactNode;
 }
 
-export function AppShell({ projects, user, children }: AppShellProps) {
+export function AppShell({ projects, children }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -58,7 +53,6 @@ export function AppShell({ projects, user, children }: AppShellProps) {
       >
         <SidebarBody
           projects={projects}
-          user={user}
           action={
             <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar" className={topButtonClass}>
               <PanelLeftIcon className="size-[18px]" />
@@ -79,7 +73,6 @@ export function AppShell({ projects, user, children }: AppShellProps) {
             <SheetTitle className="sr-only">Menu</SheetTitle>
             <SidebarBody
               projects={projects}
-              user={user}
               action={
                 <SheetClose aria-label="Close menu" className={topButtonClass}>
                   <XIcon className="size-[18px]" />
@@ -109,7 +102,7 @@ const label = cn('truncate', collapsible);
 
 const smallButtonClass = 'rounded-md p-1 transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-85';
 
-function SidebarBody({ projects, user, action }: { projects: Project[]; user: User; action: ReactNode }) {
+function SidebarBody({ projects, action }: { projects: Project[]; action: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2.5 pb-5 group-data-[collapsed=true]/sidebar:px-2.5">
       <div className="flex gap-1.5 group-data-[collapsed=true]/sidebar:flex-col">
@@ -192,7 +185,7 @@ function SidebarBody({ projects, user, action }: { projects: Project[]; user: Us
 
       <div className="mt-auto hidden flex-1 group-data-[collapsed=true]/sidebar:block" />
 
-      <button type="button" title="All projects" className={cn(rowClass, 'mb-3 hover:bg-sidebar-accent')}>
+      <button type="button" title="All projects" className={cn(rowClass, 'hover:bg-sidebar-accent')}>
         <IconTile className="border border-white/10 bg-linear-to-b from-[#3a3a3c] to-[#202022]">
           <ArchiveIcon className="size-[18px] text-white" />
         </IconTile>
@@ -201,38 +194,6 @@ function SidebarBody({ projects, user, action }: { projects: Project[]; user: Us
           className={cn(label, 'size-5 text-[#8a8a8a] transition-[translate,opacity,display] group-hover/row:translate-x-0.5')}
         />
       </button>
-
-      <div className="-mx-4 border-t group-data-[collapsed=true]/sidebar:-mx-2.5" />
-
-      <button type="button" title="Pricing" className={cn(rowClass, 'mt-3 bg-[#21131a] px-3 hover:bg-[#2a1720]')}>
-        <GemIcon className="size-5 shrink-0 text-[#ff2a6d] transition-[rotate,scale] duration-500 ease-spring-bouncy group-hover/row:scale-115 group-hover/row:rotate-12" />
-        <span className={cn(label, 'flex-1 text-left')}>Pricing</span>
-        <span
-          className={cn(label, 'rounded-full bg-linear-to-r from-[#ff1f6a] to-[#ff3dba] px-2 py-0.5 text-[13px] leading-tight font-bold')}
-        >
-          30% OFF
-        </span>
-      </button>
-
-      <div className="mt-2 flex items-center gap-2.5 px-2 group-data-[collapsed=true]/sidebar:justify-center">
-        <span
-          aria-hidden
-          className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#f6a35b] to-[#7a3d8c] text-sm font-bold ring-[2.5px] ring-lime ring-offset-2 ring-offset-background"
-        >
-          {user.name.slice(0, 1)}
-        </span>
-        <span className={cn(label, 'flex-1 text-[17px] font-semibold')}>{user.name}</span>
-        <button
-          type="button"
-          aria-label="Notifications"
-          className={cn(
-            label,
-            'group/bell flex size-[30px] items-center justify-center rounded-full bg-sidebar-accent text-[#9a9a9a] transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-90'
-          )}
-        >
-          <BellIcon className="size-4 origin-top motion-safe:group-hover/bell:animate-wiggle" />
-        </button>
-      </div>
     </div>
   );
 }

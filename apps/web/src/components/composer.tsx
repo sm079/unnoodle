@@ -1,25 +1,17 @@
 'use client';
 
-import { useRef, useState, type ChangeEvent, type ComponentType, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
 import {
-  ApertureIcon,
-  AtSignIcon,
-  CameraIcon,
   ChevronRightIcon,
   ClockIcon,
-  FilmIcon,
   FocusIcon,
   GemIcon,
   ImageIcon,
-  LampIcon,
   MinusIcon,
-  PaletteIcon,
   PlusIcon,
-  SlidersHorizontalIcon,
   SparkleIcon,
-  UserRoundIcon,
   VideoIcon,
   Volume2Icon,
   VolumeXIcon,
@@ -48,7 +40,6 @@ import type {
   GenerationParams,
   MediaType,
   Workflow,
-  WorkflowControl,
   WorkflowOptions
 } from '@/lib/types';
 
@@ -66,8 +57,6 @@ interface DraftInput extends GenerationInput {
 
 interface Draft extends ComposerDraft {
   inputs: DraftInput[];
-  /** The chosen option of each look control, by control id. Controls left out use their first option. */
-  look: Record<string, string>;
   /** Videos only. Not part of the request shape yet. */
   audio: boolean;
 }
@@ -79,14 +68,14 @@ const keyed = (input: GenerationInput): DraftInput => ({ ...input, key: `input-$
 
 const placeholders: Record<MediaType, string> = {
   image: 'Describe the image you want to create...',
-  video: 'Describe the shot - use @ to bring in characters and places'
+  video: 'Describe the video you want to create...'
 };
 
 export function Composer({ drafts, workflows, library }: ComposerProps) {
   const [mode, setMode] = useState<MediaType>('video');
   const [state, setState] = useState<Record<MediaType, Draft>>(() => ({
-    image: { ...drafts.image, inputs: drafts.image.inputs.map(keyed), look: {}, audio: false },
-    video: { ...drafts.video, inputs: drafts.video.inputs.map(keyed), look: {}, audio: true }
+    image: { ...drafts.image, inputs: drafts.image.inputs.map(keyed), audio: false },
+    video: { ...drafts.video, inputs: drafts.video.inputs.map(keyed), audio: true }
   }));
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -134,17 +123,6 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
     event.target.value = '';
   }
 
-  function insertMention() {
-    const field = promptRef.current;
-    if (!field) return;
-    const { selectionStart: start, selectionEnd: end } = field;
-    update({ prompt: `${draft.prompt.slice(0, start)}@${draft.prompt.slice(end)}` });
-    requestAnimationFrame(() => {
-      field.focus();
-      field.setSelectionRange(start + 1, start + 1);
-    });
-  }
-
   function submit(event: FormEvent) {
     // Nothing to send to until the API exists
     event.preventDefault();
@@ -153,12 +131,6 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
       shake(promptRef.current);
     }
   }
-
-  const looks = options.controls.map(control => ({
-    control,
-    value: draft.look[control.id] ?? control.options[0],
-    onChange: (value: string) => update({ look: { ...draft.look, [control.id]: value } })
-  }));
 
   return (
     <form onSubmit={submit} aria-label="Composer" className="flex w-full flex-col gap-1.5 lg:flex-row lg:items-end">
@@ -194,7 +166,7 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
         <AnimatePresence initial={false}>
           {mode === 'video' && (
             <m.div
-              key="looks"
+              key="references"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0, transition: { duration: 0.22, ease: easeOutQuint } }}
@@ -214,21 +186,6 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
                   </button>
                   <CardText label="References" value={`${draft.inputs.length}/${options.max_inputs}`} />
                 </div>
-                {looks.map((look, index) => (
-                  <LookMenu key={look.control.id} {...look}>
-                    <DropdownMenuTrigger
-                      style={enterDelay(index + 1)}
-                      className={cn(
-                        cardClass,
-                        enterClass,
-                        'group/card min-w-40 flex-1 text-left hover:bg-[#2e2f31] active:scale-[0.98] lg:max-w-[200px]'
-                      )}
-                    >
-                      <LookArt id={look.control.id} className="size-10 rounded-[10px]" />
-                      <CardText label={look.control.label} value={look.value} />
-                    </DropdownMenuTrigger>
-                  </LookMenu>
-                ))}
               </div>
             </m.div>
           )}
@@ -296,26 +253,15 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
             />
 
             <div className="-mx-3 no-scrollbar flex gap-[7px] overflow-x-auto px-3 lg:mx-0 lg:px-0">
-              <div className={cn(chipClass, 'gap-0 px-0 hover:bg-chip active:scale-100')}>
-                <button
-                  type="button"
-                  aria-label="Attach files"
-                  disabled={full}
-                  onClick={() => fileRef.current?.click()}
-                  className={cn(splitButtonClass, 'rounded-l-[10px]')}
-                >
-                  <PlusIcon />
-                </button>
-                <span className="h-4 w-px bg-white/15" />
-                <button
-                  type="button"
-                  aria-label="Mention an element"
-                  onClick={insertMention}
-                  className={cn(splitButtonClass, 'rounded-r-[10px]')}
-                >
-                  <AtSignIcon />
-                </button>
-              </div>
+              <button
+                type="button"
+                aria-label="Attach files"
+                disabled={full}
+                onClick={() => fileRef.current?.click()}
+                className={cn(chipClass, 'w-[35px] justify-center px-0')}
+              >
+                <PlusIcon />
+              </button>
               <LibraryPicker assets={library} disabled={full} onPick={asset => attach([asset])} />
               <WorkflowMenu workflows={modeWorkflows} value={workflow} onChange={chooseWorkflow} className={cn(chipClass, 'px-3')} />
               <OptionChip
@@ -383,26 +329,6 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
             </div>
           </div>
 
-          {mode === 'image' && looks.length > 0 && (
-            <div className="-mx-3 no-scrollbar flex gap-2 overflow-x-auto px-3 lg:mx-0 lg:px-0">
-              {looks.map((look, index) => (
-                <LookMenu key={look.control.id} {...look}>
-                  <DropdownMenuTrigger
-                    style={enterDelay(index)}
-                    className={cn(
-                      enterClass,
-                      'group/card relative flex h-24 w-[150px] shrink-0 flex-col items-start justify-end rounded-[14px] bg-linear-to-b from-[#3e3e40] to-[#262628] p-3 text-left ring-1 ring-white/[0.06] transition-[scale,--tw-gradient-from] duration-200 ease-out-quint outline-none hover:from-[#474749] focus-visible:ring-2 focus-visible:ring-white/30 active:scale-[0.97]'
-                    )}
-                  >
-                    <LookArt id={look.control.id} className="absolute top-2.5 right-2.5 size-8 rounded-full" />
-                    <span className="text-[13px] font-bold">{look.control.label}</span>
-                    <RollingValue value={look.value} className="max-w-full text-xs text-[#8a8b8c]" />
-                  </DropdownMenuTrigger>
-                </LookMenu>
-              ))}
-            </div>
-          )}
-
           <button
             type="submit"
             aria-label={`Generate, ${workflow.credits * draft.params.count} credits`}
@@ -430,13 +356,10 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
 // Controls dip slightly while pressed and spring back on release
 const chipClass =
   "flex h-[35px] shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-2.5 text-[15px] font-bold whitespace-nowrap text-white transition-[color,background-color,scale] duration-200 ease-spring outline-none hover:bg-[#3b3c3e] focus-visible:ring-2 focus-visible:ring-white/30 active:scale-[0.95] active:duration-100 disabled:opacity-40 data-[popup-open]:bg-[#3b3c3e] [&_svg:not([class*='size-'])]:size-[18px] [&_svg]:shrink-0";
-const splitButtonClass =
-  'flex h-full w-[35px] items-center justify-center transition-[background-color,scale] duration-200 ease-spring hover:bg-white/[0.06] active:scale-90 disabled:opacity-40';
 const cardClass =
   'flex h-[60px] items-center gap-2.5 rounded-[18px] bg-panel-raised px-2.5 transition-[background-color,scale] duration-200 ease-spring outline-none focus-visible:ring-2 focus-visible:ring-white/30';
 // Controls that come and go with the output type rise into place, one after another
 const enterClass = 'motion-safe:animate-rise [--rise-blur:3px] [--rise-distance:8px] [animation-duration:450ms]';
-const enterDelay = (index: number): CSSProperties => ({ animationDelay: `${index * 45}ms` });
 const easeOutQuint = [0.23, 1, 0.32, 1] as const;
 const menuClass =
   'rounded-2xl border border-white/[0.07] bg-[#25282c]/90 p-1.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-0 backdrop-blur-xl';
@@ -484,49 +407,6 @@ function CardText({ label, value }: { label: string; value: string }) {
       <span className="truncate font-mono text-[11px] text-[#6d6e70]">{label}</span>
       <RollingValue value={value} className="text-[17px] leading-tight font-bold" />
     </span>
-  );
-}
-
-const lookArt: Record<string, { icon: ComponentType<{ className?: string }>; tile: string }> = {
-  character: { icon: UserRoundIcon, tile: 'from-[#9273e0] to-[#36256a] text-white' },
-  lens: { icon: CameraIcon, tile: 'from-[#2f3344] to-[#08090d] text-[#9cb4ff]' },
-  film_setup: { icon: FilmIcon, tile: 'from-[#ebe9e2] to-[#8d8a82] text-[#37352f]' },
-  camera: { icon: ApertureIcon, tile: 'from-[#2b3b6e] to-[#090c18] text-[#8fb0ff]' },
-  color_palette: { icon: PaletteIcon, tile: 'from-[#a3922c] to-[#46531a] text-[#f5eca6]' },
-  lighting: { icon: LampIcon, tile: 'from-[#3f72d6] to-[#13234b] text-[#d3e2ff]' }
-};
-
-function LookArt({ id, className }: { id: string; className?: string }) {
-  const art = lookArt[id] ?? { icon: SlidersHorizontalIcon, tile: 'from-[#4a4b4e] to-[#26272a] text-white' };
-  return (
-    <span
-      className={cn(
-        'flex shrink-0 items-center justify-center bg-linear-to-br shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_1px_3px_rgb(0_0_0/0.5)] transition-[scale,rotate] duration-500 ease-spring-bouncy group-hover/card:scale-110 group-hover/card:-rotate-6 group-data-[popup-open]/card:scale-110 group-data-[popup-open]/card:-rotate-6',
-        art.tile,
-        className
-      )}
-    >
-      <art.icon className="size-1/2" />
-    </span>
-  );
-}
-
-function LookMenu({
-  control,
-  value,
-  onChange,
-  children
-}: {
-  control: WorkflowControl;
-  value: string;
-  onChange: (value: string) => void;
-  children: ReactNode;
-}) {
-  return (
-    <DropdownMenu>
-      {children}
-      <OptionList label={control.label} value={value} options={control.options} onChange={onChange} />
-    </DropdownMenu>
   );
 }
 

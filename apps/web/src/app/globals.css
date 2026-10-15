@@ -114,7 +114,6 @@
   --animate-pop: pop 450ms var(--ease-spring-bouncy);
   --animate-shake: shake 400ms var(--ease-out-quint);
   --animate-sheen: sheen 750ms var(--ease-in-out-quart);
-  --animate-wiggle: wiggle 600ms var(--ease-out-quint);
 
   @keyframes rise {
     from {
@@ -148,20 +147,6 @@
     }
     to {
       translate: 120%;
-    }
-  }
-  @keyframes wiggle {
-    20% {
-      rotate: 14deg;
-    }
-    40% {
-      rotate: -10deg;
-    }
-    60% {
-      rotate: 6deg;
-    }
-    80% {
-      rotate: -3deg;
     }
   }
 }

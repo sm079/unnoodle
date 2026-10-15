@@ -1,19 +1,7 @@
 // Mock data for building the UI before the API exists, in the same shapes the API will return (see types.ts).
 // There are no mock video files yet, so video assets point at their poster image.
 
-import type {
-  Asset,
-  ComposerDraft,
-  Generation,
-  GenerationParams,
-  MediaType,
-  Project,
-  Tag,
-  User,
-  Workflow,
-  WorkflowControl,
-  WorkflowOptions
-} from './types';
+import type { Asset, ComposerDraft, Generation, GenerationParams, MediaType, Project, Tag, Workflow, WorkflowOptions } from './types';
 
 const mockFiles = {
   'road-dusk': [1280, 720],
@@ -36,34 +24,13 @@ function video(id: string, poster: MockFile, duration_s: number, source: Asset['
   return { ...image(id, poster, source, created_at), media_type: 'video', duration_s };
 }
 
-// Look settings are placeholders until the workflows define real ones
-const characterControl: WorkflowControl = { id: 'character', label: 'Character', options: ['None', 'Mara', 'Theo', 'Kit'] };
-const lens: WorkflowControl = { id: 'lens', label: 'Lens', options: ['Auto', '24mm', '35mm', '50mm', '85mm'] };
-const filmSetup: WorkflowControl = {
-  id: 'film_setup',
-  label: 'Film setup',
-  options: ['Auto', 'Digital', '35mm film', '16mm film', 'Anamorphic']
-};
-const camera: WorkflowControl = { id: 'camera', label: 'Camera', options: ['Auto', 'Static', 'Dolly in', 'Orbit', 'Handheld', 'Crane up'] };
-const colorPalette: WorkflowControl = {
-  id: 'color_palette',
-  label: 'Color palette',
-  options: ['Auto', 'Warm', 'Cool', 'Teal and orange', 'Monochrome', 'Pastel']
-};
-const lighting: WorkflowControl = {
-  id: 'lighting',
-  label: 'Lighting',
-  options: ['Auto', 'Golden hour', 'Low key', 'High key', 'Neon', 'Overcast']
-};
-
 const imageOptions: WorkflowOptions = {
   aspect_ratios: ['1:1', '3:4', '4:3', '9:16', '16:9'],
   resolutions: ['1K', '2K'],
   durations_s: [],
   audio: false,
   max_count: 4,
-  max_inputs: 0,
-  controls: [characterControl, lens]
+  max_inputs: 0
 };
 
 const videoOptions: WorkflowOptions = {
@@ -72,8 +39,7 @@ const videoOptions: WorkflowOptions = {
   durations_s: [5, 8, 10],
   audio: true,
   max_count: 4,
-  max_inputs: 0,
-  controls: [filmSetup, camera, colorPalette, lighting]
+  max_inputs: 0
 };
 
 export const workflows: Workflow[] = [
@@ -107,7 +73,7 @@ export const workflows: Workflow[] = [
     capability: 'image.edit',
     description: 'Change part of an image and keep the rest',
     credits: 3,
-    options: { ...imageOptions, max_inputs: 1, controls: [lens, lighting] }
+    options: { ...imageOptions, max_inputs: 1 }
   },
   {
     id: 'ltx-2.5-t2v',
@@ -131,7 +97,7 @@ export const workflows: Workflow[] = [
     capability: 'video.keyframes',
     description: 'Move between keyframes placed on a timeline',
     credits: 30,
-    options: { ...videoOptions, resolutions: ['720p'], max_inputs: 8, controls: [camera, lighting] }
+    options: { ...videoOptions, resolutions: ['720p'], max_inputs: 8 }
   },
   {
     id: 'minimax-h3-first-last',
@@ -145,8 +111,7 @@ export const workflows: Workflow[] = [
       durations_s: [6, 10],
       audio: false,
       max_count: 2,
-      max_inputs: 2,
-      controls: [camera]
+      max_inputs: 2
     }
   },
   {
@@ -162,13 +127,10 @@ export const workflows: Workflow[] = [
       durations_s: [6],
       audio: false,
       max_count: 1,
-      max_inputs: 2,
-      controls: []
+      max_inputs: 2
     }
   }
 ];
-
-export const me: User = { id: 'usr_me', name: 'Robin', avatar_url: null };
 
 export const projects: Project[] = [
   { id: 'prj_film', name: 'Short film', created_at: '2026-10-08T10:00:00Z' },
