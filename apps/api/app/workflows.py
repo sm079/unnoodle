@@ -58,6 +58,8 @@ class JobInput:
     media_type: MediaType
     # Its name in ComfyUI's input folder, as LoadImage and LoadVideo take it
     file: str
+    # (width, height) in pixels, when known
+    size: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True)

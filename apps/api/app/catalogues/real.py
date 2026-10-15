@@ -8,7 +8,8 @@ Every node is part of ComfyUI itself, so a plain install with the models in plac
 
 from app.graph import Graph, Link
 from app.models import Capability, InputRole, MediaType, Quality
-from app.workflows import Accepts, Job, Workflow
+from app.video import CLIP_MEGAPIXELS
+from app.workflows import Accepts, Job, Workflow, size_for
 
 IMAGE_MEGAPIXELS = {Quality.LOW: 0.5, Quality.MEDIUM: 1.0, Quality.HIGH: 2.0}
 VIDEO_MEGAPIXELS = {Quality.LOW: 0.25, Quality.MEDIUM: 0.4, Quality.HIGH: 0.9}
@@ -123,10 +124,17 @@ def minimax_h3(job: Job) -> Graph:
             resolution_steps=1,
         )
         references[f"ref_images.ref_image_{n}"] = scaled[0]
-    for n, clip_file in enumerate(job.files(MediaType.VIDEO)):
-        loaded = g.add("LoadVideo", file=clip_file)
-        frames = g.add("GetVideoComponents", video=loaded[0])
-        references[f"ref_videos.ref_video_{n}"] = frames[0]
+    for n, reference in enumerate(i for i in job.inputs if i.media_type is MediaType.VIDEO):
+        loaded = g.add("LoadVideo", file=reference.file)
+        reference_frames: Link = g.add("GetVideoComponents", video=loaded[0])[0]
+        # Uploads are cut to this size already (app.video); videos made at high quality are bigger, and the node would
+        # keep them at up to about a megapixel, which makes every step several times slower
+        if reference.size is not None and reference.size[0] * reference.size[1] > CLIP_MEGAPIXELS * 1024 * 1024:
+            width, height = size_for(CLIP_MEGAPIXELS, reference.size, multiple=32)
+            reference_frames = g.add(
+                "ImageScale", image=reference_frames, upscale_method="area", width=width, height=height, crop="disabled"
+            )[0]
+        references[f"ref_videos.ref_video_{n}"] = reference_frames
 
     conditioned = g.add(
         "MiniMaxH3ReferenceToVideo",

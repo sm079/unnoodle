@@ -67,7 +67,8 @@ def run_job(
 
 def upload(store: MediaStore, comfy: Comfy, role: InputRole, asset: Asset) -> JobInput:
     data = store.path(asset.storage_key).read_bytes()
-    return JobInput(role, asset.media_type, comfy.upload(data, f"{asset.id}{PurePath(asset.storage_key).suffix}"))
+    name = comfy.upload(data, f"{asset.id}{PurePath(asset.storage_key).suffix}")
+    return JobInput(role, asset.media_type, name, (asset.width, asset.height))
 
 
 def job_for(generation: Generation, workflow: Workflow, inputs: tuple[JobInput, ...]) -> Job:

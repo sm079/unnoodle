@@ -115,7 +115,8 @@ def test_the_real_graphs_are_valid_apart_from_the_models(comfyui_url: str, refer
 
 def video_job(prompt: str, photos: list[str], clips: list[str], frames: int) -> Job:
     attached = [JobInput(InputRole.REFERENCE, MediaType.IMAGE, p) for p in photos]
-    attached += [JobInput(InputRole.REFERENCE, MediaType.VIDEO, c) for c in clips]
+    # Sized like a video made at high quality, so the graph scales them down too
+    attached += [JobInput(InputRole.REFERENCE, MediaType.VIDEO, c, (1280, 720)) for c in clips]
     return replace(job(prompt, size=(256, 448)), frames=frames, inputs=tuple(attached))
 
 
