@@ -38,7 +38,7 @@ def test_the_output_type_and_input_roles_decide_the_capability(
     ("media_type", "roles", "message"),
     [
         (IMAGE, [START], "A start frame can't be used to make an image"),
-        (VIDEO, [EDIT], "A edit target can't be used to make a video"),
+        (VIDEO, [EDIT], "An edit target can't be used to make a video"),
         (IMAGE, [EDIT, EDIT], "Nothing makes an image from 2 edit targets"),
         (IMAGE, [RESTYLE, REF], "Nothing makes an image from 1 restyle and 1 reference"),
         (VIDEO, [END], "Nothing makes a video from 1 end frame"),

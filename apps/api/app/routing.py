@@ -45,7 +45,7 @@ def capability_for(media_type: MediaType, roles: Iterable[InputRole]) -> Capabil
     counts = Counter(roles)
     present = set(counts)
     for role in sorted(present - ROLES_FOR[media_type]):
-        raise RoutingError(f"A {words(role)} can't be used to make {A_MEDIA[media_type]}")
+        raise RoutingError(f"{article(words(role)).capitalize()} can't be used to make {A_MEDIA[media_type]}")
 
     if media_type is MediaType.IMAGE:
         if not present:
@@ -96,3 +96,7 @@ def words(role: InputRole) -> str:
 
 def inputs_phrase(role: InputRole, count: int) -> str:
     return f"{count} {words(role)}" + ("s" if count != 1 else "")
+
+
+def article(noun: str) -> str:
+    return f"{'an' if noun[0] in 'aeiou' else 'a'} {noun}"
