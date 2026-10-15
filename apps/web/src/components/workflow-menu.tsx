@@ -16,14 +16,16 @@ interface WorkflowMenuProps {
   models: Workflow[];
   /** Where the request goes now, or null when the inputs route nowhere. */
   value: Workflow | null;
+  /** Shown in place of the route while there is none. */
+  emptyLabel: string;
   onChange: (workflow: Workflow) => void;
   className?: string;
 }
 
 /** Shows where the request goes, as "capability · model", and lets the user pick another model that does the same. */
-export function WorkflowMenu({ models, value, onChange, className }: WorkflowMenuProps) {
+export function WorkflowMenu({ models, value, emptyLabel, onChange, className }: WorkflowMenuProps) {
   const [open, setOpen] = useState(false);
-  const label = value ? `${capabilityLabels[value.capability]} · ${value.model_name}` : 'No route';
+  const label = value ? `${capabilityLabels[value.capability]} · ${value.model_name}` : emptyLabel;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -43,13 +45,13 @@ export function WorkflowMenu({ models, value, onChange, className }: WorkflowMen
           side="top"
           align="start"
           sideOffset={10}
-          className="w-[min(500px,calc(100vw-2rem))] gap-0 overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#25282c]/85 p-0 shadow-[0_24px_60px_rgb(0_0_0/0.6)] ring-0 backdrop-blur-2xl"
+          className="w-[min(31rem,calc(100vw-2rem))] gap-0 overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#25282c]/85 p-0 shadow-[0_24px_60px_rgb(0_0_0/0.6)] ring-0 backdrop-blur-2xl"
         >
           <section
             aria-label={capabilityLabels[value.capability]}
-            className="max-h-[min(460px,var(--available-height))] overflow-y-auto p-2"
+            className="max-h-[min(28rem,var(--available-height))] overflow-y-auto p-2"
           >
-            <h3 className="flex items-center gap-2 px-2 py-2 text-[15px] text-[#8a8b8c]">
+            <h3 className="flex items-center gap-2 px-2 py-2 text-sm text-[#8a8b8c]">
               <SparkleIcon className="size-4 fill-current" />
               {capabilityLabels[value.capability]}
             </h3>
@@ -71,7 +73,7 @@ export function WorkflowMenu({ models, value, onChange, className }: WorkflowMen
                       whileHover="straight"
                       className="group/item flex w-full items-center gap-3 rounded-xl p-1.5 pr-3 text-left transition-[background-color,scale] duration-200 ease-spring hover:bg-white/[0.05] active:scale-[0.98] aria-[current=true]:bg-white/[0.07]"
                     >
-                      <span className="flex size-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] transition-colors duration-200 group-hover/item:bg-white/[0.09]">
+                      <span className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-white/[0.06] transition-colors duration-200 group-hover/item:bg-white/[0.09]">
                         <NoodleGlyph
                           className={cn(
                             'size-5 transition-colors duration-200',
@@ -81,14 +83,17 @@ export function WorkflowMenu({ models, value, onChange, className }: WorkflowMen
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col gap-1">
                         <span className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-[15px] font-semibold">{workflow.model_name}</span>
+                          <span className="text-sm font-semibold">{workflow.model_name}</span>
                           {workflowTags(workflow).map(tag => (
-                            <span key={tag} className="rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[11px] leading-none text-[#9a9b9c]">
+                            <span
+                              key={tag}
+                              className="rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[0.6875rem] leading-none text-[#9a9b9c]"
+                            >
                               {tag}
                             </span>
                           ))}
                         </span>
-                        <span className="truncate text-[13px] text-[#8a8b8c]">{workflow.description}</span>
+                        <span className="truncate text-[0.8125rem] text-[#8a8b8c]">{workflow.description}</span>
                       </span>
                       {selected && <CheckIcon className="size-5 shrink-0 text-lime" />}
                     </m.button>

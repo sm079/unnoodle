@@ -13,11 +13,23 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, 'page scrolls sideways').toBe(0);
 
+  // Docked at the bottom, leaving most of the screen to the content, with the output type beside Generate
+  const viewport = page.viewportSize()!;
+  const form = (await composer.boundingBox())!;
+  expect(form.y + form.height, 'composer docked at the bottom').toBeGreaterThan(viewport.height - 40);
+  expect(form.height, 'composer height').toBeLessThan(viewport.height / 3);
+  const toggle = (await composer.getByRole('group', { name: 'Output type' }).boundingBox())!;
+  const generate = (await composer.getByRole('button', { name: 'Generate' }).boundingBox())!;
+  expect(Math.abs(toggle.y + toggle.height / 2 - (generate.y + generate.height / 2)), 'toggle in the Generate row').toBeLessThan(4);
+
+  // Starts on images
+  await expect(composer.getByRole('button', { name: 'Route: Text to image · Flux Klein 9B' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: /^Duration/ })).toHaveCount(0);
+  await composer.getByRole('button', { name: 'Video', exact: true }).click();
   await expect(composer.getByRole('button', { name: 'Route: Text to video · LTX 2.5' })).toBeVisible();
   await expect(composer.getByRole('button', { name: /^Duration/ })).toBeVisible();
   await composer.getByRole('button', { name: 'Image', exact: true }).click();
   await expect(composer.getByRole('button', { name: 'Route: Text to image · Flux Klein 9B' })).toBeVisible();
-  await expect(composer.getByRole('button', { name: /^Duration/ })).toHaveCount(0);
 
   // Another model that does the same
   await composer.getByRole('button', { name: /^Route/ }).click();
@@ -30,10 +42,12 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   await expect(composer.getByRole('button', { name: 'Role: Edit' })).toBeVisible();
   await expect(composer.getByRole('button', { name: 'Route: Edit image · Flux Klein 9B' })).toBeVisible();
 
-  // As a reference it routes nowhere: nothing makes an image from references alone yet
+  // As a reference it routes nowhere: nothing makes an image from references alone yet. The route chip says so, and
+  // nothing is written under the composer, which is for errors.
   await composer.getByRole('button', { name: 'Role: Edit' }).click();
   await page.getByRole('menuitemradio', { name: 'Reference' }).click();
-  await expect(composer.getByRole('status')).toHaveText('No workflow does image.multi_ref yet');
+  await expect(composer.getByRole('button', { name: 'Route: Not available yet' })).toBeDisabled();
+  await expect(composer.getByRole('status')).toHaveCount(0);
   await expect(composer.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'true');
 
   await page.getByRole('button', { name: 'Open menu' }).click();
@@ -43,6 +57,7 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
 test('Generate sends the inputs with their roles and lets the API pick the workflow', async ({ page }) => {
   await page.goto('/generate');
   const composer = page.getByRole('form', { name: 'Composer' });
+  await composer.getByRole('button', { name: 'Video', exact: true }).click();
   await composer.getByRole('button', { name: 'Add from library' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Attach image ast_character' }).click();
   await composer.getByRole('textbox', { name: 'Prompt' }).fill('she turns around');
