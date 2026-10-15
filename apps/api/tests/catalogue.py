@@ -39,8 +39,7 @@ IMAGE = workflow("t2i", Capability.IMAGE_GENERATE, max_count=4, aspect_ratios=("
 EDIT = workflow(
     "edit",
     Capability.IMAGE_EDIT,
-    aspect_ratios=None,
-    accepts=(Accepts(InputRole.EDIT_TARGET, MediaType.IMAGE, 1), Accepts(InputRole.REFERENCE, MediaType.IMAGE, 2)),
+    accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
 )
 VIDEO = workflow(
     "video",

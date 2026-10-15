@@ -39,7 +39,7 @@ class InputIn(BaseModel):
 
 class Params(BaseModel):
     quality: Quality = Quality.MEDIUM
-    # One the workflow offers. Left out when the output takes its shape from a photo, as an edit does.
+    # One the workflow offers, or left out for the shape of the first attachment
     aspect_ratio: AspectRatio | None = None
     # Videos only, in seconds, one the workflow offers
     duration_s: int | None = None
@@ -130,7 +130,7 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
         assets = attached_assets(session, body.inputs)
         attached = [(i.role, assets[i.asset_id].media_type) for i in body.inputs]
         workflow = route(workflows.values(), body.media_type, attached, body.model)
-        check_params(workflow, body.params)
+        check_params(workflow, body.params, attached=len(body.inputs))
         if body.project_id is not None and session.get(Project, body.project_id) is None:
             raise RequestError("That project no longer exists")
     except (RoutingError, RequestError) as error:
@@ -178,12 +178,11 @@ def get_generation(generation_id: uuid.UUID, session: SessionDep) -> GenerationO
     return GenerationOut.of(generation)
 
 
-def check_params(workflow: Workflow, params: Params) -> None:
-    shapes = workflow.aspect_ratios
-    if shapes is None and params.aspect_ratio is not None:
-        raise RequestError("An edit keeps the shape of the photo being edited")
-    if shapes is not None and params.aspect_ratio not in shapes:
-        raise RequestError("Pick a shape" if params.aspect_ratio is None else "That shape isn't offered here")
+def check_params(workflow: Workflow, params: Params, attached: int) -> None:
+    if params.aspect_ratio is None and not attached:
+        raise RequestError("Pick a shape")
+    if params.aspect_ratio is not None and params.aspect_ratio not in workflow.aspect_ratios:
+        raise RequestError("That shape isn't offered here")
     if params.count > workflow.max_count:
         raise RequestError(f"This makes at most {workflow.max_count} at a time")
     if workflow.media_type is MediaType.VIDEO:

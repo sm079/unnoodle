@@ -22,7 +22,6 @@ REFERENCE_MEGAPIXELS = 1.0
 
 
 def krea2(job: Job) -> Graph:
-    assert job.size is not None
     width, height = job.size
     g = Graph()
     model = g.add("UNETLoader", unet_name="krea2_turbo_fp8_scaled.safetensors", weight_dtype="default")
@@ -51,34 +50,31 @@ def krea2(job: Job) -> Graph:
 
 
 def klein(job: Job) -> Graph:
-    """An edit of the first photo, with the others as references. Each photo is encoded and attached to the
-    prompt in turn, so the model knows them as image 1, image 2 and image 3; the result has the first one's shape."""
+    """A picture from one to three photos: a change to one, or a mix of several, as the prompt says. Each photo is
+    encoded and attached to the prompt in turn, so the model knows them as image 1, image 2 and image 3."""
+    width, height = job.size
     g = Graph()
     model = g.add("UNETLoader", unet_name="flux-2-klein-9b-fp8.safetensors", weight_dtype="default")
     clip = g.add("CLIPLoader", clip_name="qwen_3_8b_fp8mixed.safetensors", type="flux2", device="default")
     vae = g.add("VAELoader", vae_name="flux2-vae.safetensors")
-    positive: Link = g.add("CLIPTextEncode", text=job.prompt_with(photo="image {n}", edit=True), clip=clip[0])[0]
+    positive: Link = g.add("CLIPTextEncode", text=job.prompt_with(photo="image {n}"), clip=clip[0])[0]
     negative: Link = g.add("ConditioningZeroOut", conditioning=positive)[0]
 
-    target: Link | None = None
-    for n, photo in enumerate(job.photos(edit=True)):
-        loaded = g.add("LoadImage", image=photo.file)
+    for photo in job.files(MediaType.IMAGE):
+        loaded = g.add("LoadImage", image=photo)
         scaled = g.add(
             "ImageScaleToTotalPixels",
             image=loaded[0],
             upscale_method="lanczos",
-            megapixels=job.megapixels if n == 0 else min(job.megapixels, REFERENCE_MEGAPIXELS),
+            megapixels=REFERENCE_MEGAPIXELS,
             resolution_steps=16,
         )
         latent = g.add("VAEEncode", pixels=scaled[0], vae=vae[0])
         positive = g.add("ReferenceLatent", conditioning=positive, latent=latent[0])[0]
         negative = g.add("ReferenceLatent", conditioning=negative, latent=latent[0])[0]
-        target = target or scaled[0]
-    assert target is not None, "an edit needs a photo"
 
-    size = g.add("GetImageSize", image=target)
-    latent = g.add("EmptyFlux2LatentImage", width=size[0], height=size[1], batch_size=job.count)
-    sigmas = g.add("Flux2Scheduler", steps=4, width=size[0], height=size[1])
+    latent = g.add("EmptyFlux2LatentImage", width=width, height=height, batch_size=job.count)
+    sigmas = g.add("Flux2Scheduler", steps=4, width=width, height=height)
     guider = g.add("CFGGuider", model=model[0], positive=positive, negative=negative, cfg=1)
     noise = g.add("RandomNoise", noise_seed=job.seed)
     sampler = g.add("KSamplerSelect", sampler_name="euler")
@@ -96,9 +92,9 @@ def klein(job: Job) -> Graph:
 
 
 def minimax_h3(job: Job) -> Graph:
-    """A video with sound. Attached photos and clips are references the prompt can name ("the coat in photo 2"); with
+    """A video with sound. Attached photos and clips are references the prompt can name ("the coat in @photo2"); with
     none it is text to video. Uploaded clips are already at 24 frames a second, which the model expects."""
-    assert job.size is not None and job.frames is not None
+    assert job.frames is not None
     width, height = job.size
     g = Graph()
     model = g.add("UNETLoader", unet_name="minimax_h3_ref2va_pruned_int8_convrot.safetensors", weight_dtype="default")
@@ -188,11 +184,10 @@ WORKFLOWS = [
         capabilities=frozenset({Capability.IMAGE_EDIT}),
         model="flux-2-klein",
         model_name="FLUX.2 Klein",
-        description="Changes a photo, optionally using up to two more",
+        description="Changes or combines up to three photos",
         build=klein,
         megapixels=IMAGE_MEGAPIXELS,
-        aspect_ratios=None,
-        accepts=(Accepts(InputRole.EDIT_TARGET, MediaType.IMAGE, 1), Accepts(InputRole.REFERENCE, MediaType.IMAGE, 2)),
+        accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
     ),
     Workflow(
         id="minimax-h3",

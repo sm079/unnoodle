@@ -8,11 +8,11 @@ from app.catalogues import real
 from app.main import create_app
 from app.models import Capability, InputRole, MediaType, Quality
 from app.settings import Settings
-from app.workflows import Job, JobInput, WorkflowError, check_catalogue, load_workflows, size_for
+from app.workflows import Job, JobInput, WorkflowError, check_catalogue, load_workflows, ratio_of, size_for
 from tests.catalogue import IMAGE, VIDEO, catalogue, node_of
 
 PHOTO, CLIP = MediaType.IMAGE, MediaType.VIDEO
-EDIT_TARGET, REFERENCE = InputRole.EDIT_TARGET, InputRole.REFERENCE
+REFERENCE = InputRole.REFERENCE
 
 
 @pytest.mark.parametrize("name", ["dev", "real"])
@@ -41,7 +41,7 @@ def test_an_unknown_catalogue_is_refused() -> None:
 def test_sizes_follow_the_resolution_selector(
     megapixels: float, aspect_ratio: str, multiple: int, size: tuple[int, int]
 ) -> None:
-    assert size_for(megapixels, aspect_ratio, multiple) == size
+    assert size_for(megapixels, ratio_of(aspect_ratio), multiple) == size
 
 
 def job(*inputs: tuple[InputRole, MediaType], prompt: str = "a prompt", **fields: Any) -> Job:
@@ -61,10 +61,10 @@ def job(*inputs: tuple[InputRole, MediaType], prompt: str = "a prompt", **fields
 
 
 def test_mentions_of_attachments_are_reworded_for_the_model() -> None:
-    prompt = "the woman in photo 1 wearing the dress from Photo 2, moving like clip 1, not like photo 3 or clip2"
-    j = job((EDIT_TARGET, PHOTO), (REFERENCE, CLIP), (REFERENCE, PHOTO), prompt=prompt)
+    prompt = "the woman in @photo1 wearing the dress from @Photo2, moving like @clip1, not @photo3 or photo 2"
+    j = job((REFERENCE, PHOTO), (REFERENCE, CLIP), (REFERENCE, PHOTO), prompt=prompt)
     assert j.prompt_with(photo="<Picture {n}>", clip="<Video {n}>") == (
-        "the woman in <Picture 1> wearing the dress from <Picture 2>, moving like <Video 1>, not like photo 3 or clip2"
+        "the woman in <Picture 1> wearing the dress from <Picture 2>, moving like <Video 1>, not @photo3 or photo 2"
     )
 
 
@@ -77,7 +77,6 @@ BROKEN: list[tuple[str, dict[str, Any], str]] = [
     ),
     ("edit without a photo", {"capabilities": frozenset({Capability.IMAGE_EDIT})}, "image.edit needs it to accept"),
     ("missing quality", {"megapixels": {Quality.LOW: 0.5}}, "megapixels for low, medium and high"),
-    ("shape from nothing", {"aspect_ratios": None}, "only a workflow that edits a photo can take its shape"),
     ("image with lengths", {"frames": {5: 124}}, "lengths and sound are for videos"),
 ]
 
@@ -106,11 +105,7 @@ def test_the_api_lists_workflows_with_what_the_composer_offers(settings: Setting
     with TestClient(create_app(settings, catalogue())) as client:
         listed = {w["id"]: w for w in client.get("/workflows").json()}
     assert listed["t2i"]["aspect_ratios"] == ["1:1", "3:4"]
-    assert listed["edit"]["aspect_ratios"] == []
-    assert listed["edit"]["accepts"] == [
-        {"role": "edit_target", "media_type": "image", "most": 1},
-        {"role": "reference", "media_type": "image", "most": 2},
-    ]
+    assert listed["edit"]["accepts"] == [{"role": "reference", "media_type": "image", "most": 3}]
     video = listed["video"]
     assert (video["capabilities"], video["default_for"]) == (["video.generate", "video.reference"],) * 2
     assert (video["durations_s"], video["sound"], video["max_count"]) == ([5, 10], True, 1)
@@ -138,35 +133,24 @@ def test_krea_makes_the_size_and_count_asked_for() -> None:
 
 @pytest.mark.parametrize("references", [0, 1, 2])
 def test_klein_chains_every_photo_onto_the_prompt(references: int) -> None:
-    photos = [(EDIT_TARGET, PHOTO)] + [(REFERENCE, PHOTO)] * references
-    built = real.klein(job(*photos, prompt="photo 1 wearing the coat in photo 2", size=None, megapixels=2.0))
+    photos = [(REFERENCE, PHOTO)] * (references + 1)
+    built = real.klein(job(*photos, prompt="@photo1 wearing the coat in @photo2", size=(1152, 896)))
     graph = built.nodes
     loads = [n for n in graph.values() if n["class_type"] == "LoadImage"]
     assert [n["inputs"]["image"] for n in loads] == [f"unnoodle/{n}.png" for n in range(len(photos))]
     # Each photo goes onto both the prompt and the empty negative
     assert sum(n["class_type"] == "ReferenceLatent" for n in graph.values()) == 2 * len(photos)
-    scales = [n["inputs"] for n in graph.values() if n["class_type"] == "ImageScaleToTotalPixels"]
-    assert [s["megapixels"] for s in scales] == [2.0] + [1.0] * references
-    # The output takes its size from the photo being edited
-    size_from = node_of(graph, "GetImageSize")["image"][0]
-    assert graph[size_from]["inputs"]["image"][0] == next(k for k, n in graph.items() if n["class_type"] == "LoadImage")
+    assert node_of(graph, "EmptyFlux2LatentImage") == {"width": 1152, "height": 896, "batch_size": 1}
+    assert node_of(graph, "Flux2Scheduler") == {"steps": 4, "width": 1152, "height": 896}
     text = node_of(graph, "CLIPTextEncode")["text"]
-    assert text == ("image 1 wearing the coat in image 2" if references else "image 1 wearing the coat in photo 2")
+    assert text == ("image 1 wearing the coat in image 2" if references else "image 1 wearing the coat in @photo2")
     assert built.output_node is not None and graph[built.output_node]["class_type"] == "SaveImage"
     assert all(node_id in graph for node_id, _ in links(graph))
 
 
-def test_an_edit_puts_the_photo_to_edit_first_whatever_the_order_attached() -> None:
-    j = job((REFERENCE, PHOTO), (EDIT_TARGET, PHOTO), prompt="the hat from photo 1 on the man in photo 2", size=None)
-    graph = real.klein(j).nodes
-    loads = [n["inputs"]["image"] for n in graph.values() if n["class_type"] == "LoadImage"]
-    assert loads == ["unnoodle/1.png", "unnoodle/0.png"]
-    assert node_of(graph, "CLIPTextEncode")["text"] == "the hat from image 2 on the man in image 1"
-
-
 def test_minimax_gives_each_photo_and_clip_its_place_and_tag() -> None:
     attached = [(REFERENCE, CLIP), (REFERENCE, PHOTO), (REFERENCE, PHOTO)]
-    prompt = "the man in photo 2 dances like clip 1 next to photo 1"
+    prompt = "the man in @photo2 dances like @clip1 next to @photo1"
     graph = real.minimax_h3(job(*attached, prompt=prompt, size=(480, 864), frames=243)).nodes
     node = node_of(graph, "MiniMaxH3ReferenceToVideo")
     assert (node["width"], node["height"], node["length"]) == (480, 864, 243)

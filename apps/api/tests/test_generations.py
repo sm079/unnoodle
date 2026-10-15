@@ -82,14 +82,19 @@ def test_a_seed_sent_in_is_kept(client: TestClient) -> None:
     assert g["params"]["seed"] == 2**40
 
 
-def test_a_photo_to_edit_queues_an_edit_with_no_shape(client: TestClient) -> None:
-    photo, reference = upload(client), upload(client)
-    inputs = [{"asset_id": photo, "role": "edit_target"}, {"asset_id": reference, "role": "reference"}]
+def test_photos_queue_an_edit_in_the_first_ones_shape(client: TestClient) -> None:
+    photo, other = upload(client), upload(client)
+    inputs = [{"asset_id": photo, "role": "reference"}, {"asset_id": other, "role": "reference"}]
     response = client.post("/generations", json=edit_request(inputs))
     assert response.status_code == 201
     g = response.json()
     assert (g["capability"], g["workflow_id"], g["params"]["aspect_ratio"]) == ("image.edit", "edit", None)
-    assert [(i["role"], i["asset"]["id"]) for i in g["inputs"]] == [("edit_target", photo), ("reference", reference)]
+    assert [i["asset"]["id"] for i in g["inputs"]] == [photo, other]
+
+
+def test_an_edit_can_take_another_shape(client: TestClient) -> None:
+    g = client.post("/generations", json=edit_request(photos(client), aspect_ratio="1:1")).json()
+    assert g["params"]["aspect_ratio"] == "1:1"
 
 
 def test_references_queue_video_from_references(client: TestClient, engine: Engine) -> None:
@@ -115,31 +120,22 @@ def test_an_unknown_generation_is_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def photo_to_edit(client: TestClient) -> list[dict[str, Any]]:
-    return [{"asset_id": upload(client), "role": "edit_target"}]
+def photos(client: TestClient, count: int = 1) -> list[dict[str, Any]]:
+    return [{"asset_id": upload(client), "role": "reference"} for _ in range(count)]
 
 
 REFUSED: list[tuple[str, Any, str]] = [
     ("no shape", lambda c: image_request(params={"aspect_ratio": None}), "Pick a shape"),
     ("shape not offered", lambda c: image_request(params={"aspect_ratio": "16:9"}), "That shape isn't offered here"),
-    (
-        "shape for an edit",
-        lambda c: edit_request(photo_to_edit(c), aspect_ratio="1:1"),
-        "An edit keeps the shape of the photo being edited",
-    ),
     ("too many outputs", lambda c: image_request(params={"count": 5}), "This makes at most 4 at a time"),
     ("image with a length", lambda c: image_request(params={"duration_s": 5}), "Only videos have a length"),
     ("length not offered", lambda c: video_request([], duration_s=8), "Videos can be 5 or 10 seconds long"),
-    (
-        "no photo to edit",
-        lambda c: edit_request([{"asset_id": upload(c), "role": "reference"}]),
-        "Pick the photo to edit",
-    ),
+    ("too many photos", lambda c: edit_request(photos(c, 4)), "Making a picture from photos takes at most 3 photos"),
     ("unknown model", lambda c: image_request(model="flux"), "Making a picture isn't available with that model"),
     (
         "too many references",
         lambda c: video_request([{"asset_id": upload(c), "role": "reference"} for _ in range(3)]),
-        "Making a video takes at most 2 reference photos",
+        "Making a video takes at most 2 photos",
     ),
     (
         "missing file",

@@ -12,6 +12,7 @@ checked as they load, so a mistake in one stops the API from starting rather tha
 import importlib
 import math
 import re
+from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Annotated, Literal, get_args
@@ -29,13 +30,13 @@ ASPECT_RATIOS: tuple[AspectRatio, ...] = get_args(AspectRatio)
 # The roles a capability can't do without
 REQUIRED_ROLES: dict[Capability, set[InputRole]] = {
     Capability.IMAGE_GENERATE: set(),
-    Capability.IMAGE_EDIT: {InputRole.EDIT_TARGET},
+    Capability.IMAGE_EDIT: {InputRole.REFERENCE},
     Capability.VIDEO_GENERATE: set(),
     Capability.VIDEO_REFERENCE: {InputRole.REFERENCE},
 }
 
-# How the composer labels attachments and how people mention them in a prompt: "the dress from photo 2"
-MENTION = re.compile(r"\b(photo|clip)\s*(\d+)\b", re.IGNORECASE)
+# How people mention an attachment in a prompt: "the dress from @photo2", "moving like @clip1"
+MENTION = re.compile(r"@([a-z0-9_]+)", re.IGNORECASE)
 
 
 class WorkflowError(Exception):
@@ -67,8 +68,8 @@ class Job:
     seed: int
     # The output's area in megapixels, from the quality
     megapixels: float
-    # (width, height) in pixels, or None when the output takes its shape from the first photo
-    size: tuple[int, int] | None
+    # (width, height) in pixels: the shape asked for, or the first attachment's, at the quality's area
+    size: tuple[int, int]
     count: int
     # Videos only
     frames: int | None
@@ -80,28 +81,29 @@ class Job:
     def files(self, media_type: MediaType, role: InputRole | None = None) -> list[str]:
         return [i.file for i in self.inputs if i.media_type is media_type and role in (None, i.role)]
 
-    def photos(self, edit: bool = False) -> list[JobInput]:
-        """The attached photos in the order they were attached, or as an edit model numbers them: the photo to edit
-        first, then the references in the order they were attached."""
-        photos = [i for i in self.inputs if i.media_type is MediaType.IMAGE]
-        return sorted(photos, key=lambda i: i.role is not InputRole.EDIT_TARGET) if edit else photos
+    def handles(self) -> dict[str, tuple[MediaType, int]]:
+        """What each attachment is called in the prompt, with its kind and its number among that kind: photo1,
+        photo2 and clip1 for two photos and a clip. Photos and clips are numbered separately, in the order they were
+        attached, which is also the order builders hand them to the model."""
+        handles: dict[str, tuple[MediaType, int]] = {}
+        counts: Counter[MediaType] = Counter()
+        for i in self.inputs:
+            counts[i.media_type] += 1
+            word = "photo" if i.media_type is MediaType.IMAGE else "clip"
+            handles[f"{word}{counts[i.media_type]}"] = (i.media_type, counts[i.media_type])
+        return handles
 
-    def prompt_with(self, photo: str, clip: str = "clip {n}", edit: bool = False) -> str:
-        """The prompt with "photo 2" and "clip 1" in the words the model was trained on, e.g. photo="image {n}".
-        People number photos and clips separately, in the order they attached them; the model numbers them in the
-        order it gets them, which for an edit puts the photo to edit first. A mention of one that isn't attached
-        stays as it was."""
-        clips = [i for i in self.inputs if i.media_type is MediaType.VIDEO]
-        attached = {"photo": self.photos(), "clip": clips}
-        model_order = {"photo": self.photos(edit), "clip": clips}
-        wording = {"photo": photo, "clip": clip}
+    def prompt_with(self, photo: str, clip: str = "clip {n}") -> str:
+        """The prompt with each mention ("@photo2", "@clip1") in the words the model was trained on, e.g.
+        photo="image {n}". A mention of something that isn't attached stays as it was typed."""
+        handles = self.handles()
 
         def reword(mention: re.Match[str]) -> str:
-            kind, number = mention.group(1).lower(), int(mention.group(2))
-            if not 1 <= number <= len(attached[kind]):
+            found = handles.get(mention.group(1).lower())
+            if found is None:
                 return mention.group(0)
-            meant = attached[kind][number - 1]
-            return wording[kind].format(n=next(n for n, i in enumerate(model_order[kind], 1) if i is meant))
+            kind, number = found
+            return (photo if kind is MediaType.IMAGE else clip).format(n=number)
 
         return MENTION.sub(reword, self.prompt)
 
@@ -121,8 +123,8 @@ class Workflow:
     build: Builder
     # The output's area at each quality
     megapixels: Mapping[Quality, float]
-    # The shapes offered. None: the output takes its shape from the first photo, as an edit does.
-    aspect_ratios: tuple[AspectRatio, ...] | None = ASPECT_RATIOS
+    # The shapes offered. A request with attachments can also take the first one's shape.
+    aspect_ratios: tuple[AspectRatio, ...] = ASPECT_RATIOS
     # Width and height are rounded to a multiple of this
     multiple: int = 16
     accepts: tuple[Accepts, ...] = ()
@@ -141,13 +143,19 @@ class Workflow:
     def most(self, role: InputRole, media_type: MediaType) -> int:
         return next((a.most for a in self.accepts if (a.role, a.media_type) == (role, media_type)), 0)
 
-    def size(self, quality: Quality, aspect_ratio: AspectRatio) -> tuple[int, int]:
+    def size(self, quality: Quality, ratio: tuple[int, int]) -> tuple[int, int]:
         """Width and height for a quality and a shape, worked out as ComfyUI's Resolution Selector does."""
-        return size_for(self.megapixels[quality], aspect_ratio, self.multiple)
+        return size_for(self.megapixels[quality], ratio, self.multiple)
 
 
-def size_for(megapixels: float, aspect_ratio: str, multiple: int) -> tuple[int, int]:
-    w, h = (int(part) for part in aspect_ratio.split(":"))
+def ratio_of(aspect_ratio: str) -> tuple[int, int]:
+    """ "3:4" -> (3, 4)"""
+    w, h = aspect_ratio.split(":")
+    return int(w), int(h)
+
+
+def size_for(megapixels: float, ratio: tuple[int, int], multiple: int) -> tuple[int, int]:
+    w, h = ratio
     scale = math.sqrt(megapixels * 1024 * 1024 / (w * h))
     return round(w * scale / multiple) * multiple, round(h * scale / multiple) * multiple
 
@@ -177,8 +185,6 @@ def check_workflow(workflow: Workflow) -> list[str]:
                 problems.append(f"{capability} needs it to accept a {role}")
     if set(workflow.megapixels) != set(Quality):
         problems.append("it needs megapixels for low, medium and high")
-    if workflow.aspect_ratios is None and workflow.most(InputRole.EDIT_TARGET, MediaType.IMAGE) == 0:
-        problems.append("only a workflow that edits a photo can take its shape from one")
     if workflow.max_count < 1:
         problems.append("max_count must be at least 1")
     is_video = workflow.media_type is MediaType.VIDEO
@@ -233,7 +239,7 @@ class WorkflowOut(BaseModel):
     description: str
     # The capabilities it runs when a request names no model
     default_for: list[Capability]
-    # Empty when the output takes its shape from the first photo
+    # A request with attachments can also take the first one's shape
     aspect_ratios: list[AspectRatio]
     max_count: int
     # Videos only
@@ -251,7 +257,7 @@ class WorkflowOut(BaseModel):
             model_name=workflow.model_name,
             description=workflow.description,
             default_for=[c for c in sorted(workflow.capabilities) if default_workflow(workflows, c) is workflow],
-            aspect_ratios=list(workflow.aspect_ratios or []),
+            aspect_ratios=list(workflow.aspect_ratios),
             max_count=workflow.max_count,
             durations_s=sorted(workflow.frames),
             sound=workflow.sound,

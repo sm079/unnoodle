@@ -49,13 +49,13 @@ def queue_image(client: TestClient, prompt: str = "a greenhouse at dawn", count:
 
 
 def queue_video(client: TestClient, prompt: str, photos: int) -> list[str]:
-    """Queues a video from reference photos and returns the photos' ids."""
+    """Queues a video from photos, in the first one's shape, and returns the photos' ids."""
     ids = [client.post("/assets", files={"file": ("ref.png", png(), "image/png")}).json()["id"] for _ in range(photos)]
     body = {
         "media_type": "video",
         "prompt": prompt,
         "inputs": [{"asset_id": i, "role": "reference"} for i in ids],
-        "params": {"aspect_ratio": "9:16", "quality": "low", "duration_s": 10},
+        "params": {"aspect_ratio": None if photos else "9:16", "quality": "low", "duration_s": 10},
     }
     assert client.post("/generations", json=body).status_code == 201
     return ids
@@ -249,7 +249,7 @@ def test_the_graph_is_built_from_the_request(
 def test_attached_files_are_uploaded_into_the_graph(
     client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
 ) -> None:
-    photos = queue_video(client, "photo 2 waves at photo 1", photos=2)
+    photos = queue_video(client, "@photo2 waves at @photo1", photos=2)
     comfy = FakeComfy(files=1)
     run(engine, workflows, settings, comfy)
     assert list(comfy.uploads) == [f"{p}.png" for p in photos]
@@ -258,6 +258,8 @@ def test_attached_files_are_uploaded_into_the_graph(
     assert loads == [f"unnoodle/{p}.png" for p in photos]
     # Ten seconds is the frame count the workflow gives it, and the prompt names the photos as the model expects
     assert node_of(graph, "Job")["frames"] == 243
+    # The first photo's shape (64 by 36) at low quality's area, on the workflow's 32-pixel grid
+    assert (node_of(graph, "EmptyImage")["width"], node_of(graph, "EmptyImage")["height"]) == (960, 544)
     assert node_of(graph, "Job")["prompt"] == "image 2 waves at image 1"
 
 

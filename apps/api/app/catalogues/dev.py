@@ -34,7 +34,6 @@ def shrink(g: Graph, image: Link, megapixels: float) -> Link:
 
 
 def image(job: Job) -> Graph:
-    assert job.size is not None
     width, height = job.size
     g = Graph()
     canvas = g.add("EmptyImage", width=width, height=height, batch_size=job.count, color=0x202020)
@@ -43,22 +42,17 @@ def image(job: Job) -> Graph:
 
 
 def edit(job: Job) -> Graph:
-    """The first photo at the quality's size, with the others pasted small in its corner."""
+    """The first photo filling the size asked for, with the others pasted small in its corner."""
+    width, height = job.size
     g = Graph()
-    photos = [p.file for p in job.photos(edit=True)]
+    photos = job.files(MediaType.IMAGE)
     loaded = g.add("LoadImage", image=photos[0])
-    scaled = g.add(
-        "ImageScaleToTotalPixels",
-        image=loaded[0],
-        upscale_method="lanczos",
-        megapixels=job.megapixels,
-        resolution_steps=16,
-    )
-    picture = scaled[0]
+    filled = g.add("ImageScale", image=loaded[0], upscale_method="lanczos", width=width, height=height, crop="center")
+    picture = filled[0]
     for n, photo in enumerate(photos[1:]):
         picture = paste_small(g, picture, shrink(g, g.add("LoadImage", image=photo)[0], job.megapixels), n)
     # The prompt as the real edit model reads it, to show the rewriting
-    prompt = job.prompt_with(photo="image {n}", edit=True)
+    prompt = job.prompt_with(photo="image {n}")
     g.output(g.add("SaveImage", images=stamp(g, picture, job, prompt), filename_prefix=job.filename_prefix))
     return g
 
@@ -69,7 +63,7 @@ DEV_VIDEO_FPS = 4
 
 def video(job: Job) -> Graph:
     """A silent slideshow with every reference photo, and the first frame of every reference clip, in its corner."""
-    assert job.size is not None and job.frames is not None
+    assert job.frames is not None
     width, height = job.size
     g = Graph()
     frames: Link = g.add("EmptyImage", width=width, height=height, batch_size=job.frames, color=0x202020)[0]
@@ -104,11 +98,10 @@ WORKFLOWS = [
         capabilities=frozenset({Capability.IMAGE_EDIT}),
         model="dev",
         model_name="Dev stand-in",
-        description="The photo with the others pasted in its corner and the prompt written on it",
+        description="The first photo with the others pasted in its corner and the prompt written on it",
         build=edit,
         megapixels=IMAGE_MEGAPIXELS,
-        aspect_ratios=None,
-        accepts=(Accepts(InputRole.EDIT_TARGET, MediaType.IMAGE, 1), Accepts(InputRole.REFERENCE, MediaType.IMAGE, 2)),
+        accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
     ),
     Workflow(
         id="dev-video",
