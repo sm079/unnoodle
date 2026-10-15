@@ -1,0 +1,22 @@
+{
+  "name": "unnoodle",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @unnoodle/web dev",
+    "build": "pnpm --filter @unnoodle/web build",
+    "lint": "pnpm --filter @unnoodle/web lint && prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "pnpm --filter @unnoodle/web typecheck",
+    "test": "pnpm --filter @unnoodle/web test",
+    "test:e2e": "pnpm --filter @unnoodle/web test:e2e"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1"
+  }
+}
