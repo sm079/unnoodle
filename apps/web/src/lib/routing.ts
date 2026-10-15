@@ -4,11 +4,16 @@
 
 import type { Capability, InputRole, MediaType, Workflow } from './types';
 
-/** The roles an input can take for each output type, in the order a role picker lists them. */
-export const rolesFor: Record<MediaType, InputRole[]> = {
-  image: ['edit_target', 'reference'],
-  video: ['reference']
-};
+// The order a role picker lists them in
+const roleOrder: InputRole[] = ['edit_target', 'reference'];
+
+/** The roles a photo or clip can take for an output type: those some workflow making that type accepts it in. */
+export function rolesFor(workflows: Workflow[], outputType: MediaType, mediaType: MediaType): InputRole[] {
+  const accepted = workflows
+    .filter(w => w.capabilities.some(c => c.startsWith(`${outputType}.`)))
+    .flatMap(w => w.accepts.filter(a => a.media_type === mediaType).map(a => a.role));
+  return roleOrder.filter(role => accepted.includes(role));
+}
 
 /** An attachment, as routing sees it: its role and whether it is a photo or a clip. */
 export type Attached = [role: InputRole, mediaType: MediaType];

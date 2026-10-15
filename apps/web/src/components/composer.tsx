@@ -69,9 +69,10 @@ interface Draft {
 
 const modeLabels: Record<MediaType, string> = { image: 'Image', video: 'Video' };
 
-const placeholders: Record<MediaType, string> = {
-  image: 'Describe the image you want to create...',
-  video: 'Describe the video you want to create...'
+// With something attached, the hint shows how to mention it
+const placeholders: Record<MediaType, [alone: string, attached: string]> = {
+  image: ['Describe the picture you want...', 'Describe the change, like “the coat from photo 2 on the man in photo 1”'],
+  video: ['Describe the video you want...', 'Describe the video, like “the woman in photo 1 dances like clip 1”']
 };
 
 const initialDrafts: Record<MediaType, Draft> = {
@@ -195,6 +196,22 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     }
   }
 
+  /** Puts "photo 2" or "clip 1" into the prompt where the cursor was, so people never type a label wrong. */
+  function mention(label: string) {
+    const textarea = promptRef.current;
+    const { prompt } = draft;
+    const start = textarea?.selectionStart ?? prompt.length;
+    const before = prompt.slice(0, start);
+    const after = prompt.slice(textarea?.selectionEnd ?? start);
+    const words = `${before === '' || /\s$/.test(before) ? '' : ' '}${label.toLowerCase()}${/^\s/.test(after) ? '' : ' '}`;
+    update({ prompt: before + words + after });
+    const caret = before.length + words.length;
+    requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(caret, caret);
+    });
+  }
+
   function setRole(index: number, role: InputRole) {
     update({ inputs: draft.inputs.map((input, i) => (i === index ? { ...input, role } : input)), model: null });
   }
@@ -239,34 +256,6 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
       <ModeToggle mode={mode} onChange={setMode} layout="column" className="hidden lg:flex" />
 
       <div className="min-w-0 flex-1 rounded-[22px] bg-panel p-1 transition-shadow duration-300 has-[textarea:focus-visible]:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.07)] lg:rounded-[30px] lg:p-[5px]">
-        <AnimatePresence initial={false}>
-          {mode === 'video' && (
-            <m.div
-              key="frames"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0, transition: { duration: 0.22, ease: easeOutQuint } }}
-              transition={{ type: 'spring', bounce: 0, visualDuration: 0.4 }}
-              className="overflow-hidden max-lg:hidden"
-            >
-              <div className="no-scrollbar flex gap-1.5 overflow-x-auto p-[5px] pb-2.5">
-                <div className={cn(cardClass, enterClass, 'w-40 shrink-0')}>
-                  <button
-                    type="button"
-                    aria-label="Add references"
-                    disabled={full}
-                    onClick={() => fileRef.current?.click()}
-                    className="group/add flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#19191b] text-[#b5b5b5] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] ring-1 ring-white/10 transition-[color,scale] duration-150 hover:text-white active:scale-90 disabled:opacity-40"
-                  >
-                    <PlusIcon className="size-5 transition-[rotate] duration-500 ease-spring-bouncy group-hover/add:rotate-90 group-disabled/add:rotate-0" />
-                  </button>
-                  <CardText label="References" value={String(draft.inputs.length)} />
-                </div>
-              </div>
-            </m.div>
-          )}
-        </AnimatePresence>
-
         <div className="flex flex-col gap-2.5 rounded-[18px] bg-panel-raised p-2.5 lg:flex-row lg:items-end lg:gap-2 lg:rounded-[24px] lg:py-3.5 lg:pr-3 lg:pl-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2.5 lg:self-stretch">
             <AnimatePresence initial={false}>
@@ -281,29 +270,41 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                 >
                   <ul aria-label="Inputs" className="no-scrollbar flex overflow-x-auto">
                     <AnimatePresence initial={false}>
-                      {draft.inputs.map((input, index) => (
-                        <m.li
-                          key={input.key}
-                          initial={{ width: 0, opacity: 0, scale: 0.6 }}
-                          animate={{ width: 'auto', opacity: 1, scale: 1 }}
-                          exit={{ width: 0, opacity: 0, scale: 0.6 }}
-                          // Clips the chip while the slot opens and closes around it
-                          className="shrink-0 origin-left overflow-hidden pr-2"
-                        >
-                          <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
-                            <Thumbnail asset={input.asset} uploading={input.uploading} />
-                            <RoleMenu roles={rolesFor[mode]} value={input.role} onChange={role => setRole(index, role)} />
-                            <button
-                              type="button"
-                              aria-label={`Remove ${roleLabels[input.role].toLowerCase()}`}
-                              onClick={() => detach(index)}
-                              className="flex size-6 items-center justify-center rounded-md text-[#8a8b8c] transition-[color,background-color,scale] duration-150 hover:bg-white/10 hover:text-white active:scale-85"
-                            >
-                              <XIcon className="size-3.5" />
-                            </button>
-                          </div>
-                        </m.li>
-                      ))}
+                      {draft.inputs.map((input, index) => {
+                        const label = attachmentLabel(draft.inputs, index);
+                        const roles = rolesFor(workflows.data ?? [], mode, input.asset.media_type);
+                        return (
+                          <m.li
+                            key={input.key}
+                            initial={{ width: 0, opacity: 0, scale: 0.6 }}
+                            animate={{ width: 'auto', opacity: 1, scale: 1 }}
+                            exit={{ width: 0, opacity: 0, scale: 0.6 }}
+                            // Clips the chip while the slot opens and closes around it
+                            className="shrink-0 origin-left overflow-hidden pr-2"
+                          >
+                            <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
+                              <Thumbnail asset={input.asset} uploading={input.uploading} />
+                              <button
+                                type="button"
+                                aria-label={`Mention ${label.toLowerCase()} in the prompt`}
+                                onClick={() => mention(label)}
+                                className="rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap transition-colors duration-150 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/30"
+                              >
+                                {label}
+                              </button>
+                              {roles.length > 1 && <RoleMenu roles={roles} value={input.role} onChange={role => setRole(index, role)} />}
+                              <button
+                                type="button"
+                                aria-label={`Remove ${label.toLowerCase()}`}
+                                onClick={() => detach(index)}
+                                className="flex size-6 items-center justify-center rounded-md text-[#8a8b8c] transition-[color,background-color,scale] duration-150 hover:bg-white/10 hover:text-white active:scale-85"
+                              >
+                                <XIcon className="size-3.5" />
+                              </button>
+                            </div>
+                          </m.li>
+                        );
+                      })}
                     </AnimatePresence>
                   </ul>
                 </m.div>
@@ -314,7 +315,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
               ref={promptRef}
               value={draft.prompt}
               onChange={event => update({ prompt: event.target.value })}
-              placeholder={placeholders[mode]}
+              placeholder={placeholders[mode][draft.inputs.length > 0 ? 1 : 0]}
               aria-label="Prompt"
               className="max-h-32 min-h-7 flex-1 resize-none rounded-none border-0 bg-transparent px-1 py-0.5 text-base leading-snug placeholder:text-[#7c7d7f] focus-visible:ring-0 md:text-base lg:max-h-48 lg:min-h-14 dark:bg-transparent"
             />
@@ -499,11 +500,8 @@ function GenerateButton({ disabled, busy }: { disabled: boolean; busy: boolean }
 // Controls dip slightly while pressed and spring back on release
 const chipClass =
   "flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-2.5 text-sm font-semibold whitespace-nowrap text-white transition-[color,background-color,scale] duration-200 ease-spring outline-none hover:bg-[#3b3c3e] focus-visible:ring-2 focus-visible:ring-white/30 active:scale-[0.95] active:duration-100 disabled:opacity-40 data-[popup-open]:bg-[#3b3c3e] [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0";
-const cardClass =
-  'flex h-15 items-center gap-2.5 rounded-[18px] bg-panel-raised px-2.5 transition-[background-color,scale] duration-200 ease-spring outline-none focus-visible:ring-2 focus-visible:ring-white/30';
 // Controls that come and go with the output type rise into place, one after another
 const enterClass = 'motion-safe:animate-rise [--rise-blur:3px] [--rise-distance:8px] [animation-duration:450ms]';
-const easeOutQuint = [0.23, 1, 0.32, 1] as const;
 const menuClass =
   'rounded-2xl border border-white/[0.07] bg-[#25282c]/90 p-1.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-0 backdrop-blur-xl';
 
@@ -517,6 +515,14 @@ export function fitSettings(settings: Settings, workflow: Workflow): Settings {
     duration_s: pick(settings.duration_s, workflow.durations_s),
     count: Math.min(settings.count, workflow.max_count)
   };
+}
+
+/** "Photo 2" or "Clip 1": photos and clips are numbered separately, in the order they were attached, as the API
+ * reads mentions of them in the prompt. */
+function attachmentLabel(inputs: DraftInput[], index: number): string {
+  const kind = inputs[index].asset.media_type;
+  const number = inputs.slice(0, index + 1).filter(i => i.asset.media_type === kind).length;
+  return `${kind === 'image' ? 'Photo' : 'Clip'} ${number}`;
 }
 
 /** A short head shake: the prompt is needed before anything can be generated. */
@@ -539,15 +545,6 @@ function previewAsset(file: File): Asset {
     duration_s: null,
     created_at: new Date().toISOString()
   };
-}
-
-function CardText({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="flex min-w-0 flex-col">
-      <span className="truncate font-mono text-[0.6875rem] text-[#6d6e70]">{label}</span>
-      <RollingValue value={value} className="text-base leading-tight font-bold" />
-    </span>
-  );
 }
 
 /** The role an input plays, as a chip that opens the roles it could play instead. */

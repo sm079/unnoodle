@@ -51,7 +51,7 @@ test('composer chips animate in and out, and Generate with no prompt goes back t
     .click();
   await expect(inputs.getByRole('listitem')).toHaveCount(1);
 
-  await composer.getByRole('button', { name: 'Remove reference' }).click();
+  await composer.getByRole('button', { name: 'Remove photo 1' }).click();
   await expect(inputs).toHaveCount(0);
 
   await composer.getByRole('button', { name: 'Image', exact: true }).click();

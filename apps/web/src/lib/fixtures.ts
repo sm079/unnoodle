@@ -1,6 +1,5 @@
-// Mock data in the API's shapes (see types.ts): what the end-to-end tests serve in place of the API, and what the hero
-// shows until there are real outputs worth showing. There are no mock video files, so video assets point at their
-// poster image.
+// Mock data in the API's shapes (see types.ts), which the end-to-end tests serve in place of the API. There are no mock
+// video files, so video assets point at their poster image.
 
 import type { AspectRatio, Asset, Generation, Project, Workflow } from './types';
 

@@ -18,7 +18,7 @@ interface Swipe {
 }
 
 /**
- * A fanned stack of recent outputs. Tap or click a side card to bring it to the front, swipe or drag the fan, or use the
+ * A fanned stack of recent outputs, or with none yet, a word on how to start. Tap or click a side card to bring it to the front, swipe or drag the fan, or use the
  * arrow keys. With a mouse, the front card leans toward the pointer.
  */
 export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
@@ -137,115 +137,117 @@ export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
 
   return (
     <section className="flex flex-col items-center gap-7 lg:gap-12">
-      <div
-        ref={stageRef}
-        role="region"
-        aria-roledescription="carousel"
-        aria-label="Highlights"
-        data-dragging={dragging || undefined}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerCancel}
-        onPointerLeave={untilt}
-        onClickCapture={event => {
-          if (!swallowClick.current) return;
-          swallowClick.current = false;
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onKeyDown={onKeyDown}
-        className="group/stage hero-stage relative isolate h-[calc(var(--card-w)*9/16)] w-full touch-pan-y select-none [--card-w:200px] [--shift:110px] lg:[--card-w:345px] lg:[--shift:228px]"
-      >
-        {/* The front card's colours, blurred into a glow behind the fan */}
+      {count > 0 && (
         <div
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[150%] w-[calc(var(--card-w)*2)] -translate-1/2 animate-[fade-in_1400ms_ease-out_500ms_backwards] opacity-45 blur-3xl saturate-150"
+          ref={stageRef}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Highlights"
+          data-dragging={dragging || undefined}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onPointerLeave={untilt}
+          onClickCapture={event => {
+            if (!swallowClick.current) return;
+            swallowClick.current = false;
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onKeyDown={onKeyDown}
+          className="group/stage hero-stage relative isolate h-[calc(var(--card-w)*9/16)] w-full touch-pan-y select-none [--card-w:200px] [--shift:110px] lg:[--card-w:345px] lg:[--shift:228px]"
         >
-          {assets.map((asset, index) => (
-            <Image
-              key={asset.id}
-              src={asset.thumbnail_url}
-              alt=""
-              fill
-              sizes="64px"
-              className={cn('object-cover transition-opacity duration-700 ease-out', index === front ? 'opacity-100' : 'opacity-0')}
-            />
-          ))}
-        </div>
-
-        {assets.map((asset, index) => {
-          const offset = offsetOf(index, front, count);
-          const here = restAt(offset);
-          const next = restAt(offset - 1);
-          const previous = restAt(offset + 1);
-          const isFront = offset === 0;
-          const side = Math.abs(offset) === 1;
-          const style = {
-            width: 'var(--card-w)',
-            '--x': here.x,
-            '--s': here.scale,
-            '--a': here.opacity,
-            '--x-next': next.x,
-            '--s-next': next.scale,
-            '--a-next': next.opacity,
-            '--x-prev': previous.x,
-            '--s-prev': previous.scale,
-            '--a-prev': previous.opacity,
-            '--deal': Math.abs(offset)
-          } as CSSProperties;
-          return (
-            <button
-              key={asset.id}
-              ref={element => {
-                cardRefs.current[index] = element;
-              }}
-              type="button"
-              data-front={isFront || undefined}
-              data-side={side ? (offset < 0 ? 'previous' : 'next') : undefined}
-              tabIndex={isFront || side ? 0 : -1}
-              aria-hidden={!isFront && !side}
-              inert={!isFront && !side}
-              aria-label={isFront ? `Highlight ${index + 1} of ${count}` : offset < 0 ? 'Previous highlight' : 'Next highlight'}
-              onClick={() => side && step(offset)}
-              style={style}
-              className={cn(
-                'hero-card absolute top-1/2 left-1/2 aspect-video overflow-hidden rounded-[11px] bg-muted outline-none focus-visible:ring-4 focus-visible:ring-lime/60',
-                isFront
-                  ? 'cursor-grab shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-2 ring-white/25 group-data-[dragging]/stage:cursor-grabbing'
-                  : 'shadow-[0_8px_24px_rgb(0_0_0/0.4)] ring-1 ring-white/15 hover:brightness-110',
-                // A side card peeks toward the centre under the pointer, inviting the click
-                'motion-safe:data-[side=next]:hover:[transform:translateX(-14px)] motion-safe:data-[side=previous]:hover:[transform:translateX(14px)]'
-              )}
-            >
+          {/* The front card's colours, blurred into a glow behind the fan */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 h-[150%] w-[calc(var(--card-w)*2)] -translate-1/2 animate-[fade-in_1400ms_ease-out_500ms_backwards] opacity-45 blur-3xl saturate-150"
+          >
+            {assets.map((asset, index) => (
               <Image
+                key={asset.id}
                 src={asset.thumbnail_url}
                 alt=""
                 fill
-                sizes="345px"
-                draggable={false}
-                // The first front card is the largest thing on screen at load
-                preload={index === 0}
-                loading={Math.abs(offsetOf(index, 0, count)) === 1 ? 'eager' : undefined}
-                className="object-cover"
+                sizes="64px"
+                className={cn('object-cover transition-opacity duration-700 ease-out', index === front ? 'opacity-100' : 'opacity-0')}
               />
-              {isFront && (
-                <span
-                  aria-hidden
-                  className="hero-glare pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300"
-                  style={{
-                    background: 'radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / 0.2), transparent 55%)'
-                  }}
-                />
-              )}
-            </button>
-          );
-        })}
+            ))}
+          </div>
 
-        <p aria-live="polite" className="sr-only">
-          {`Highlight ${front + 1} of ${count}`}
-        </p>
-      </div>
+          {assets.map((asset, index) => {
+            const offset = offsetOf(index, front, count);
+            const here = restAt(offset);
+            const next = restAt(offset - 1);
+            const previous = restAt(offset + 1);
+            const isFront = offset === 0;
+            const side = Math.abs(offset) === 1;
+            const style = {
+              width: 'var(--card-w)',
+              '--x': here.x,
+              '--s': here.scale,
+              '--a': here.opacity,
+              '--x-next': next.x,
+              '--s-next': next.scale,
+              '--a-next': next.opacity,
+              '--x-prev': previous.x,
+              '--s-prev': previous.scale,
+              '--a-prev': previous.opacity,
+              '--deal': Math.abs(offset)
+            } as CSSProperties;
+            return (
+              <button
+                key={asset.id}
+                ref={element => {
+                  cardRefs.current[index] = element;
+                }}
+                type="button"
+                data-front={isFront || undefined}
+                data-side={side ? (offset < 0 ? 'previous' : 'next') : undefined}
+                tabIndex={isFront || side ? 0 : -1}
+                aria-hidden={!isFront && !side}
+                inert={!isFront && !side}
+                aria-label={isFront ? `Highlight ${index + 1} of ${count}` : offset < 0 ? 'Previous highlight' : 'Next highlight'}
+                onClick={() => side && step(offset)}
+                style={style}
+                className={cn(
+                  'hero-card absolute top-1/2 left-1/2 aspect-video overflow-hidden rounded-[11px] bg-muted outline-none focus-visible:ring-4 focus-visible:ring-lime/60',
+                  isFront
+                    ? 'cursor-grab shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-2 ring-white/25 group-data-[dragging]/stage:cursor-grabbing'
+                    : 'shadow-[0_8px_24px_rgb(0_0_0/0.4)] ring-1 ring-white/15 hover:brightness-110',
+                  // A side card peeks toward the centre under the pointer, inviting the click
+                  'motion-safe:data-[side=next]:hover:[transform:translateX(-14px)] motion-safe:data-[side=previous]:hover:[transform:translateX(14px)]'
+                )}
+              >
+                <Image
+                  src={asset.thumbnail_url}
+                  alt=""
+                  fill
+                  sizes="345px"
+                  draggable={false}
+                  // The first front card is the largest thing on screen at load
+                  preload={index === 0}
+                  loading={Math.abs(offsetOf(index, 0, count)) === 1 ? 'eager' : undefined}
+                  className="object-cover"
+                />
+                {isFront && (
+                  <span
+                    aria-hidden
+                    className="hero-glare pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300"
+                    style={{
+                      background: 'radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / 0.2), transparent 55%)'
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
+
+          <p aria-live="polite" className="sr-only">
+            {`Highlight ${front + 1} of ${count}`}
+          </p>
+        </div>
+      )}
 
       <h1 className="px-4 text-center font-display text-[clamp(1.625rem,1.1rem+2.4vw,2.95rem)] leading-none font-bold tracking-[-0.01em] text-balance uppercase font-stretch-[86%]">
         {title.split(' ').map((word, index) => (
@@ -257,6 +259,11 @@ export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
           </Fragment>
         ))}
       </h1>
+      {count === 0 && (
+        <p className="max-w-md px-4 text-center text-balance text-[#8a8b8c]">
+          Describe a picture or a video below. Attach photos or clips to change them or to show what you mean.
+        </p>
+      )}
     </section>
   );
 }

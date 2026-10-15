@@ -43,6 +43,10 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   await page.getByRole('dialog').getByRole('button', { name: 'Attach image ast_room' }).click();
   await expect(composer.getByRole('button', { name: 'Role: Edit this' })).toBeVisible();
   await expect(composer.getByRole('button', { name: 'Route: Edit a photo' })).toBeVisible();
+  // Tapping its label mentions it in the prompt, in the words the API reads
+  await composer.getByRole('textbox', { name: 'Prompt' }).fill('make');
+  await composer.getByRole('button', { name: 'Mention photo 1 in the prompt' }).click();
+  await expect(composer.getByRole('textbox', { name: 'Prompt' })).toHaveValue('make photo 1 ');
   await expect(composer.getByRole('button', { name: /^Shape/ })).toHaveCount(0);
 
   // As a reference alone it routes nowhere: an edit needs the photo to edit. The route chip says so, and nothing is
