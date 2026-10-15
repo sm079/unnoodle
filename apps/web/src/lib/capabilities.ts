@@ -1,26 +1,30 @@
-import type { Asset, Capability, InputRole, MediaType } from './types';
+import type { AspectRatio, Asset, Capability, InputRole, MediaType, Quality } from './types';
 
+/** What a route does, in the words the route chip shows. */
 export const capabilityLabels: Record<Capability, string> = {
-  'image.generate': 'Text to image',
-  'image.edit': 'Edit image',
-  'image.restyle': 'Restyle image',
-  'image.multi_ref': 'Image from references',
-  'video.generate': 'Text to video',
-  'video.from_frame': 'Video from frame',
-  'video.first_last': 'Video from first and last frame',
-  'video.keyframes': 'Video from keyframes',
-  'video.reference': 'Video from reference',
-  'video.character_swap': 'Character swap'
+  'image.generate': 'Create a picture',
+  'image.edit': 'Edit a photo',
+  'video.generate': 'Make a video',
+  'video.reference': 'Video from references'
 };
 
 export const roleLabels: Record<InputRole, string> = {
-  start_frame: 'Start frame',
-  end_frame: 'End frame',
-  keyframe: 'Keyframe',
-  reference: 'Reference',
-  edit_target: 'Edit',
-  restyle: 'Restyle',
-  source_video: 'Source video'
+  edit_target: 'Edit this',
+  reference: 'Reference'
+};
+
+export const qualityLabels: Record<Quality, string> = { low: 'Low', medium: 'Medium', high: 'High' };
+
+/** The shapes in the words ComfyUI's Resolution Selector uses for them. */
+export const shapeLabels: Record<AspectRatio, string> = {
+  '1:1': 'Square',
+  '2:3': 'Portrait photo',
+  '3:2': 'Photo',
+  '3:4': 'Portrait standard',
+  '4:3': 'Standard',
+  '9:16': 'Portrait widescreen',
+  '16:9': 'Widescreen',
+  '21:9': 'Ultrawide'
 };
 
 export function outputType(capability: Capability): MediaType {
@@ -28,14 +32,10 @@ export function outputType(capability: Capability): MediaType {
 }
 
 /**
- * The role a newly attached input starts with, given the roles already taken. It covers the common case, a start
- * then an end frame for video, or an image to edit then references, and the role chip changes it.
+ * The role a newly attached input starts with, given the roles already taken: for an image, the first photo is the
+ * one to edit and the rest are references; for a video, everything is a reference. The role chip changes it.
  */
 export function defaultRole(mode: MediaType, taken: InputRole[], asset: Asset): InputRole {
-  if (mode === 'image') return taken.includes('edit_target') ? 'reference' : 'edit_target';
-  if (asset.media_type === 'video') return 'source_video';
-  if (taken.includes('source_video')) return 'reference';
-  if (!taken.includes('start_frame')) return 'start_frame';
-  if (!taken.includes('end_frame')) return 'end_frame';
+  if (mode === 'image' && asset.media_type === 'image' && !taken.includes('edit_target')) return 'edit_target';
   return 'reference';
 }

@@ -143,6 +143,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** AcceptsOut */
+    AcceptsOut: {
+      role: components['schemas']['InputRole'];
+      media_type: components['schemas']['MediaType'];
+      /** Most */
+      most: number;
+    };
     /** AssetOut */
     AssetOut: {
       /**
@@ -182,17 +189,7 @@ export interface components {
      * Capability
      * @enum {string}
      */
-    Capability:
-      | 'image.generate'
-      | 'image.edit'
-      | 'image.restyle'
-      | 'image.multi_ref'
-      | 'video.generate'
-      | 'video.from_frame'
-      | 'video.first_last'
-      | 'video.keyframes'
-      | 'video.reference'
-      | 'video.character_swap';
+    Capability: 'image.generate' | 'image.edit' | 'video.generate' | 'video.reference';
     /**
      * GenerationIn
      * @description What the composer sends. It names no workflow: the inputs' roles decide one.
@@ -215,8 +212,6 @@ export interface components {
     /** GenerationInputOut */
     GenerationInputOut: {
       role: components['schemas']['InputRole'];
-      /** Position S */
-      position_s: number | null;
       asset: components['schemas']['AssetOut'];
     };
     /** GenerationOut */
@@ -284,15 +279,13 @@ export interface components {
        */
       asset_id: string;
       role: components['schemas']['InputRole'];
-      /** Position S */
-      position_s?: number | null;
     };
     /**
      * InputRole
      * @description What an attached asset is for. The output type plus the roles of the inputs decide the capability.
      * @enum {string}
      */
-    InputRole: 'start_frame' | 'end_frame' | 'keyframe' | 'reference' | 'edit_target' | 'restyle' | 'source_video';
+    InputRole: 'edit_target' | 'reference';
     /**
      * MediaType
      * @enum {string}
@@ -300,13 +293,10 @@ export interface components {
     MediaType: 'image' | 'video';
     /** Params */
     Params: {
-      /**
-       * Aspect Ratio
-       * @enum {string}
-       */
-      aspect_ratio: '1:1' | '4:3' | '3:4' | '16:9' | '9:16';
-      /** Resolution */
-      resolution: string;
+      /** @default medium */
+      quality: components['schemas']['Quality'];
+      /** Aspect Ratio */
+      aspect_ratio?: ('1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9') | null;
       /** Duration S */
       duration_s?: number | null;
       /**
@@ -316,21 +306,13 @@ export interface components {
       count: number;
       /** Seed */
       seed?: number | null;
-      /**
-       * Audio
-       * @default false
-       */
-      audio: boolean;
     };
     /** ParamsOut */
     ParamsOut: {
-      /**
-       * Aspect Ratio
-       * @enum {string}
-       */
-      aspect_ratio: '1:1' | '4:3' | '3:4' | '16:9' | '9:16';
-      /** Resolution */
-      resolution: string;
+      /** @default medium */
+      quality: components['schemas']['Quality'];
+      /** Aspect Ratio */
+      aspect_ratio?: ('1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9') | null;
       /** Duration S */
       duration_s?: number | null;
       /**
@@ -340,11 +322,6 @@ export interface components {
       count: number;
       /** Seed */
       seed: number;
-      /**
-       * Audio
-       * @default false
-       */
-      audio: boolean;
     };
     /** ProjectIn */
     ProjectIn: {
@@ -370,6 +347,12 @@ export interface components {
       /** Covers */
       covers: components['schemas']['AssetOut'][];
     };
+    /**
+     * Quality
+     * @description How big an output is: each workflow maps these to its own sizes and the person never sees pixels.
+     * @enum {string}
+     */
+    Quality: 'low' | 'medium' | 'high';
     /** ValidationError */
     ValidationError: {
       /** Location */
@@ -387,29 +370,26 @@ export interface components {
     WorkflowOut: {
       /** Id */
       id: string;
-      capability: components['schemas']['Capability'];
+      /** Capabilities */
+      capabilities: components['schemas']['Capability'][];
       /** Model */
       model: string;
       /** Model Name */
       model_name: string;
       /** Description */
       description: string;
-      /** Default */
-      default: boolean;
-      /** Resolutions */
-      resolutions: {
-        [key: string]: ('1:1' | '4:3' | '3:4' | '16:9' | '9:16')[];
-      };
+      /** Default For */
+      default_for: components['schemas']['Capability'][];
+      /** Aspect Ratios */
+      aspect_ratios: ('1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9')[];
       /** Max Count */
       max_count: number;
       /** Durations S */
       durations_s: number[];
-      /** Audio */
-      audio: boolean;
-      /** Roles */
-      roles: {
-        [key: string]: number;
-      };
+      /** Sound */
+      sound: boolean;
+      /** Accepts */
+      accepts: components['schemas']['AcceptsOut'][];
     };
   };
   responses: never;

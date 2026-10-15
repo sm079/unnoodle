@@ -51,11 +51,14 @@ test('composer chips animate in and out, and Generate with no prompt goes back t
     .click();
   await expect(inputs.getByRole('listitem')).toHaveCount(1);
 
-  await composer.getByRole('button', { name: 'Remove start frame' }).click();
+  await composer.getByRole('button', { name: 'Remove reference' }).click();
   await expect(inputs).toHaveCount(0);
 
-  await composer.getByRole('button', { name: 'More outputs' }).click();
-  await expect(composer.getByRole('group', { name: 'Outputs' })).toContainText('2');
+  await composer.getByRole('button', { name: 'Image', exact: true }).click();
+  await composer.getByRole('button', { name: 'More settings' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'More outputs' }).click();
+  await expect(page.getByRole('dialog').getByRole('group', { name: 'Outputs' })).toContainText('2');
+  await page.keyboard.press('Escape');
   await expect(composer.getByRole('button', { name: 'Generate' })).toBeVisible();
 
   const prompt = composer.getByRole('textbox', { name: 'Prompt' });
@@ -76,5 +79,5 @@ test('with reduced motion, things fade instead of moving', async ({ page }) => {
   await expect(frontCard(page)).toHaveAccessibleName(/^Highlight 2 of/);
   const composer = page.getByRole('form', { name: 'Composer' });
   await composer.getByRole('button', { name: 'Video', exact: true }).click();
-  await expect(composer.getByRole('button', { name: /^Duration/ })).toBeVisible();
+  await expect(composer.getByRole('button', { name: /^Length/ })).toBeVisible();
 });

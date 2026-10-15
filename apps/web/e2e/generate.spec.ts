@@ -28,29 +28,26 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   const generate = (await composer.getByRole('button', { name: 'Generate' }).boundingBox())!;
   expect(Math.abs(toggle.y + toggle.height / 2 - (generate.y + generate.height / 2)), 'toggle in the Generate row').toBeLessThan(4);
 
-  // Starts on images
-  await expect(composer.getByRole('button', { name: 'Route: Text to image · Flux Klein 9B' })).toBeVisible();
-  await expect(composer.getByRole('button', { name: /^Duration/ })).toHaveCount(0);
+  // Starts on images. With one model per route, the route chip says what happens and names no model.
+  await expect(composer.getByRole('button', { name: 'Route: Create a picture' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Shape: Portrait standard' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: /^Length/ })).toHaveCount(0);
   await composer.getByRole('button', { name: 'Video', exact: true }).click();
-  await expect(composer.getByRole('button', { name: 'Route: Text to video · LTX 2.5' })).toBeVisible();
-  await expect(composer.getByRole('button', { name: /^Duration/ })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Route: Make a video' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Length: 5 sec' })).toBeVisible();
   await composer.getByRole('button', { name: 'Image', exact: true }).click();
-  await expect(composer.getByRole('button', { name: 'Route: Text to image · Flux Klein 9B' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Route: Create a picture' })).toBeVisible();
 
-  // Another model that does the same
-  await composer.getByRole('button', { name: /^Route/ }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /Anima/ }).click();
-  await expect(composer.getByRole('button', { name: 'Route: Text to image · Anima' })).toBeVisible();
-
-  // An attached image is something to edit, which routes elsewhere
+  // An attached photo is the one to edit, which routes elsewhere and takes its shape from the photo
   await composer.getByRole('button', { name: 'Add from library' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Attach image ast_room' }).click();
-  await expect(composer.getByRole('button', { name: 'Role: Edit' })).toBeVisible();
-  await expect(composer.getByRole('button', { name: 'Route: Edit image · Flux Klein 9B' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Role: Edit this' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Route: Edit a photo' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: /^Shape/ })).toHaveCount(0);
 
-  // As a reference it routes nowhere: nothing makes an image from references alone yet. The route chip says so, and
-  // nothing is written under the composer, which is for errors.
-  await composer.getByRole('button', { name: 'Role: Edit' }).click();
+  // As a reference alone it routes nowhere: an edit needs the photo to edit. The route chip says so, and nothing is
+  // written under the composer, which is for errors.
+  await composer.getByRole('button', { name: 'Role: Edit this' }).click();
   await page.getByRole('menuitemradio', { name: 'Reference' }).click();
   await expect(composer.getByRole('button', { name: 'Route: Not available yet' })).toBeDisabled();
   await expect(composer.getByRole('status')).toHaveCount(0);
@@ -73,8 +70,8 @@ test('Generate sends the inputs with their roles and lets the API pick the workf
   expect((await sent).postDataJSON()).toEqual({
     media_type: 'video',
     prompt: 'she turns around',
-    inputs: [{ asset_id: 'ast_character', role: 'start_frame', position_s: null }],
-    params: { aspect_ratio: '16:9', resolution: '720p', duration_s: 5, count: 1, audio: true, seed: null },
+    inputs: [{ asset_id: 'ast_character', role: 'reference' }],
+    params: { quality: 'medium', aspect_ratio: '9:16', duration_s: 5, count: 1, seed: null },
     model: null,
     project_id: null
   });
@@ -102,7 +99,7 @@ test('My generations opens the gallery from the menu', async ({ page }) => {
   await page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: 'My generations' }).click();
   await expect(page.getByRole('dialog', { name: 'Menu' })).toHaveCount(0);
   const gallery = page.getByRole('list', { name: 'Gallery' });
-  await expect(gallery.getByText('The GPU ran out of memory. Try a smaller size or fewer outputs.')).toBeVisible();
+  await expect(gallery.getByText('This was too big to make. Try a lower quality, a shorter length or fewer at a time.')).toBeVisible();
 });
 
 test('a generation made in a new project is in it and in My generations', async ({ page }) => {

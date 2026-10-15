@@ -14,8 +14,6 @@ import {
   MinusIcon,
   PlusIcon,
   VideoIcon,
-  Volume2Icon,
-  VolumeXIcon,
   XIcon
 } from 'lucide-react';
 import { RollingValue } from '@/components/rolling-value';
@@ -30,12 +28,12 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { api, messageOf } from '@/lib/api';
-import { defaultRole, roleLabels } from '@/lib/capabilities';
+import { defaultRole, qualityLabels, roleLabels, shapeLabels } from '@/lib/capabilities';
 import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
-import { rolesFor, route, type Routed } from '@/lib/routing';
+import { capabilityFor, rolesFor, route, type Attached, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
-import type { AspectRatio, Asset, Generation, InputRole, MediaType, Workflow } from '@/lib/types';
+import type { AspectRatio, Asset, Generation, InputRole, MediaType, Quality, Workflow } from '@/lib/types';
 
 interface ComposerProps {
   /** The project to file what it generates in, or null for My generations alone. */
@@ -51,17 +49,14 @@ interface DraftInput {
   asset: Asset;
   uploading: boolean;
   role: InputRole;
-  /** Seconds into the clip. Keyframes only. */
-  position_s: number | null;
 }
 
 /** What the user picked. Each render fits it to the settings the routed workflow offers. */
 interface Settings {
+  quality: Quality;
   aspect_ratio: AspectRatio;
-  resolution: string;
   duration_s: number;
   count: number;
-  audio: boolean;
 }
 
 interface Draft {
@@ -84,18 +79,18 @@ const initialDrafts: Record<MediaType, Draft> = {
     prompt: '',
     inputs: [],
     model: null,
-    settings: { aspect_ratio: '3:4', resolution: '1K', duration_s: 5, count: 1, audio: false }
+    settings: { quality: 'medium', aspect_ratio: '3:4', duration_s: 5, count: 1 }
   },
   video: {
     prompt: '',
     inputs: [],
     model: null,
-    settings: { aspect_ratio: '16:9', resolution: '720p', duration_s: 5, count: 1, audio: true }
+    settings: { quality: 'medium', aspect_ratio: '9:16', duration_s: 5, count: 1 }
   }
 };
 
-// Enough for the keyframe workflows; nothing else takes more
-const MAX_INPUTS = 8;
+// The most any workflow takes: a video's references
+const MAX_INPUTS = 12;
 // The API's upload limit, checked here first to save sending a file that will be refused
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
@@ -115,15 +110,10 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const draft = drafts[mode];
-  const routed: Routed<Workflow> | null = workflows.data
-    ? route(
-        workflows.data,
-        mode,
-        draft.inputs.map(i => i.role),
-        draft.model
-      )
-    : null;
+  const attached = draft.inputs.map((i): Attached => [i.role, i.asset.media_type]);
+  const routed: Routed<Workflow> | null = workflows.data ? route(workflows.data, mode, attached, draft.model) : null;
   const workflow = routed?.ok ? routed.value : null;
+  const capability = workflow ? capabilityFor(mode, attached) : null;
   const settings = workflow ? fitSettings(draft.settings, workflow) : draft.settings;
   const full = draft.inputs.length >= MAX_INPUTS;
   const uploading = draft.inputs.some(i => i.uploading);
@@ -158,7 +148,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
         inputs.map(i => i.role),
         asset
       );
-      const input = { key: nextKey(), asset, uploading, role, position_s: null };
+      const input = { key: nextKey(), asset, uploading, role };
       inputs.push(input);
       return input.key;
     });
@@ -207,12 +197,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
   }
 
   function setRole(index: number, role: InputRole) {
-    // Keyframes go a second apart until there is a timeline to place them on
-    const keyframes = draft.inputs.filter((input, i) => i !== index && input.role === 'keyframe').length;
-    const inputs = draft.inputs.map((input, i) =>
-      i === index ? { ...input, role, position_s: role === 'keyframe' ? keyframes : null } : input
-    );
-    update({ inputs, model: null });
+    update({ inputs: draft.inputs.map((input, i) => (i === index ? { ...input, role } : input)), model: null });
   }
 
   async function submit(event: FormEvent) {
@@ -229,13 +214,13 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
       const generation = await api.createGeneration({
         media_type: mode,
         prompt: draft.prompt,
-        inputs: draft.inputs.map(i => ({ asset_id: i.asset.id, role: i.role, position_s: i.position_s })),
+        inputs: draft.inputs.map(i => ({ asset_id: i.asset.id, role: i.role })),
         params: {
-          aspect_ratio: settings.aspect_ratio,
-          resolution: settings.resolution,
+          quality: settings.quality,
+          // An edit takes its shape from the photo
+          aspect_ratio: workflow.aspect_ratios.length > 0 ? settings.aspect_ratio : null,
           duration_s: mode === 'video' ? settings.duration_s : null,
           count: settings.count,
-          audio: settings.audio,
           seed: null
         },
         model: draft.model,
@@ -269,14 +254,14 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                 <div className={cn(cardClass, enterClass, 'w-40 shrink-0')}>
                   <button
                     type="button"
-                    aria-label="Add frames"
+                    aria-label="Add references"
                     disabled={full}
                     onClick={() => fileRef.current?.click()}
                     className="group/add flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#19191b] text-[#b5b5b5] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] ring-1 ring-white/10 transition-[color,scale] duration-150 hover:text-white active:scale-90 disabled:opacity-40"
                   >
                     <PlusIcon className="size-5 transition-[rotate] duration-500 ease-spring-bouncy group-hover/add:rotate-90 group-disabled/add:rotate-0" />
                   </button>
-                  <CardText label="Frames" value={String(draft.inputs.length)} />
+                  <CardText label="References" value={String(draft.inputs.length)} />
                 </div>
               </div>
             </m.div>
@@ -308,12 +293,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                         >
                           <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
                             <Thumbnail asset={input.asset} uploading={input.uploading} />
-                            <RoleMenu
-                              roles={rolesFor[mode]}
-                              value={input.role}
-                              position={input.position_s}
-                              onChange={role => setRole(index, role)}
-                            />
+                            <RoleMenu roles={rolesFor[mode]} value={input.role} onChange={role => setRole(index, role)} />
                             <button
                               type="button"
                               aria-label={`Remove ${roleLabels[input.role].toLowerCase()}`}
@@ -352,7 +332,8 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
               </button>
               <LibraryPicker assets={library} disabled={full} onPick={asset => attach([asset])} />
               <WorkflowMenu
-                models={workflow ? (workflows.data ?? []).filter(w => w.capability === workflow.capability) : []}
+                capability={capability?.ok ? capability.value : null}
+                models={capability?.ok ? (workflows.data ?? []).filter(w => w.capabilities.includes(capability.value)) : []}
                 value={workflow}
                 emptyLabel={workflows.data ? 'Not available yet' : 'Loading models…'}
                 onChange={next => update({ model: next.model })}
@@ -361,40 +342,33 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
               {workflow && (
                 <>
                   <OptionChip
-                    label="Resolution"
+                    label="Quality"
                     icon={<GemIcon />}
-                    value={settings.resolution}
-                    options={Object.keys(workflow.resolutions)}
-                    onChange={value => setSetting('resolution', value)}
+                    value={settings.quality}
+                    options={Object.keys(qualityLabels)}
+                    labels={qualityLabels}
+                    onChange={value => setSetting('quality', value as Quality)}
                   />
-                  <OptionChip
-                    label="Aspect ratio"
-                    icon={<AspectIcon ratio={settings.aspect_ratio} />}
-                    value={settings.aspect_ratio}
-                    options={workflow.resolutions[settings.resolution]}
-                    onChange={value => setSetting('aspect_ratio', value as AspectRatio)}
-                  />
-                  {workflow.durations_s.length > 0 && (
+                  {workflow.aspect_ratios.length > 0 && (
                     <OptionChip
-                      label="Duration"
-                      icon={<ClockIcon strokeWidth={2.5} />}
-                      value={`${settings.duration_s}s`}
-                      options={workflow.durations_s.map(s => `${s}s`)}
-                      onChange={value => setSetting('duration_s', parseFloat(value))}
-                      className={enterClass}
+                      label="Shape"
+                      icon={<AspectIcon ratio={settings.aspect_ratio} />}
+                      value={settings.aspect_ratio}
+                      options={workflow.aspect_ratios}
+                      labels={shapeLabels}
+                      onChange={value => setSetting('aspect_ratio', value as AspectRatio)}
                     />
                   )}
-                  {workflow.audio && (
-                    <button
-                      type="button"
-                      aria-label="Sound"
-                      aria-pressed={settings.audio}
-                      onClick={() => setSetting('audio', !settings.audio)}
-                      className={cn(chipClass, enterClass)}
-                    >
-                      {settings.audio ? <Volume2Icon /> : <VolumeXIcon />}
-                      <RollingValue value={settings.audio ? 'On' : 'Off'} />
-                    </button>
+                  {workflow.durations_s.length > 0 && (
+                    <OptionChip
+                      label="Length"
+                      icon={<ClockIcon strokeWidth={2.5} />}
+                      value={String(settings.duration_s)}
+                      options={workflow.durations_s.map(String)}
+                      labels={Object.fromEntries(workflow.durations_s.map(s => [s, `${s} sec`]))}
+                      onChange={value => setSetting('duration_s', Number(value))}
+                      className={enterClass}
+                    />
                   )}
                   {workflow.max_count > 1 &&
                     (mode === 'video' ? (
@@ -536,14 +510,13 @@ const menuClass =
 
 /** The picked settings, moved to the nearest ones the workflow offers. */
 export function fitSettings(settings: Settings, workflow: Workflow): Settings {
-  const pick = <T,>(value: T, allowed: T[]) => (allowed.includes(value) ? value : allowed[0]);
-  const resolution = pick(settings.resolution, Object.keys(workflow.resolutions));
+  // Nothing offered keeps the value, so it's still there for the next workflow that does offer it
+  const pick = <T,>(value: T, allowed: T[]) => (allowed.length === 0 || allowed.includes(value) ? value : allowed[0]);
   return {
-    resolution,
-    aspect_ratio: pick(settings.aspect_ratio, workflow.resolutions[resolution]),
-    duration_s: workflow.durations_s.length > 0 ? pick(settings.duration_s, workflow.durations_s) : settings.duration_s,
-    count: Math.min(settings.count, workflow.max_count),
-    audio: workflow.audio && settings.audio
+    quality: settings.quality,
+    aspect_ratio: pick(settings.aspect_ratio, workflow.aspect_ratios),
+    duration_s: pick(settings.duration_s, workflow.durations_s),
+    count: Math.min(settings.count, workflow.max_count)
   };
 }
 
@@ -579,17 +552,7 @@ function CardText({ label, value }: { label: string; value: string }) {
 }
 
 /** The role an input plays, as a chip that opens the roles it could play instead. */
-function RoleMenu({
-  roles,
-  value,
-  position,
-  onChange
-}: {
-  roles: InputRole[];
-  value: InputRole;
-  position: number | null;
-  onChange: (role: InputRole) => void;
-}) {
+function RoleMenu({ roles, value, onChange }: { roles: InputRole[]; value: InputRole; onChange: (role: InputRole) => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -597,7 +560,6 @@ function RoleMenu({
         className="group/role flex items-center gap-0.5 rounded-md py-0.5 pr-0.5 pl-1.5 text-[0.8125rem] font-semibold whitespace-nowrap transition-colors duration-150 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/30 data-[popup-open]:bg-white/10"
       >
         <RollingValue value={roleLabels[value]} />
-        {position !== null && <span className="text-[#8a8b8c]">&nbsp;· {position}s</span>}
         <ChevronDownIcon className="size-3.5 text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]/role:rotate-180" />
       </DropdownMenuTrigger>
       <OptionList label="Role" value={value} options={roles} labels={roleLabels} onChange={role => onChange(role as InputRole)} />
@@ -610,6 +572,7 @@ function OptionChip({
   icon,
   value,
   options,
+  labels,
   onChange,
   className
 }: {
@@ -617,16 +580,18 @@ function OptionChip({
   icon: ReactNode;
   value: string;
   options: string[];
+  /** Shown in place of the values. */
+  labels: Record<string, string>;
   onChange: (value: string) => void;
   className?: string;
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger aria-label={`${label}: ${value}`} className={cn(chipClass, className)}>
+      <DropdownMenuTrigger aria-label={`${label}: ${labels[value]}`} className={cn(chipClass, className)}>
         {icon}
-        <RollingValue value={value} />
+        <RollingValue value={labels[value]} />
       </DropdownMenuTrigger>
-      <OptionList label={label} value={value} options={options} onChange={onChange} />
+      <OptionList label={label} value={value} options={options} labels={labels} onChange={onChange} />
     </DropdownMenu>
   );
 }

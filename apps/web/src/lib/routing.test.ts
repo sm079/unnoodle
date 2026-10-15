@@ -1,92 +1,106 @@
 import { describe, expect, test } from 'vitest';
-import { capabilityFor, chooseWorkflow, route } from './routing';
-import type { Capability, InputRole, MediaType, Workflow } from './types';
+import { capabilityFor, chooseWorkflow, route, type Attached } from './routing';
+import type { Capability, MediaType, Workflow } from './types';
 
 // The same cases as the API's tests/test_routing.py, which decides for real
 
+const target: Attached = ['edit_target', 'image'];
+const refPhoto: Attached = ['reference', 'image'];
+const refClip: Attached = ['reference', 'video'];
+
 describe('capabilityFor', () => {
-  test.each<[MediaType, InputRole[], Capability]>([
+  test.each<[MediaType, Attached[], Capability]>([
     ['image', [], 'image.generate'],
-    ['image', ['edit_target'], 'image.edit'],
-    ['image', ['edit_target', 'reference', 'reference'], 'image.edit'],
-    ['image', ['reference', 'edit_target'], 'image.edit'],
-    ['image', ['restyle'], 'image.restyle'],
-    ['image', ['reference'], 'image.multi_ref'],
-    ['image', ['reference', 'reference', 'reference'], 'image.multi_ref'],
+    ['image', [target], 'image.edit'],
+    ['image', [target, refPhoto, refPhoto], 'image.edit'],
+    ['image', [refPhoto, target], 'image.edit'],
     ['video', [], 'video.generate'],
-    ['video', ['start_frame'], 'video.from_frame'],
-    ['video', ['start_frame', 'end_frame'], 'video.first_last'],
-    ['video', ['end_frame', 'start_frame'], 'video.first_last'],
-    ['video', ['keyframe', 'keyframe', 'keyframe'], 'video.keyframes'],
-    ['video', ['reference', 'reference'], 'video.reference'],
-    ['video', ['source_video', 'reference'], 'video.character_swap']
-  ])('%s from %j is %s', (mediaType, roles, capability) => {
-    expect(capabilityFor(mediaType, roles)).toEqual({ ok: true, value: capability });
+    ['video', [refPhoto], 'video.reference'],
+    ['video', [refClip, refPhoto], 'video.reference']
+  ])('%s from %j is %s', (mediaType, inputs, capability) => {
+    expect(capabilityFor(mediaType, inputs)).toEqual({ ok: true, value: capability });
   });
 
-  test.each<[MediaType, InputRole[], string]>([
-    ['image', ['start_frame'], "A start frame can't be used to make an image"],
-    ['video', ['edit_target'], "An edit target can't be used to make a video"],
-    ['image', ['edit_target', 'edit_target'], 'Nothing makes an image from 2 edit targets'],
-    ['image', ['restyle', 'reference'], 'Nothing makes an image from 1 restyle and 1 reference'],
-    ['video', ['end_frame'], 'Nothing makes a video from 1 end frame'],
-    ['video', ['start_frame', 'start_frame'], 'Nothing makes a video from 2 start frames'],
-    ['video', ['start_frame', 'keyframe'], 'Nothing makes a video from 1 start frame and 1 keyframe'],
-    ['video', ['source_video'], 'Nothing makes a video from 1 source video']
-  ])('%s from %j is refused', (mediaType, roles, message) => {
-    expect(capabilityFor(mediaType, roles)).toEqual({ ok: false, error: message });
+  test.each<[MediaType, Attached[], string]>([
+    ['image', [refPhoto], 'Pick the photo to edit'],
+    ['image', [target, target], 'Only one photo can be the one to edit'],
+    ['image', [['edit_target', 'video']], 'Only a photo can be edited'],
+    ['video', [target], "A video can't edit a photo, but it can use one as a reference"]
+  ])('%s from %j is refused', (mediaType, inputs, message) => {
+    expect(capabilityFor(mediaType, inputs)).toEqual({ ok: false, error: message });
   });
 });
 
-function workflow(id: string, capability: Capability, model: string, isDefault = false, roles: Workflow['roles'] = {}): Workflow {
-  const modelName = model.charAt(0).toUpperCase() + model.slice(1);
+function workflow(id: string, capabilities: Capability[], fields: Partial<Workflow> = {}): Workflow {
   return {
     id,
-    capability,
-    model,
-    model_name: modelName,
+    capabilities,
+    model: 'test',
+    model_name: 'Test',
     description: '',
-    default: isDefault,
-    resolutions: { '1K': ['1:1'] },
+    default_for: capabilities,
+    aspect_ratios: ['1:1'],
     max_count: 1,
     durations_s: [],
-    audio: false,
-    roles
+    sound: false,
+    accepts: [],
+    ...fields
   };
 }
 
 const catalogue = [
-  workflow('anima', 'image.generate', 'anima'),
-  workflow('flux-t2i', 'image.generate', 'flux', true),
-  workflow('flux-edit', 'image.edit', 'flux', true, { edit_target: 1, reference: 2 })
+  workflow('t2i', ['image.generate']),
+  workflow('other', ['image.generate'], { model: 'other', default_for: [] }),
+  workflow('edit', ['image.edit'], {
+    aspect_ratios: [],
+    accepts: [
+      { role: 'edit_target', media_type: 'image', most: 1 },
+      { role: 'reference', media_type: 'image', most: 2 }
+    ]
+  }),
+  workflow('video', ['video.generate', 'video.reference'], {
+    durations_s: [5, 10],
+    accepts: [
+      { role: 'reference', media_type: 'image', most: 2 },
+      { role: 'reference', media_type: 'video', most: 1 }
+    ]
+  })
 ];
 
 describe('chooseWorkflow', () => {
   test('a request without a model gets the default', () => {
-    expect(chooseWorkflow(catalogue, 'image.generate', null)).toMatchObject({ value: { id: 'flux-t2i' } });
-    expect(chooseWorkflow(catalogue, 'image.edit', null)).toMatchObject({ value: { id: 'flux-edit' } });
+    expect(chooseWorkflow(catalogue, 'image.generate', null)).toMatchObject({ value: { id: 't2i' } });
+    expect(chooseWorkflow(catalogue, 'video.reference', null)).toMatchObject({ value: { id: 'video' } });
   });
 
   test('a named model picks its workflow', () => {
-    expect(chooseWorkflow(catalogue, 'image.generate', 'anima')).toMatchObject({ value: { id: 'anima' } });
+    expect(chooseWorkflow(catalogue, 'image.generate', 'other')).toMatchObject({ value: { id: 'other' } });
   });
 
   test('a model that cannot do the capability is refused', () => {
-    expect(chooseWorkflow(catalogue, 'image.edit', 'anima')).toEqual({
+    expect(chooseWorkflow(catalogue, 'image.edit', 'other')).toEqual({
       ok: false,
-      error: "anima doesn't do image.edit; these do: flux"
+      error: "Editing a photo isn't available with that model"
     });
   });
 
   test('a capability without workflows is refused', () => {
-    expect(chooseWorkflow(catalogue, 'video.generate', null)).toEqual({ ok: false, error: 'No workflow does video.generate yet' });
+    expect(chooseWorkflow(catalogue.slice(0, 1), 'video.generate', null)).toEqual({
+      ok: false,
+      error: "Making a video isn't available yet"
+    });
   });
 });
 
 test('route checks the inputs fit the workflow', () => {
-  expect(route(catalogue, 'image', ['edit_target', 'reference', 'reference'], null)).toMatchObject({ value: { id: 'flux-edit' } });
-  expect(route(catalogue, 'image', ['edit_target', 'reference', 'reference', 'reference'], null)).toEqual({
+  expect(route(catalogue, 'image', [target, refPhoto, refPhoto], null)).toMatchObject({ value: { id: 'edit' } });
+  expect(route(catalogue, 'image', [target, refPhoto, refPhoto, refPhoto], null)).toEqual({
     ok: false,
-    error: 'Flux takes at most 2 references'
+    error: 'Editing a photo takes at most 2 reference photos'
+  });
+  expect(route(catalogue, 'image', [target, refClip], null)).toEqual({ ok: false, error: "Editing a photo can't use reference clips" });
+  expect(route(catalogue, 'video', [refClip, refClip], null)).toEqual({
+    ok: false,
+    error: 'Making a video takes at most 1 reference clip'
   });
 });

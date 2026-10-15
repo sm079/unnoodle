@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { outputType } from './capabilities';
 import { generations, workflows } from './fixtures';
-import { route } from './routing';
+import { capabilityFor, route, type Attached } from './routing';
 import type { Capability, GenerationStatus, MediaType } from './types';
 
 // The UI is tuned against these fixtures and the end-to-end tests serve them, so they keep the rules the API enforces
@@ -26,28 +26,23 @@ describe('generations', () => {
 
   test.each(generations)('$id routes to its workflow and outputs its media type', g => {
     const workflow = workflowById.get(g.workflow_id)!;
-    expect(workflow.capability).toBe(g.capability);
-    const roles = g.inputs.map(i => i.role);
-    expect(route(workflows, outputType(g.capability), roles, workflow.model)).toEqual({ ok: true, value: workflow });
+    expect(workflow.capabilities).toContain(g.capability);
+    const attached = g.inputs.map((i): Attached => [i.role, i.asset.media_type]);
+    expect(capabilityFor(outputType(g.capability), attached)).toEqual({ ok: true, value: g.capability });
+    expect(route(workflows, outputType(g.capability), attached, workflow.model)).toEqual({ ok: true, value: workflow });
     for (const output of g.outputs) {
       expect(output.media_type).toBe(outputType(g.capability));
       expect(output.source).toBe('generation');
     }
   });
 
-  test.each(generations)('$id gives a position to keyframes only', g => {
-    for (const input of g.inputs) {
-      expect(input.position_s !== null).toBe(input.role === 'keyframe');
-    }
-  });
-
   test.each(generations)('$id only uses settings its workflow offers', g => {
     const workflow = workflowById.get(g.workflow_id)!;
-    expect(workflow.resolutions[g.params.resolution]).toContain(g.params.aspect_ratio);
+    if (g.params.aspect_ratio === null) expect(workflow.aspect_ratios).toEqual([]);
+    else expect(workflow.aspect_ratios).toContain(g.params.aspect_ratio);
     if (g.params.duration_s === null) expect(workflow.durations_s).toEqual([]);
     else expect(workflow.durations_s).toContain(g.params.duration_s);
     expect(g.params.count).toBeLessThanOrEqual(workflow.max_count);
-    if (g.params.audio) expect(workflow.audio).toBe(true);
   });
 
   test('are newest first', () => {
@@ -57,16 +52,16 @@ describe('generations', () => {
 });
 
 describe('workflows', () => {
-  test.each(workflows)('$id offers settings for its output type', ({ capability, durations_s, audio }) => {
-    const video = outputType(capability) === 'video';
+  test.each(workflows)('$id offers settings for its output type', ({ capabilities, durations_s, sound }) => {
+    const video = outputType(capabilities[0]) === 'video';
     expect(durations_s.length > 0).toBe(video);
-    if (!video) expect(audio).toBe(false);
+    if (!video) expect(sound).toBe(false);
   });
 
   test('each capability has one default', () => {
-    const capabilities = new Set<Capability>(workflows.map(w => w.capability));
+    const capabilities = new Set<Capability>(workflows.flatMap(w => w.capabilities));
     for (const capability of capabilities) {
-      expect(workflows.filter(w => w.capability === capability && w.default)).toHaveLength(1);
+      expect(workflows.filter(w => w.default_for.includes(capability))).toHaveLength(1);
     }
   });
 });
