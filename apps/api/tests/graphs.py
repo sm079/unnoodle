@@ -62,3 +62,19 @@ def write(folder: Path, graph: Graph, manifest: str) -> Path:
     (folder / "workflow.json").write_text(json.dumps(graph), encoding="utf-8")
     (folder / "manifest.toml").write_text(manifest, encoding="utf-8")
     return folder
+
+
+def write_catalogue(directory: Path) -> Path:
+    """Three workflows: text to image (t2i), video from a frame (i2v) and a character swap (swap)."""
+    write(
+        directory / "t2i",
+        image_graph() | {"7": node("PrimitiveInt", "in.batch_size", value=1)},
+        with_keys(IMAGE_MANIFEST, "max_count = 4").replace("[sizes.1K]", '[sizes.1K]\n"3:4" = [896, 1152]'),
+    )
+    write(directory / "i2v", video_graph(), VIDEO_MANIFEST)
+    swap = video_graph() | {
+        "9": node("LoadVideo", "in.source_video", file="clip.mp4"),
+        "10": node("LoadImage", "in.reference_1", image="face.png"),
+    }
+    write(directory / "swap", swap, VIDEO_MANIFEST.replace("video.from_frame", "video.character_swap"))
+    return directory
