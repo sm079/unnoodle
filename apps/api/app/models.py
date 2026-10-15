@@ -86,6 +86,8 @@ class Asset(Base):
     width: Mapped[int]
     height: Mapped[int]
     duration_s: Mapped[float | None]
+    # Videos only: a still of the first frame, under the media directory like storage_key
+    poster_key: Mapped[str | None] = mapped_column(String(255))
     # Set for outputs: the generation that made this asset
     generation_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("generations.id", ondelete="CASCADE"), index=True
@@ -95,6 +97,7 @@ class Asset(Base):
     __table_args__ = (
         CheckConstraint("(source = 'generation') = (generation_id IS NOT NULL)", name="output_has_generation"),
         CheckConstraint("(media_type = 'video') = (duration_s IS NOT NULL)", name="duration_for_video"),
+        CheckConstraint("(media_type = 'video') = (poster_key IS NOT NULL)", name="poster_for_video"),
     )
 
 

@@ -41,6 +41,7 @@ def clip(engine: Engine) -> str:
             width=720,
             height=1280,
             duration_s=6.0,
+            poster_key="uploads/clip.jpg",
         )
         session.add(asset)
         session.commit()

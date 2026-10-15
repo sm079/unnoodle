@@ -58,7 +58,7 @@
     "/assets": {
       "post": {
         "summary": "Upload Asset",
-        "description": "Stores an uploaded image, to attach to generations. Videos come once a workflow takes them.",
+        "description": "Stores an uploaded photo or video clip, to attach to generations. Clips are cut to their first 15 seconds.",
         "operationId": "upload_asset_assets_post",
         "requestBody": {
           "required": true,
@@ -82,14 +82,7 @@
             }
           },
           "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "description": "A clip too short"
           }
         }
       },

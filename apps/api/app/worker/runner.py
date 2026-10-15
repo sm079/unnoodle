@@ -3,17 +3,15 @@
 import logging
 import time
 import uuid
-from dataclasses import dataclass
-from io import BytesIO
 from pathlib import PurePath
 from typing import Literal, cast
 
-from PIL import Image, UnidentifiedImageError
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from app.media import IMAGE_FORMATS, MediaStore
-from app.models import Asset, AssetSource, Generation, GenerationStatus, InputRole, MediaType
+from app.media import MediaStore, Stored, store_image, store_video
+from app.models import Asset, AssetSource, Generation, GenerationStatus, InputRole
+from app.video import VideoError
 from app.worker import queue
 from app.worker.comfy import Comfy, ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
 from app.workflows import AspectRatio, Job, JobInput, Workflow
@@ -23,16 +21,6 @@ logger = logging.getLogger(__name__)
 PROGRESS_EVERY_S = 0.5
 
 Outcome = Literal["done", "failed", "released", "lost"]
-
-
-@dataclass(frozen=True)
-class Output:
-    key: str
-    media_type: MediaType
-    mime_type: str
-    size_bytes: int
-    width: int
-    height: int
 
 
 def run_job(
@@ -97,19 +85,13 @@ def job_for(generation: Generation, workflow: Workflow, inputs: tuple[JobInput, 
     )
 
 
-def store_output(store: MediaStore, comfy: Comfy, file: OutputFile, key_stem: str) -> Output:
+def store_output(store: MediaStore, comfy: Comfy, file: OutputFile, key_stem: str) -> Stored:
     data = comfy.download(file)
     try:
-        with Image.open(BytesIO(data)) as image:
-            image_format, (width, height) = image.format, image.size
-    except UnidentifiedImageError:
-        image_format = None
-    if image_format not in IMAGE_FORMATS:
-        raise ComfyFailed("This made a kind of file the app can't show yet")
-    mime_type, extension = IMAGE_FORMATS[image_format]
-    key = f"{key_stem}.{extension}"
-    store.write(key, data)
-    return Output(key, MediaType.IMAGE, mime_type, len(data), width, height)
+        return store_image(store, data, key_stem) or store_video(store, data, key_stem, clip=False)
+    except VideoError as error:
+        logger.error("Can't store %s: %s", file.filename, error)
+        raise ComfyFailed("This made a kind of file the app can't show yet") from error
 
 
 def failure_message(error: ComfyFailed) -> str:
@@ -138,7 +120,7 @@ class ProgressWriter:
         queue.beat(self.engine, self.claim)
 
 
-def finish(engine: Engine, claim: queue.Claim, outputs: list[Output]) -> Outcome:
+def finish(engine: Engine, claim: queue.Claim, outputs: list[Stored]) -> Outcome:
     with Session(engine) as session, session.begin():
         generation = queue.lock_held(session, claim)
         if generation is None:
@@ -147,18 +129,7 @@ def finish(engine: Engine, claim: queue.Claim, outputs: list[Output]) -> Outcome
             )
             return "lost"
         for output in outputs:
-            session.add(
-                Asset(
-                    media_type=output.media_type,
-                    source=AssetSource.GENERATION,
-                    storage_key=output.key,
-                    mime_type=output.mime_type,
-                    size_bytes=output.size_bytes,
-                    width=output.width,
-                    height=output.height,
-                    generation_id=generation.id,
-                )
-            )
+            session.add(Asset(source=AssetSource.GENERATION, generation_id=generation.id, **output.fields()))
         queue.end(generation, GenerationStatus.DONE)
     return "done"
 

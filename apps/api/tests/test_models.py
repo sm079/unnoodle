@@ -65,6 +65,7 @@ def test_a_generation_keeps_its_inputs_in_order_and_its_outputs(engine: Engine) 
                 width=1280,
                 height=720,
                 duration_s=5.0,
+                poster_key=f"outputs/{g.id}/0.jpg",
                 generation_id=g.id,
             )
         )
@@ -107,7 +108,13 @@ def output_without_generation(session: Session) -> None:
 
 def video_without_duration(session: Session) -> None:
     asset = upload()
-    asset.media_type = MediaType.VIDEO
+    asset.media_type, asset.poster_key = MediaType.VIDEO, "uploads/a.jpg"
+    session.add(asset)
+
+
+def video_without_poster(session: Session) -> None:
+    asset = upload()
+    asset.media_type, asset.duration_s = MediaType.VIDEO, 3.0
     session.add(asset)
 
 
@@ -119,6 +126,7 @@ def video_without_duration(session: Session) -> None:
         unknown_quality,
         output_without_generation,
         video_without_duration,
+        video_without_poster,
     ],
 )
 def test_the_database_rejects_rows_that_break_the_rules(
