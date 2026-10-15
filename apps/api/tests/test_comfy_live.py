@@ -2,7 +2,9 @@
 describes."""
 
 import uuid
+from dataclasses import replace
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -11,9 +13,11 @@ from PIL import Image
 
 from app.catalogues import dev, real
 from app.graph import Graph
+from app.media import MediaStore, store_video
 from app.models import InputRole, MediaType
 from app.worker.comfy import ComfyClient, ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
 from app.workflows import Job, JobInput
+from tests.clips import clip, needs_ffmpeg
 
 # The inputs of loader nodes that name a model file, which the dev ComfyUI doesn't have
 MODEL_FILES = {"unet_name", "clip_name", "vae_name", "lora_name"}
@@ -110,3 +114,36 @@ def test_the_real_graphs_are_valid_apart_from_the_models(comfyui_url: str, refer
             assert (error["type"], error["extra_info"]["input_name"] in MODEL_FILES) == ("value_not_in_list", True), (
                 error
             )
+
+
+def video_job(prompt: str, photos: list[str], clips: list[str], frames: int) -> Job:
+    attached = [JobInput(InputRole.REFERENCE, MediaType.IMAGE, p) for p in photos]
+    attached += [JobInput(InputRole.REFERENCE, MediaType.VIDEO, c) for c in clips]
+    return replace(job(prompt, size=(256, 448), count=1), frames=frames, inputs=tuple(attached))
+
+
+@needs_ffmpeg
+def test_a_video_from_a_photo_and_a_clip_runs_and_is_stored(comfyui_url: str, tmp_path: Path) -> None:
+    client = ComfyClient(comfyui_url)
+    photo = upload_png(client, (64, 48), (0, 120, 0))
+    reference = client.upload(clip(2), f"{uuid.uuid4()}.mp4")
+    files, _ = run(client, dev.video(video_job(f"video {uuid.uuid4()}", [photo], [reference], frames=8)))
+    [file] = files
+    stored = store_video(MediaStore(tmp_path), client.download(file), "out", clip=False)
+    # Eight frames at the stand-in's four a second
+    assert (stored.media_type, stored.width, stored.height) == (MediaType.VIDEO, 256, 448)
+    assert stored.duration_s == pytest.approx(2, abs=0.3)
+    assert stored.poster_key is not None and (tmp_path / stored.poster_key).stat().st_size > 0
+
+
+@needs_ffmpeg
+@pytest.mark.parametrize(("photos", "clips"), [(0, 0), (2, 1)])
+def test_the_real_video_graph_is_valid_apart_from_the_models(comfyui_url: str, photos: int, clips: int) -> None:
+    client = ComfyClient(comfyui_url)
+    photo_names = [upload_png(client, (64, 48), (0, 120, 0)) for _ in range(photos)]
+    clip_names = [client.upload(clip(2), f"{uuid.uuid4()}.mp4") for _ in range(clips)]
+    graph = real.minimax_h3(video_job("photo 1 waves like clip 1", photo_names, clip_names, frames=124))
+    found = complaints(comfyui_url, graph)
+    assert found, "expected the model files to be missing"
+    for error in found:
+        assert (error["type"], error["extra_info"]["input_name"] in MODEL_FILES) == ("value_not_in_list", True), error
