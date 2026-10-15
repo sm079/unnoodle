@@ -27,6 +27,20 @@ uv run uvicorn app.main:app --reload    # API on http://localhost:8000; try GET 
 
 Every setting has a working default. To change one, copy `.env.example` to `.env`; compose and the API both read it.
 
+### ComfyUI without models
+
+Generations run on ComfyUI. To develop without downloading any models, start ComfyUI (0.39 or later) from the repo
+root with `dev/comfyui` as its base directory:
+
+```sh
+python <path-to-ComfyUI>/main.py --base-directory dev/comfyui --port 8189 --cpu --disable-auto-launch
+```
+
+It then loads only the development node in `dev/comfyui/custom_nodes`, and keeps its inputs, outputs and settings in
+`dev/comfyui` (git-ignored), so an existing ComfyUI install is left as it was. The node stands in for a model: it
+reports progress step by step, tints each image by the seed and writes the prompt on it, and fails like a GPU out of
+memory when the prompt contains `#oom`. Port 8189 keeps it clear of a normal ComfyUI on 8188.
+
 ## Checks
 
 ```sh
