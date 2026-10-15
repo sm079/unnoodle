@@ -41,6 +41,7 @@ test('composer chips animate in and out, and Generate with no prompt goes back t
   const composer = page.getByRole('form', { name: 'Composer' });
   const inputs = composer.getByRole('list', { name: 'Inputs' });
   await expect(inputs).toHaveCount(0);
+  await composer.getByRole('button', { name: 'Video', exact: true }).click();
 
   await composer.getByRole('button', { name: 'Add from library' }).click();
   await page
@@ -74,6 +75,6 @@ test('with reduced motion, things fade instead of moving', async ({ page }) => {
   await highlights(page).getByRole('button', { name: 'Next highlight' }).click();
   await expect(frontCard(page)).toHaveAccessibleName(/^Highlight 2 of/);
   const composer = page.getByRole('form', { name: 'Composer' });
-  await composer.getByRole('button', { name: 'Image', exact: true }).click();
-  await expect(composer.getByRole('button', { name: /^Duration/ })).toHaveCount(0);
+  await composer.getByRole('button', { name: 'Video', exact: true }).click();
+  await expect(composer.getByRole('button', { name: /^Duration/ })).toBeVisible();
 });

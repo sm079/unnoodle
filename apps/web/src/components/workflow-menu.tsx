@@ -16,14 +16,16 @@ interface WorkflowMenuProps {
   models: Workflow[];
   /** Where the request goes now, or null when the inputs route nowhere. */
   value: Workflow | null;
+  /** Shown in place of the route while there is none. */
+  emptyLabel: string;
   onChange: (workflow: Workflow) => void;
   className?: string;
 }
 
 /** Shows where the request goes, as "capability · model", and lets the user pick another model that does the same. */
-export function WorkflowMenu({ models, value, onChange, className }: WorkflowMenuProps) {
+export function WorkflowMenu({ models, value, emptyLabel, onChange, className }: WorkflowMenuProps) {
   const [open, setOpen] = useState(false);
-  const label = value ? `${capabilityLabels[value.capability]} · ${value.model_name}` : 'No route';
+  const label = value ? `${capabilityLabels[value.capability]} · ${value.model_name}` : emptyLabel;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

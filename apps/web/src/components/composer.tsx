@@ -104,7 +104,7 @@ export function Composer({ onGenerated }: ComposerProps) {
   const workflows = useWorkflows();
   const { data: library = [] } = useUploads();
   const addToCache = useAddToCache();
-  const [mode, setMode] = useState<MediaType>('video');
+  const [mode, setMode] = useState<MediaType>('image');
   const [drafts, setDrafts] = useState(initialDrafts);
   const [sending, setSending] = useState(false);
   // Why the last attempt to upload or send didn't work; cleared by the next change
@@ -125,7 +125,9 @@ export function Composer({ onGenerated }: ComposerProps) {
   const settings = workflow ? fitSettings(draft.settings, workflow) : draft.settings;
   const full = draft.inputs.length >= MAX_INPUTS;
   const uploading = draft.inputs.some(i => i.uploading);
-  const status = problem ?? (workflows.error ? workflows.error.message : routed && !routed.ok ? routed.error : null);
+  // Inputs that route nowhere show as such on the route chip, with Generate disabled. The line under the composer is
+  // only for what went wrong: an upload or a request the API refused, or the workflows not loading.
+  const status = problem ?? (workflows.error ? workflows.error.message : null);
 
   function update(patch: Partial<Draft>) {
     setProblem(null);
@@ -349,6 +351,7 @@ export function Composer({ onGenerated }: ComposerProps) {
               <WorkflowMenu
                 models={workflow ? (workflows.data ?? []).filter(w => w.capability === workflow.capability) : []}
                 value={workflow}
+                emptyLabel={workflows.data ? 'Not available yet' : 'Loading models…'}
                 onChange={next => update({ model: next.model })}
                 className={cn(chipClass, 'px-3')}
               />
