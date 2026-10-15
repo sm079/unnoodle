@@ -11,7 +11,16 @@ from sqlalchemy import select
 
 from app.db import SessionDep
 from app.media import AssetOut
-from app.models import Asset, Capability, Generation, GenerationInput, GenerationStatus, InputRole, MediaType
+from app.models import (
+    Asset,
+    Capability,
+    Generation,
+    GenerationInput,
+    GenerationStatus,
+    InputRole,
+    MediaType,
+    Project,
+)
 from app.routing import RoutingError, route
 from app.worker import queue
 from app.workflows import AspectRatio, Workflow, WorkflowsDep
@@ -52,6 +61,8 @@ class GenerationIn(BaseModel):
     params: Params
     # Which model runs it, when several can; left out for the default
     model: str | None = None
+    # The project to file it in; left out, it is only in My generations
+    project_id: uuid.UUID | None = None
 
 
 class GenerationInputOut(BaseModel):
@@ -70,6 +81,7 @@ class GenerationOut(BaseModel):
     capability: Capability
     workflow_id: str
     prompt: str
+    project_id: uuid.UUID | None
     params: ParamsOut
     inputs: list[GenerationInputOut]
     # Filled once the status is done
@@ -90,6 +102,7 @@ class GenerationOut(BaseModel):
             capability=g.capability,
             workflow_id=g.workflow_id,
             prompt=g.prompt,
+            project_id=g.project_id,
             params=ParamsOut(
                 # Checked against the workflow when the request was accepted
                 aspect_ratio=cast(AspectRatio, g.aspect_ratio),
@@ -124,6 +137,8 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
         workflow = route(workflows.values(), body.media_type, [i.role for i in body.inputs], body.model)
         check_params(workflow, body.params)
         assets = attached_assets(session, body.inputs)
+        if body.project_id is not None and session.get(Project, body.project_id) is None:
+            raise RequestError("That project no longer exists")
     except (RoutingError, RequestError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
@@ -132,6 +147,7 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
         capability=workflow.capability,
         workflow_id=workflow.id,
         prompt=body.prompt,
+        project_id=body.project_id,
         aspect_ratio=p.aspect_ratio,
         resolution=p.resolution,
         duration_s=p.duration_s,
@@ -150,12 +166,17 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
 
 
 @router.get("/generations")
-def list_generations(session: SessionDep, before: uuid.UUID | None = None, limit: int = 30) -> list[GenerationOut]:
-    """Newest first. For the next page, pass the id of the last one received as before."""
+def list_generations(
+    session: SessionDep, before: uuid.UUID | None = None, limit: int = 30, project_id: uuid.UUID | None = None
+) -> list[GenerationOut]:
+    """Newest first: all of them (My generations), or one project's. For the next page, pass the id of the last one
+    received as before."""
     query = select(Generation).order_by(Generation.id.desc()).limit(min(limit, 100))
     if before is not None:
         # Ids are time-ordered, so "older than" is "smaller id"
         query = query.where(Generation.id < before)
+    if project_id is not None:
+        query = query.where(Generation.project_id == project_id)
     return [GenerationOut.of(g) for g in session.scalars(query)]
 
 

@@ -1,6 +1,6 @@
-// Mock data in the API's shapes (see types.ts): what the end-to-end tests serve in place of the API, and what the UI
-// shows where the API has nothing yet, such as projects. There are no mock video files, so video assets point at
-// their poster image.
+// Mock data in the API's shapes (see types.ts): what the end-to-end tests serve in place of the API, and what the hero
+// shows until there are real outputs worth showing. There are no mock video files, so video assets point at their
+// poster image.
 
 import type { AspectRatio, Asset, Generation, Project, Workflow } from './types';
 
@@ -166,6 +166,7 @@ export const generations: Generation[] = [
     status: 'queued',
     capability: 'image.generate',
     workflow_id: 'anima-t2i',
+    project_id: null,
     prompt: 'girl with silver hair on a rain-soaked neon street, looking back over her shoulder',
     params: { ...imageParams, seed: 7 },
     inputs: [],
@@ -181,6 +182,7 @@ export const generations: Generation[] = [
     status: 'running',
     capability: 'video.from_frame',
     workflow_id: 'ltx-2.5-i2v',
+    project_id: 'prj_film',
     prompt: 'she turns towards the camera as the light fades',
     params: { ...videoParams, aspect_ratio: '3:4' },
     inputs: [{ role: 'start_frame', asset: portrait, position_s: null }],
@@ -196,6 +198,7 @@ export const generations: Generation[] = [
     status: 'failed',
     capability: 'video.first_last',
     workflow_id: 'minimax-h3-first-last',
+    project_id: null,
     prompt: 'the empty room fills with plants over a year, timelapse',
     params: { ...videoParams, resolution: '1080p', duration_s: 6 },
     inputs: [
@@ -213,6 +216,7 @@ export const generations: Generation[] = [
     status: 'done',
     capability: 'video.character_swap',
     workflow_id: 'scail-swap',
+    project_id: null,
     prompt: 'replace the dancer with the character',
     params: { ...videoParams, aspect_ratio: '9:16', duration_s: 6, seed: 5521 },
     inputs: [
@@ -230,6 +234,7 @@ export const generations: Generation[] = [
     status: 'done',
     capability: 'video.keyframes',
     workflow_id: 'ltx-2.5-keyframes',
+    project_id: 'prj_film',
     prompt: 'slow morph between the two portraits',
     params: { ...videoParams, aspect_ratio: '3:4', duration_s: 8, seed: 77 },
     inputs: [
@@ -247,6 +252,7 @@ export const generations: Generation[] = [
     status: 'done',
     capability: 'image.edit',
     workflow_id: 'flux-klein-9b-edit',
+    project_id: 'prj_mood',
     prompt: 'replace the sofa with a green velvet armchair',
     params: { ...imageParams, aspect_ratio: '4:3', seed: 3130 },
     inputs: [{ role: 'edit_target', asset: room, position_s: null }],
@@ -261,6 +267,7 @@ export const generations: Generation[] = [
     status: 'done',
     capability: 'video.generate',
     workflow_id: 'ltx-2.5-t2v',
+    project_id: 'prj_film',
     prompt: 'an old jeep on an empty road at dusk, low angle, film grain',
     params: videoParams,
     inputs: [],
@@ -275,6 +282,7 @@ export const generations: Generation[] = [
     status: 'done',
     capability: 'image.generate',
     workflow_id: 'flux-klein-9b-t2i',
+    project_id: 'prj_mood',
     prompt: 'overgrown greenhouse, morning light, film photo',
     params: { ...imageParams, aspect_ratio: '1:1', count: 2, seed: 4410 },
     inputs: [],
@@ -289,6 +297,7 @@ export const generations: Generation[] = [
     status: 'done',
     capability: 'image.generate',
     workflow_id: 'illustrious-t2i',
+    project_id: null,
     prompt: 'portrait of a woman in a red coat, warm backlight',
     params: imageParams,
     inputs: [],
@@ -300,7 +309,14 @@ export const generations: Generation[] = [
   }
 ];
 
+/** A project as the API describes it, from the generations filed in it. */
+function project(id: string, name: string, created_at: string): Project {
+  const filed = generations.filter(g => g.project_id === id);
+  return { id, name, created_at, generation_count: filed.length, covers: filed.flatMap(g => g.outputs).slice(0, 3) };
+}
+
+/** Newest first, the order the API returns them in. */
 export const projects: Project[] = [
-  { id: 'prj_film', name: 'Short film', created_at: '2026-10-08T10:00:00Z', covers: [roadClip, morph, portrait] },
-  { id: 'prj_mood', name: 'Moodboard', created_at: '2026-10-09T10:00:00Z', covers: [roomEdit, ...greenhouse] }
+  project('prj_mood', 'Moodboard', '2026-10-09T10:00:00Z'),
+  project('prj_film', 'Short film', '2026-10-08T10:00:00Z')
 ];

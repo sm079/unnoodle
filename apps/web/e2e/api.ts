@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
-import { generations, uploads, workflows } from '../src/lib/fixtures';
-import type { Asset, Generation, GenerationRequest } from '../src/lib/types';
+import { generations, projects, uploads, workflows } from '../src/lib/fixtures';
+import type { Asset, Generation, GenerationRequest, Project } from '../src/lib/types';
 
 /**
  * Answers the browser's API calls with the fixtures, so the tests need no API and always see the same data. A
@@ -8,6 +8,7 @@ import type { Asset, Generation, GenerationRequest } from '../src/lib/types';
  */
 export async function mockApi(page: Page) {
   const created: Generation[] = [];
+  const createdProjects: Project[] = [];
   let reads = 0;
 
   await page.route('**/api/workflows', route => route.fulfill({ json: workflows }));
@@ -18,11 +19,28 @@ export async function mockApi(page: Page) {
     return route.fulfill({ status: 201, json: asset });
   });
 
-  await page.route('**/api/generations', async route => {
+  // With or without ?project_id=
+  await page.route(/\/api\/generations(\?.*)?$/, async route => {
     if (route.request().method() === 'POST') return route.fulfill({ status: 201, json: queue(route) });
     reads += 1;
     for (const g of created) advance(g);
-    return route.fulfill({ json: [...created, ...generations] });
+    const project = new URL(route.request().url()).searchParams.get('project_id');
+    const all = [...created, ...generations];
+    return route.fulfill({ json: project === null ? all : all.filter(g => g.project_id === project) });
+  });
+
+  await page.route('**/api/projects', async route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: [...createdProjects, ...projects] });
+    const { name } = route.request().postDataJSON() as { name: string };
+    const project: Project = {
+      id: `prj_new_${createdProjects.length}`,
+      name,
+      created_at: new Date().toISOString(),
+      generation_count: 0,
+      covers: []
+    };
+    createdProjects.unshift(project);
+    return route.fulfill({ status: 201, json: project });
   });
 
   function queue(route: Route): Generation {
@@ -34,6 +52,7 @@ export async function mockApi(page: Page) {
       capability: workflow.capability,
       workflow_id: workflow.id,
       prompt: body.prompt,
+      project_id: body.project_id ?? null,
       params: { ...body.params, seed: body.params.seed ?? 42 },
       inputs: [],
       outputs: [],
