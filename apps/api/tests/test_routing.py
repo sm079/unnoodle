@@ -43,7 +43,7 @@ def test_a_named_model_picks_its_workflow() -> None:
 
 
 def test_a_model_that_cannot_do_the_capability_is_refused() -> None:
-    with pytest.raises(RoutingError, match="^Making a picture from photos isn't available with that model$"):
+    with pytest.raises(RoutingError, match="^Editing an image isn't available with that model$"):
         choose_workflow(CATALOGUE, Capability.IMAGE_EDIT, "other")
 
 
@@ -54,9 +54,9 @@ def test_a_capability_without_workflows_is_refused() -> None:
 
 def test_route_checks_the_inputs_fit_the_workflow() -> None:
     assert route(CATALOGUE, PHOTO, [REF_PHOTO] * 3, None).id == "edit"
-    with pytest.raises(RoutingError, match="^Making a picture from photos takes at most 3 photos$"):
+    with pytest.raises(RoutingError, match="^Editing an image takes at most 3 photos$"):
         route(CATALOGUE, PHOTO, [REF_PHOTO] * 4, None)
-    with pytest.raises(RoutingError, match="^Making a picture from photos can't use clips$"):
+    with pytest.raises(RoutingError, match="^Editing an image can't use clips$"):
         route(CATALOGUE, PHOTO, [REF_PHOTO, REF_CLIP], None)
     with pytest.raises(RoutingError, match="^Making a video takes at most 1 clip$"):
         route(CATALOGUE, CLIP, [REF_CLIP, REF_CLIP], None)

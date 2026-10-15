@@ -66,8 +66,8 @@ def test_an_unknown_project_is_not_found(client: TestClient) -> None:
 
 def test_a_generation_made_in_a_project_is_in_it_and_in_my_generations(client: TestClient) -> None:
     project = client.post("/projects", json={"name": "Short film"}).json()["id"]
-    loose = client.post("/generations", json=image_request(prompt="loose")).json()
-    filed = client.post("/generations", json=image_request(prompt="filed", project_id=project)).json()
+    [loose] = client.post("/generations", json=image_request(prompt="loose")).json()
+    [filed] = client.post("/generations", json=image_request(prompt="filed", project_id=project)).json()
     assert (loose["project_id"], filed["project_id"]) == (None, project)
 
     everything = client.get("/generations").json()
@@ -85,8 +85,8 @@ def test_a_generation_for_a_missing_project_is_refused(client: TestClient) -> No
 
 def test_a_project_counts_its_generations_and_shows_its_newest_outputs(client: TestClient, engine: Engine) -> None:
     film, posters = (client.post("/projects", json={"name": name}).json()["id"] for name in ("Short film", "Posters"))
-    first = client.post("/generations", json=image_request(project_id=film)).json()["id"]
-    second = client.post("/generations", json=image_request(project_id=film)).json()["id"]
+    first = client.post("/generations", json=image_request(project_id=film)).json()[0]["id"]
+    second = client.post("/generations", json=image_request(project_id=film)).json()[0]["id"]
     client.post("/generations", json=image_request())
     older = finish_with_outputs(engine, first, 2)
     newer = finish_with_outputs(engine, second, 2)

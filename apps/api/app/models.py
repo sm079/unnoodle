@@ -134,7 +134,6 @@ class Generation(Base):
     # Width to height, e.g. "3:4". None: the shape of the first attachment.
     aspect_ratio: Mapped[str | None] = mapped_column(String(8))
     duration_s: Mapped[float | None]
-    count: Mapped[int]
     # Chosen when the request is accepted, so running the job again gives the same result
     seed: Mapped[int] = mapped_column(BigInteger)
 
@@ -157,7 +156,6 @@ class Generation(Base):
     outputs: Mapped[list[Asset]] = relationship(order_by=Asset.id, lazy="selectin")
 
     __table_args__ = (
-        CheckConstraint("count >= 1", name="count_positive"),
         CheckConstraint("progress BETWEEN 0 AND 1", name="progress_fraction"),
         CheckConstraint("(status = 'failed') = (error IS NOT NULL)", name="error_when_failed"),
         CheckConstraint("(status IN ('done', 'failed')) = (finished_at IS NOT NULL)", name="finished_when_ended"),

@@ -36,7 +36,7 @@ def shrink(g: Graph, image: Link, megapixels: float) -> Link:
 def image(job: Job) -> Graph:
     width, height = job.size
     g = Graph()
-    canvas = g.add("EmptyImage", width=width, height=height, batch_size=job.count, color=0x202020)
+    canvas = g.add("EmptyImage", width=width, height=height, batch_size=1, color=0x202020)
     g.output(g.add("SaveImage", images=stamp(g, canvas[0], job, job.prompt), filename_prefix=job.filename_prefix))
     return g
 
@@ -91,7 +91,6 @@ WORKFLOWS = [
         description="A tinted canvas with the prompt written on it",
         build=image,
         megapixels=IMAGE_MEGAPIXELS,
-        max_count=4,
     ),
     Workflow(
         id="dev-edit",

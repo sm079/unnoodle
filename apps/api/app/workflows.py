@@ -70,7 +70,6 @@ class Job:
     megapixels: float
     # (width, height) in pixels: the shape asked for, or the first attachment's, at the quality's area
     size: tuple[int, int]
-    count: int
     # Videos only
     frames: int | None
     # In the order they were attached, which is how the prompt numbers them
@@ -128,7 +127,6 @@ class Workflow:
     # Width and height are rounded to a multiple of this
     multiple: int = 16
     accepts: tuple[Accepts, ...] = ()
-    max_count: int = 1
     # Videos only: the lengths offered in seconds, and the frame count each one runs
     frames: Mapping[int, int] = field(default_factory=dict)
     # Whether its videos have sound
@@ -185,8 +183,6 @@ def check_workflow(workflow: Workflow) -> list[str]:
                 problems.append(f"{capability} needs it to accept a {role}")
     if set(workflow.megapixels) != set(Quality):
         problems.append("it needs megapixels for low, medium and high")
-    if workflow.max_count < 1:
-        problems.append("max_count must be at least 1")
     is_video = workflow.media_type is MediaType.VIDEO
     if is_video and not workflow.frames:
         problems.append("a video workflow needs the lengths it offers")
@@ -241,7 +237,6 @@ class WorkflowOut(BaseModel):
     default_for: list[Capability]
     # A request with attachments can also take the first one's shape
     aspect_ratios: list[AspectRatio]
-    max_count: int
     # Videos only
     durations_s: list[int]
     sound: bool
@@ -258,7 +253,6 @@ class WorkflowOut(BaseModel):
             description=workflow.description,
             default_for=[c for c in sorted(workflow.capabilities) if default_workflow(workflows, c) is workflow],
             aspect_ratios=list(workflow.aspect_ratios),
-            max_count=workflow.max_count,
             durations_s=sorted(workflow.frames),
             sound=workflow.sound,
             accepts=[AcceptsOut(role=a.role, media_type=a.media_type, most=a.most) for a in workflow.accepts],

@@ -31,21 +31,27 @@ from app.workflows import AspectRatio, Workflow, WorkflowsDep
 PICKED_SEEDS = 2**32
 MAX_SEED = 2**53 - 1
 
+# How many one request can queue. Each is its own run with one output, so a GPU only ever makes one thing at a time.
+MAX_QUEUED = 4
+
 
 class InputIn(BaseModel):
     asset_id: uuid.UUID
     role: InputRole
 
 
-class Params(BaseModel):
+class Settings(BaseModel):
     quality: Quality = Quality.MEDIUM
     # One the workflow offers, or left out for the shape of the first attachment
     aspect_ratio: AspectRatio | None = None
     # Videos only, in seconds, one the workflow offers
     duration_s: int | None = None
-    # Outputs per run
+
+
+class Params(Settings):
+    # How many to make. Each is a generation of its own, queued one after another, with the next seed.
     count: int = Field(default=1, ge=1)
-    # Left out for a random one; the generation records the seed it used
+    # Left out for random ones; each generation records the seed it used
     seed: int | None = Field(default=None, ge=0, le=MAX_SEED)
 
 
@@ -67,7 +73,7 @@ class GenerationInputOut(BaseModel):
     asset: AssetOut
 
 
-class ParamsOut(Params):
+class ParamsOut(Settings):
     seed: int
 
 
@@ -104,7 +110,6 @@ class GenerationOut(BaseModel):
                 # Checked against the workflow when the request was accepted
                 aspect_ratio=cast(AspectRatio | None, g.aspect_ratio),
                 duration_s=None if g.duration_s is None else round(g.duration_s),
-                count=g.count,
                 seed=g.seed,
             ),
             inputs=[GenerationInputOut(role=i.role, asset=AssetOut.of(i.asset)) for i in g.inputs],
@@ -125,7 +130,8 @@ router = APIRouter()
 
 
 @router.post("/generations", status_code=status.HTTP_201_CREATED, responses={422: {"description": "Can't be run"}})
-def create_generation(body: GenerationIn, session: SessionDep, workflows: WorkflowsDep) -> GenerationOut:
+def create_generation(body: GenerationIn, session: SessionDep, workflows: WorkflowsDep) -> list[GenerationOut]:
+    """Queues count generations, oldest first in the answer."""
     try:
         assets = attached_assets(session, body.inputs)
         attached = [(i.role, assets[i.asset_id].media_type) for i in body.inputs]
@@ -137,22 +143,27 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
     p = body.params
-    generation = Generation(
-        capability=capability_for(body.media_type, attached),
-        workflow_id=workflow.id,
-        prompt=body.prompt,
-        project_id=body.project_id,
-        quality=p.quality,
-        aspect_ratio=p.aspect_ratio,
-        duration_s=p.duration_s,
-        count=p.count,
-        seed=p.seed if p.seed is not None else secrets.randbelow(PICKED_SEEDS),
-        inputs=[GenerationInput(position=n, role=i.role, asset=assets[i.asset_id]) for n, i in enumerate(body.inputs)],
-    )
-    session.add(generation)
+    seeds = [p.seed + n if p.seed is not None else secrets.randbelow(PICKED_SEEDS) for n in range(p.count)]
+    generations = [
+        Generation(
+            capability=capability_for(body.media_type, attached),
+            workflow_id=workflow.id,
+            prompt=body.prompt,
+            project_id=body.project_id,
+            quality=p.quality,
+            aspect_ratio=p.aspect_ratio,
+            duration_s=p.duration_s,
+            seed=seed,
+            inputs=[
+                GenerationInput(position=n, role=i.role, asset=assets[i.asset_id]) for n, i in enumerate(body.inputs)
+            ],
+        )
+        for seed in seeds
+    ]
+    session.add_all(generations)
     queue.notify_queued(session)
     session.commit()
-    return GenerationOut.of(generation)
+    return [GenerationOut.of(g) for g in generations]
 
 
 @router.get("/generations")
@@ -183,8 +194,8 @@ def check_params(workflow: Workflow, params: Params, attached: int) -> None:
         raise RequestError("Pick a shape")
     if params.aspect_ratio is not None and params.aspect_ratio not in workflow.aspect_ratios:
         raise RequestError("That shape isn't offered here")
-    if params.count > workflow.max_count:
-        raise RequestError(f"This makes at most {workflow.max_count} at a time")
+    if params.count > MAX_QUEUED:
+        raise RequestError(f"You can make up to {MAX_QUEUED} at a time")
     if workflow.media_type is MediaType.VIDEO:
         if params.duration_s not in workflow.frames:
             lengths = [str(s) for s in sorted(workflow.frames)]

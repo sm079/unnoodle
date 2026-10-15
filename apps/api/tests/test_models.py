@@ -39,7 +39,6 @@ def generation(**changes: object) -> Generation:
         "quality": Quality.MEDIUM,
         "aspect_ratio": "16:9",
         "duration_s": 5.0,
-        "count": 1,
         "seed": 42,
     }
     return Generation(**(fields | changes))

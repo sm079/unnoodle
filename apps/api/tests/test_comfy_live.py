@@ -23,13 +23,12 @@ from tests.clips import clip, needs_ffmpeg
 MODEL_FILES = {"unet_name", "clip_name", "vae_name", "lora_name"}
 
 
-def job(prompt: str, *photos: str, size: tuple[int, int] = (256, 192), count: int = 2) -> Job:
+def job(prompt: str, *photos: str, size: tuple[int, int] = (256, 192)) -> Job:
     return Job(
         prompt=prompt,
         seed=11,
         megapixels=0.05,
         size=size,
-        count=count,
         frames=None,
         inputs=tuple(JobInput(InputRole.REFERENCE, MediaType.IMAGE, photo) for photo in photos),
         filename_prefix="unnoodle/test",
@@ -54,7 +53,7 @@ def test_a_graph_runs_reporting_progress_and_its_outputs_download(comfyui_url: s
     # A prompt never sent before, so ComfyUI can't answer from its cache without running the steps
     files, progress = run(client, dev.image(job(f"live test {uuid.uuid4()}")))
     assert progress == sorted(progress) and progress[-1] == 1.0
-    assert len(files) == 2
+    assert len(files) == 1
     with Image.open(BytesIO(client.download(files[0]))) as image:
         assert image.size == (256, 192)
 
@@ -63,7 +62,7 @@ def test_uploaded_photos_load_into_an_edit(comfyui_url: str) -> None:
     client = ComfyClient(comfyui_url)
     photo = upload_png(client, (480, 320), (250, 0, 0))
     reference = upload_png(client, (64, 64), (0, 0, 250))
-    files, _ = run(client, dev.edit(job(f"edit {uuid.uuid4()}", photo, reference, size=(288, 192), count=1)))
+    files, _ = run(client, dev.edit(job(f"edit {uuid.uuid4()}", photo, reference, size=(288, 192))))
     with Image.open(BytesIO(client.download(files[0]))) as image:
         assert image.size == (288, 192)
 
@@ -117,7 +116,7 @@ def test_the_real_graphs_are_valid_apart_from_the_models(comfyui_url: str, refer
 def video_job(prompt: str, photos: list[str], clips: list[str], frames: int) -> Job:
     attached = [JobInput(InputRole.REFERENCE, MediaType.IMAGE, p) for p in photos]
     attached += [JobInput(InputRole.REFERENCE, MediaType.VIDEO, c) for c in clips]
-    return replace(job(prompt, size=(256, 448), count=1), frames=frames, inputs=tuple(attached))
+    return replace(job(prompt, size=(256, 448)), frames=frames, inputs=tuple(attached))
 
 
 @needs_ffmpeg

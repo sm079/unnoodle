@@ -22,8 +22,8 @@ class RoutingError(ValueError):
 Attached = tuple[InputRole, MediaType]
 
 DOING = {
-    Capability.IMAGE_GENERATE: "Making a picture",
-    Capability.IMAGE_EDIT: "Making a picture from photos",
+    Capability.IMAGE_GENERATE: "Creating an image",
+    Capability.IMAGE_EDIT: "Editing an image",
     Capability.VIDEO_GENERATE: "Making a video",
     Capability.VIDEO_REFERENCE: "Making a video",
 }

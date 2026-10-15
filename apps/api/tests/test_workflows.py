@@ -53,7 +53,6 @@ def job(*inputs: tuple[InputRole, MediaType], prompt: str = "a prompt", **fields
         "seed": 7,
         "megapixels": 1.0,
         "size": (1024, 1024),
-        "count": 1,
         "frames": None,
         "filename_prefix": "unnoodle/test",
     }
@@ -108,7 +107,7 @@ def test_the_api_lists_workflows_with_what_the_composer_offers(settings: Setting
     assert listed["edit"]["accepts"] == [{"role": "reference", "media_type": "image", "most": 3}]
     video = listed["video"]
     assert (video["capabilities"], video["default_for"]) == (["video.generate", "video.reference"],) * 2
-    assert (video["durations_s"], video["sound"], video["max_count"]) == ([5, 10], True, 1)
+    assert (video["durations_s"], video["sound"]) == ([5, 10], True)
 
 
 # The real builders. Whether ComfyUI accepts their graphs is checked against a real one in test_comfy_live.
@@ -123,9 +122,9 @@ def links(graph: dict[str, Any]) -> list[tuple[str, int]]:
     ]
 
 
-def test_krea_makes_the_size_and_count_asked_for() -> None:
-    graph = real.krea2(job(size=(896, 1152), count=3)).nodes
-    assert node_of(graph, "EmptyLatentImage") == {"width": 896, "height": 1152, "batch_size": 3}
+def test_krea_makes_one_image_of_the_size_asked_for() -> None:
+    graph = real.krea2(job(size=(896, 1152))).nodes
+    assert node_of(graph, "EmptyLatentImage") == {"width": 896, "height": 1152, "batch_size": 1}
     assert node_of(graph, "KSampler")["seed"] == 7
     assert node_of(graph, "CLIPTextEncode")["text"] == "a prompt"
     assert all(node_id in graph for node_id, _ in links(graph))

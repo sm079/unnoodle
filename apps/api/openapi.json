@@ -133,6 +133,7 @@
     "/generations": {
       "post": {
         "summary": "Create Generation",
+        "description": "Queues count generations, oldest first in the answer.",
         "operationId": "create_generation_generations_post",
         "requestBody": {
           "required": true,
@@ -150,7 +151,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenerationOut"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GenerationOut"
+                  },
+                  "title": "Response Create Generation Generations Post"
                 }
               }
             }
@@ -874,12 +879,6 @@
             ],
             "title": "Duration S"
           },
-          "count": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Count",
-            "default": 1
-          },
           "seed": {
             "type": "integer",
             "title": "Seed"
@@ -1043,10 +1042,6 @@
             "type": "array",
             "title": "Aspect Ratios"
           },
-          "max_count": {
-            "type": "integer",
-            "title": "Max Count"
-          },
           "durations_s": {
             "items": {
               "type": "integer"
@@ -1075,7 +1070,6 @@
           "description",
           "default_for",
           "aspect_ratios",
-          "max_count",
           "durations_s",
           "sound",
           "accepts"

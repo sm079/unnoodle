@@ -40,11 +40,11 @@ def png(size: tuple[int, int] = (64, 36)) -> bytes:
     return buffer.getvalue()
 
 
-def queue_image(client: TestClient, prompt: str = "a greenhouse at dawn", count: int = 2) -> str:
-    params = {"aspect_ratio": "3:4", "quality": "medium", "count": count, "seed": 7}
+def queue_image(client: TestClient, prompt: str = "a greenhouse at dawn") -> str:
+    params = {"aspect_ratio": "3:4", "quality": "medium", "seed": 7}
     response = client.post("/generations", json={"media_type": "image", "prompt": prompt, "params": params})
     assert response.status_code == 201
-    generation_id: str = response.json()["id"]
+    generation_id: str = response.json()[0]["id"]
     return generation_id
 
 
@@ -236,12 +236,12 @@ def test_a_file_that_is_neither_picture_nor_video_fails_the_run(
 def test_the_graph_is_built_from_the_request(
     client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
 ) -> None:
-    generation_id = queue_image(client, "a greenhouse at dawn", count=3)
+    generation_id = queue_image(client, "a greenhouse at dawn")
     comfy = FakeComfy()
     run(engine, workflows, settings, comfy)
     graph = comfy.graphs[0]
     # Medium quality is a megapixel, here at 3:4
-    assert node_of(graph, "EmptyImage") == {"width": 880, "height": 1184, "batch_size": 3, "color": 0}
+    assert node_of(graph, "EmptyImage") == {"width": 880, "height": 1184, "batch_size": 1, "color": 0}
     assert node_of(graph, "Job") == {"prompt": "a greenhouse at dawn", "seed": 7, "frames": None}
     assert node_of(graph, "SaveImage")["filename_prefix"] == f"unnoodle/{generation_id}"
 

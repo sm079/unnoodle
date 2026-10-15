@@ -30,7 +30,7 @@ def krea2(job: Job) -> Graph:
     positive = g.add("CLIPTextEncode", text=job.prompt, clip=clip[0])
     # Turbo runs at cfg 1, where the negative prompt does nothing
     negative = g.add("ConditioningZeroOut", conditioning=positive[0])
-    latent = g.add("EmptyLatentImage", width=width, height=height, batch_size=job.count)
+    latent = g.add("EmptyLatentImage", width=width, height=height, batch_size=1)
     samples = g.add(
         "KSampler",
         model=model[0],
@@ -73,7 +73,7 @@ def klein(job: Job) -> Graph:
         positive = g.add("ReferenceLatent", conditioning=positive, latent=latent[0])[0]
         negative = g.add("ReferenceLatent", conditioning=negative, latent=latent[0])[0]
 
-    latent = g.add("EmptyFlux2LatentImage", width=width, height=height, batch_size=job.count)
+    latent = g.add("EmptyFlux2LatentImage", width=width, height=height, batch_size=1)
     sigmas = g.add("Flux2Scheduler", steps=4, width=width, height=height)
     guider = g.add("CFGGuider", model=model[0], positive=positive, negative=negative, cfg=1)
     noise = g.add("RandomNoise", noise_seed=job.seed)
@@ -177,7 +177,6 @@ WORKFLOWS = [
         description="Pictures from a description",
         build=krea2,
         megapixels=IMAGE_MEGAPIXELS,
-        max_count=4,
     ),
     Workflow(
         id="flux2-klein-edit",
