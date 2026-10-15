@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist } from 'next/font/google';
+import { Archivo, Geist, Geist_Mono } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono' });
+// Headlines and the generate button use a narrowed width
+const archivo = Archivo({ subsets: ['latin'], axes: ['wdth'], variable: '--font-display' });
 
 export const metadata: Metadata = {
   title: 'unnoodle',
@@ -19,7 +22,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={cn('dark', geist.variable)}>
+    <html lang="en" className={cn('dark', geist.variable, geistMono.variable, archivo.variable)}>
       <body className="antialiased">{children}</body>
     </html>
   );
