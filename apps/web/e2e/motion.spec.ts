@@ -33,12 +33,22 @@ test('the highlights move with the arrow keys, a tap on a side card and a swipe'
   await expect(frontCard(page)).toHaveAccessibleName(/^Highlight 4 of/);
 });
 
-test('composer chips animate out, and Generate with no prompt goes back to the prompt', async ({ page }) => {
+test('composer chips animate in and out, and Generate with no prompt goes back to the prompt', async ({ page }) => {
   await page.goto('/generate');
   const composer = page.getByRole('form', { name: 'Composer' });
+  const inputs = composer.getByRole('list', { name: 'Inputs' });
+  await expect(inputs).toHaveCount(0);
+
+  await composer.getByRole('button', { name: 'Add from library' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /^Attach image/ })
+    .first()
+    .click();
+  await expect(inputs.getByRole('listitem')).toHaveCount(1);
 
   await composer.getByRole('button', { name: 'Remove start frame' }).click();
-  await expect(composer.getByRole('list', { name: 'Inputs' })).toHaveCount(0);
+  await expect(inputs).toHaveCount(0);
 
   await composer.getByRole('button', { name: 'More outputs' }).click();
   await expect(composer.getByRole('group', { name: 'Outputs' })).toContainText('2');

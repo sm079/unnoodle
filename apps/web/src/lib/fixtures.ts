@@ -356,13 +356,13 @@ export const generations: Generation[] = [
 export const composerDrafts: Record<MediaType, ComposerDraft> = {
   image: {
     prompt: '',
-    inputs: [{ role: 'edit_target', asset: room, position_s: null }],
+    inputs: [],
     params: { ...imageParams, aspect_ratio: '4:3' },
     workflow_id: 'flux-klein-9b-edit'
   },
   video: {
     prompt: 'she smiles as the wind catches her hair',
-    inputs: [{ role: 'start_frame', asset: portrait, position_s: null }],
+    inputs: [],
     params: { ...videoParams, aspect_ratio: '3:4' },
     workflow_id: 'ltx-2.5-i2v'
   }
