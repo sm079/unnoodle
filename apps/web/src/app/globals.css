@@ -12,6 +12,160 @@
   }
 }
 
+/*
+ * Motion. Things that enter ease out, things that move across the screen ease in and out, and anything that should
+ * feel physical uses a spring. Exits run faster than entrances. The springs are sampled from a damped oscillator
+ * (damping ratio 0.72 and 0.5), so they keep their shape at any duration.
+ */
+@theme {
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
+  /* The iOS sheet curve */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: linear(
+    0,
+    0.015,
+    0.054,
+    0.112,
+    0.181,
+    0.258,
+    0.339,
+    0.42,
+    0.499,
+    0.574,
+    0.644,
+    0.708,
+    0.766,
+    0.818,
+    0.862,
+    0.901,
+    0.933,
+    0.96,
+    0.982,
+    1,
+    1.013,
+    1.023,
+    1.03,
+    1.035,
+    1.038,
+    1.038,
+    1.038,
+    1.037,
+    1.034,
+    1.032,
+    1.029,
+    1.026,
+    1.023,
+    1.02,
+    1.017,
+    1.014,
+    1.012,
+    1.009,
+    1.007,
+    1.006,
+    1
+  );
+  --ease-spring-bouncy: linear(
+    0,
+    0.036,
+    0.13,
+    0.261,
+    0.411,
+    0.564,
+    0.71,
+    0.84,
+    0.949,
+    1.035,
+    1.097,
+    1.137,
+    1.158,
+    1.163,
+    1.155,
+    1.139,
+    1.117,
+    1.092,
+    1.067,
+    1.044,
+    1.023,
+    1.006,
+    0.992,
+    0.983,
+    0.977,
+    0.974,
+    0.974,
+    0.975,
+    0.978,
+    0.982,
+    0.986,
+    0.99,
+    0.993,
+    0.997,
+    0.999,
+    1.002,
+    1.003,
+    1.004,
+    1.004,
+    1.004,
+    1
+  );
+
+  /* Arrival: fades in while settling upward out of a slight blur. Tune per use with --rise-distance and --rise-blur. */
+  --animate-rise: rise 700ms var(--ease-out-quint) backwards;
+  --animate-pop: pop 450ms var(--ease-spring-bouncy);
+  --animate-shake: shake 400ms var(--ease-out-quint);
+  --animate-sheen: sheen 750ms var(--ease-in-out-quart);
+  --animate-wiggle: wiggle 600ms var(--ease-out-quint);
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      translate: 0 calc(var(--rise-distance, 14px) * var(--motion-scale, 1));
+      filter: blur(calc(var(--rise-blur, 6px) * var(--motion-scale, 1)));
+    }
+  }
+  @keyframes pop {
+    40% {
+      scale: 1.18;
+    }
+  }
+  @keyframes shake {
+    20% {
+      translate: -6px;
+    }
+    40% {
+      translate: 5px;
+    }
+    60% {
+      translate: -3px;
+    }
+    80% {
+      translate: 2px;
+    }
+  }
+  @keyframes sheen {
+    from {
+      translate: -120%;
+    }
+    to {
+      translate: 120%;
+    }
+  }
+  @keyframes wiggle {
+    20% {
+      rotate: 14deg;
+    }
+    40% {
+      rotate: -10deg;
+    }
+    60% {
+      rotate: 6deg;
+    }
+    80% {
+      rotate: -3deg;
+    }
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
@@ -145,5 +299,20 @@
   }
   html {
     @apply font-sans;
+    /* Controls give their own press feedback */
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Keep fades and colour changes; drop movement, blur and sweeps */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-scale: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
 }
