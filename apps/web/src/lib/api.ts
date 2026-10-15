@@ -45,7 +45,8 @@ export const api = {
     return request('/assets', { method: 'POST', body });
   },
 
-  createGeneration(body: GenerationRequest): Promise<Generation> {
+  /** Queues params.count generations and returns them, oldest first. */
+  createGeneration(body: GenerationRequest): Promise<Generation[]> {
     return request('/generations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

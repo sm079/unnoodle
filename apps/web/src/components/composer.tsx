@@ -4,7 +4,6 @@ import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } fr
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
 import {
-  ChevronRightIcon,
   ClockIcon,
   FocusIcon,
   GemIcon,
@@ -76,6 +75,9 @@ const placeholders: Record<MediaType, [alone: string, attached: string]> = {
   image: ['Describe the picture you want...', 'Tap @photo1 to use it, like “@photo1 wearing the coat from @photo2”'],
   video: ['Describe the video you want...', 'Tap @photo1 to use it, like “@photo1 dances like @clip1”']
 };
+
+// The API's limit on how many one request queues. Each is its own run with one output.
+const MAX_QUEUED = 4;
 
 // The shape with nothing attached, until another is picked
 const defaultShapes: Record<MediaType, AspectRatio> = { image: '3:4', video: '9:16' };
@@ -228,7 +230,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     setSending(true);
     setProblem(null);
     try {
-      const generation = await api.createGeneration({
+      const generations = await api.createGeneration({
         media_type: mode,
         prompt: draft.prompt,
         inputs: draft.inputs.map(i => ({ asset_id: i.asset.id, role: i.role })),
@@ -243,8 +245,8 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
         model: draft.model,
         project_id: projectId
       });
-      addToCache.generation(generation);
-      onGenerated?.(generation);
+      generations.forEach(addToCache.generation);
+      onGenerated?.(generations[0]);
     } catch (error) {
       setProblem(messageOf(error));
     } finally {
@@ -368,33 +370,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                       className={enterClass}
                     />
                   )}
-                  {workflow.max_count > 1 &&
-                    (mode === 'video' ? (
-                      <CountStepper
-                        count={settings.count}
-                        max={workflow.max_count}
-                        onChange={count => setSetting('count', count)}
-                        className={enterClass}
-                      />
-                    ) : (
-                      <Popover>
-                        <PopoverTrigger
-                          aria-label="More settings"
-                          className={cn(chipClass, enterClass, 'group/more w-9 justify-center px-0')}
-                        >
-                          <ChevronRightIcon className="transition-[rotate] duration-300 ease-spring group-data-[popup-open]/more:-rotate-90" />
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="top"
-                          align="start"
-                          sideOffset={8}
-                          className={cn(menuClass, 'w-auto flex-row items-center gap-3 p-2 pl-3.5')}
-                        >
-                          <span className="text-sm text-[#8a8b8c]">Outputs</span>
-                          <CountStepper count={settings.count} max={workflow.max_count} onChange={count => setSetting('count', count)} />
-                        </PopoverContent>
-                      </Popover>
-                    ))}
+                  <CountStepper count={settings.count} max={MAX_QUEUED} onChange={count => setSetting('count', count)} />
                 </>
               )}
             </div>
@@ -513,7 +489,7 @@ export function fitSettings(settings: Settings, workflow: Workflow, mode: MediaT
     quality: settings.quality,
     aspect_ratio: shape === 'first' ? shape : pick(shape, workflow.aspect_ratios),
     duration_s: pick(settings.duration_s, workflow.durations_s),
-    count: Math.min(settings.count, workflow.max_count)
+    count: settings.count
   };
 }
 
@@ -638,15 +614,15 @@ function CountStepper({
   const step =
     'flex size-8 items-center justify-center rounded-lg text-[#8a8b8c] transition-[color,scale] duration-200 ease-spring hover:text-white active:scale-85 disabled:opacity-40 disabled:hover:text-[#8a8b8c]';
   return (
-    <div role="group" aria-label="Outputs" className={cn(chipClass, 'gap-0 px-1 hover:bg-chip active:scale-100', className)}>
-      <button type="button" aria-label="Fewer outputs" disabled={count <= 1} onClick={() => onChange(count - 1)} className={step}>
+    <div role="group" aria-label="How many" className={cn(chipClass, 'gap-0 px-1 hover:bg-chip active:scale-100', className)}>
+      <button type="button" aria-label="Fewer" disabled={count <= 1} onClick={() => onChange(count - 1)} className={step}>
         <MinusIcon />
       </button>
       <span className="flex min-w-12 justify-center tabular-nums">
         <RollingValue value={count} />
         <span className="text-[#8a8b8c]">/{max}</span>
       </span>
-      <button type="button" aria-label="More outputs" disabled={count >= max} onClick={() => onChange(count + 1)} className={step}>
+      <button type="button" aria-label="More" disabled={count >= max} onClick={() => onChange(count + 1)} className={step}>
         <PlusIcon />
       </button>
     </div>

@@ -2,10 +2,10 @@ import type { AspectRatio, Capability, MediaType, Quality } from './types';
 
 /** What a route does, in the words the route chip shows. */
 export const capabilityLabels: Record<Capability, string> = {
-  'image.generate': 'Create a picture',
-  'image.edit': 'Picture from your photos',
+  'image.generate': 'Create an image',
+  'image.edit': 'Edit an image',
   'video.generate': 'Make a video',
-  'video.reference': 'Video from your photos and clips'
+  'video.reference': 'Make a video from references'
 };
 
 export const qualityLabels: Record<Quality, string> = { low: 'Low', medium: 'Medium', high: 'High' };

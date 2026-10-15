@@ -11,8 +11,8 @@ export type Attached = [role: InputRole, mediaType: MediaType];
 export type Routed<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const doing: Record<Capability, string> = {
-  'image.generate': 'Making a picture',
-  'image.edit': 'Making a picture from photos',
+  'image.generate': 'Creating an image',
+  'image.edit': 'Editing an image',
   'video.generate': 'Making a video',
   'video.reference': 'Making a video'
 };

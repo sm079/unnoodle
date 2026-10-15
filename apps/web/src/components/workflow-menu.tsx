@@ -34,7 +34,7 @@ export function WorkflowMenu({ capability, models, value, note, onChange, classN
 
   if (!value || !doing || models.length < 2) {
     return (
-      <p className="flex h-9 shrink-0 items-center gap-1.5 px-1 text-sm font-medium whitespace-nowrap text-[#8a8b8c]">
+      <p className="flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-3 text-sm font-semibold whitespace-nowrap">
         <NoodleGlyph className={cn('size-4', value ? 'text-lime' : 'text-[#e8a33d]')} />
         <RollingValue value={value && doing ? doing : (note ?? '')} className={cn(!value && 'text-[#e8a33d]')} />
       </p>

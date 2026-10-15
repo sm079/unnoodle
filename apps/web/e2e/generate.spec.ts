@@ -32,7 +32,7 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   expect(Math.abs(toggle.y + toggle.height / 2 - (generate.y + generate.height / 2)), 'toggle in the Generate row').toBeLessThan(4);
 
   // Starts on images. With one model per route, a line of text says what happens and names no model.
-  await expect(routeLine(composer, 'Create a picture')).toBeVisible();
+  await expect(routeLine(composer, 'Create an image')).toBeVisible();
   await expect(composer.getByRole('button', { name: /^Route/ })).toHaveCount(0);
   await expect(composer.getByRole('button', { name: 'Shape: Portrait standard' })).toBeVisible();
   await expect(composer.getByRole('button', { name: /^Length/ })).toHaveCount(0);
@@ -41,10 +41,10 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   await expect(composer.getByRole('button', { name: 'Length: 5 sec' })).toBeVisible();
   await composer.getByRole('button', { name: 'Image', exact: true }).click();
 
-  // An attached photo routes to a picture from photos, in the photo's shape unless another is picked
+  // An attached photo routes to an edit, in the photo's shape unless another is picked
   await composer.getByRole('button', { name: 'Add from library' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Attach image ast_room' }).click();
-  await expect(routeLine(composer, 'Picture from your photos')).toBeVisible();
+  await expect(routeLine(composer, 'Edit an image')).toBeVisible();
   await expect(composer.getByRole('button', { name: 'Shape: Same as @photo1' })).toBeVisible();
   // Tapping its handle mentions it in the prompt, as the API reads it
   await composer.getByRole('textbox', { name: 'Prompt' }).fill('make');
@@ -55,7 +55,7 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   // for errors
   await composer.getByRole('button', { name: 'Add from library' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Attach video ast_dance' }).click();
-  await expect(routeLine(composer, "Making a picture from photos can't use clips")).toBeVisible();
+  await expect(routeLine(composer, "Editing an image can't use clips")).toBeVisible();
   await expect(composer.getByRole('status')).toHaveCount(0);
   await expect(composer.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'true');
 

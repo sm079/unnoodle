@@ -43,7 +43,6 @@ describe('generations', () => {
     else expect(workflow.aspect_ratios).toContain(g.params.aspect_ratio);
     if (g.params.duration_s === null) expect(workflow.durations_s).toEqual([]);
     else expect(workflow.durations_s).toContain(g.params.duration_s);
-    expect(g.params.count).toBeLessThanOrEqual(workflow.max_count);
   });
 
   test('are newest first', () => {

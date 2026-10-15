@@ -76,7 +76,10 @@ export interface paths {
      */
     get: operations['list_generations_generations_get'];
     put?: never;
-    /** Create Generation */
+    /**
+     * Create Generation
+     * @description Queues count generations, oldest first in the answer.
+     */
     post: operations['create_generation_generations_post'];
     delete?: never;
     options?: never;
@@ -317,11 +320,6 @@ export interface components {
       aspect_ratio?: ('1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9') | null;
       /** Duration S */
       duration_s?: number | null;
-      /**
-       * Count
-       * @default 1
-       */
-      count: number;
       /** Seed */
       seed: number;
     };
@@ -384,8 +382,6 @@ export interface components {
       default_for: components['schemas']['Capability'][];
       /** Aspect Ratios */
       aspect_ratios: ('1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9')[];
-      /** Max Count */
-      max_count: number;
       /** Durations S */
       durations_s: number[];
       /** Sound */
@@ -565,7 +561,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['GenerationOut'];
+          'application/json': components['schemas']['GenerationOut'][];
         };
       };
       /** @description Can't be run */

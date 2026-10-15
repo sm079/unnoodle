@@ -30,7 +30,6 @@ function workflow(id: string, capabilities: Capability[], fields: Partial<Workfl
     description: '',
     default_for: capabilities,
     aspect_ratios: ['1:1'],
-    max_count: 1,
     durations_s: [],
     sound: false,
     accepts: [],
@@ -64,7 +63,7 @@ describe('chooseWorkflow', () => {
   test('a model that cannot do the capability is refused', () => {
     expect(chooseWorkflow(catalogue, 'image.edit', 'other')).toEqual({
       ok: false,
-      error: "Making a picture from photos isn't available with that model"
+      error: "Editing an image isn't available with that model"
     });
   });
 
@@ -80,11 +79,11 @@ test('route checks the inputs fit the workflow', () => {
   expect(route(catalogue, 'image', [refPhoto, refPhoto, refPhoto], null)).toMatchObject({ value: { id: 'edit' } });
   expect(route(catalogue, 'image', [refPhoto, refPhoto, refPhoto, refPhoto], null)).toEqual({
     ok: false,
-    error: 'Making a picture from photos takes at most 3 photos'
+    error: 'Editing an image takes at most 3 photos'
   });
   expect(route(catalogue, 'image', [refPhoto, refClip], null)).toEqual({
     ok: false,
-    error: "Making a picture from photos can't use clips"
+    error: "Editing an image can't use clips"
   });
   expect(route(catalogue, 'video', [refClip, refClip], null)).toEqual({ ok: false, error: 'Making a video takes at most 1 clip' });
 });

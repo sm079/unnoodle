@@ -36,7 +36,6 @@ export const workflows: Workflow[] = [
     description: 'Pictures from a description',
     default_for: ['image.generate'],
     aspect_ratios: allShapes,
-    max_count: 4,
     durations_s: [],
     sound: false,
     accepts: []
@@ -49,7 +48,6 @@ export const workflows: Workflow[] = [
     description: 'Changes or combines up to three photos',
     default_for: ['image.edit'],
     aspect_ratios: allShapes,
-    max_count: 1,
     durations_s: [],
     sound: false,
     accepts: [{ role: 'reference', media_type: 'image', most: 3 }]
@@ -62,7 +60,6 @@ export const workflows: Workflow[] = [
     description: 'Video with sound, from a description and any photos or clips to follow',
     default_for: ['video.generate', 'video.reference'],
     aspect_ratios: allShapes,
-    max_count: 1,
     durations_s: [5, 10, 15],
     sound: true,
     accepts: [
@@ -87,9 +84,9 @@ const greenhouse = [
   image('ast_greenhouse_2', 'garden-square', 'generation', '2026-10-11T15:00:20Z')
 ];
 
-const imageParams = { quality: 'medium', aspect_ratio: '3:4', duration_s: null, count: 1, seed: 12 } as const;
+const imageParams = { quality: 'medium', aspect_ratio: '3:4', duration_s: null, seed: 12 } as const;
 const editParams = { ...imageParams, aspect_ratio: null } as const;
-const videoParams = { quality: 'medium', aspect_ratio: '16:9', duration_s: 5, count: 1, seed: 901 } as const;
+const videoParams = { quality: 'medium', aspect_ratio: '16:9', duration_s: 5, seed: 901 } as const;
 
 const ended = { progress: null, started_at: null };
 
@@ -218,7 +215,7 @@ export const generations: Generation[] = [
     workflow_id: 'krea2-turbo',
     project_id: 'prj_mood',
     prompt: 'overgrown greenhouse, morning light, film photo',
-    params: { ...imageParams, aspect_ratio: '1:1', count: 2, seed: 4410 },
+    params: { ...imageParams, aspect_ratio: '1:1', seed: 4410 },
     inputs: [],
     outputs: greenhouse,
     ...ended,
