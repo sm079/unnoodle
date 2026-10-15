@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,8 +17,9 @@ class Settings(BaseSettings):
     # and trying ::1 first costs every new connection its full connect timeout
     database_url: str = "postgresql+psycopg://unnoodle:unnoodle@127.0.0.1:5432/unnoodle"
 
-    # The stand-in workflows that run on the dev ComfyUI without models, until real workflows replace them
-    workflows_dir: Path = REPO_ROOT / "dev" / "workflows"
+    # Which catalogue of workflows to offer (app/catalogues): "dev" runs on the dev ComfyUI without models, "real"
+    # needs a ComfyUI with the models, such as one on a rented GPU
+    workflows: Literal["dev", "real"] = "dev"
 
     # Uploads and outputs, served under /media
     media_dir: Path = REPO_ROOT / "apps" / "api" / "media"

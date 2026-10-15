@@ -136,7 +136,7 @@ class ComfyClient:
                         exception_type=data.get("exception_type"),
                     )
                 case "execution_interrupted":
-                    raise ComfyFailed("The run was interrupted")
+                    raise ComfyFailed("This was stopped before it finished")
 
     def download(self, file: OutputFile) -> bytes:
         params = {"filename": file.filename, "subfolder": file.subfolder, "type": file.type}

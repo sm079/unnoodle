@@ -49,7 +49,7 @@ def main() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     settings = Settings()
     engine = make_engine(settings.database_url)
-    workflows = load_workflows(settings.workflows_dir)
+    workflows = load_workflows(settings.workflows)
     store = MediaStore(settings.media_dir)
     comfy = ComfyClient(settings.comfyui_url)
     logger.info("Started with %d workflows; ComfyUI at %s", len(workflows), settings.comfyui_url)

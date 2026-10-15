@@ -1,170 +1,156 @@
-from collections.abc import Callable
-from pathlib import Path
+from dataclasses import replace
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.catalogues import real
 from app.main import create_app
-from app.models import Capability, InputRole
+from app.models import Capability, InputRole, MediaType, Quality
 from app.settings import Settings
-from app.workflows import Binding, WorkflowError, default_workflow, load_workflow, load_workflows
-from tests.graphs import IMAGE_MANIFEST, VIDEO_MANIFEST, Graph, image_graph, node, video_graph, with_keys, write
+from app.workflows import Job, JobInput, WorkflowError, check_catalogue, load_workflows, size_for
+from tests.catalogue import IMAGE, VIDEO, catalogue, node_of
+
+PHOTO, CLIP = MediaType.IMAGE, MediaType.VIDEO
+EDIT_TARGET, REFERENCE = InputRole.EDIT_TARGET, InputRole.REFERENCE
 
 
-def test_the_dev_workflows_load() -> None:
-    workflows = load_workflows(Settings().workflows_dir)
-    image = workflows["dev-image-generate"]
-    assert image.capability is Capability.IMAGE_GENERATE
-    assert image.bindings["prompt"] == Binding("1", "value")
-    assert image.bindings["batch_size"] == Binding("5", "value")
-    assert image.output_node == "8"
+@pytest.mark.parametrize("name", ["dev", "real"])
+def test_the_catalogues_load(name: str) -> None:
+    workflows = load_workflows(name)
+    capabilities = {c for w in workflows.values() for c in w.capabilities}
+    assert {Capability.IMAGE_GENERATE, Capability.IMAGE_EDIT} <= capabilities
 
 
-def test_asset_inputs_are_bound_and_counted(tmp_path: Path) -> None:
-    graph = video_graph() | {
-        "10": node("LoadImage", "in.reference_1", image="a.png"),
-        "11": node("LoadImage", "in.reference_2", image="b.png"),
+def test_an_unknown_catalogue_is_refused() -> None:
+    with pytest.raises(WorkflowError, match="no catalogue called 'nope'"):
+        load_workflows("nope")
+
+
+@pytest.mark.parametrize(
+    ("megapixels", "aspect_ratio", "multiple", "size"),
+    [
+        # As ComfyUI's Resolution Selector gives them
+        (1.0, "1:1", 8, (1024, 1024)),
+        (0.4, "2:3", 8, (528, 792)),
+        (1.0, "16:9", 16, (1360, 768)),
+        (2.0, "21:9", 16, (2208, 944)),
+        (0.4, "9:16", 32, (480, 864)),
+    ],
+)
+def test_sizes_follow_the_resolution_selector(
+    megapixels: float, aspect_ratio: str, multiple: int, size: tuple[int, int]
+) -> None:
+    assert size_for(megapixels, aspect_ratio, multiple) == size
+
+
+def job(*inputs: tuple[InputRole, MediaType], prompt: str = "a prompt", **fields: Any) -> Job:
+    attached = tuple(
+        JobInput(role, kind, f"unnoodle/{n}.{'png' if kind is PHOTO else 'mp4'}")
+        for n, (role, kind) in enumerate(inputs)
+    )
+    defaults: dict[str, Any] = {
+        "seed": 7,
+        "megapixels": 1.0,
+        "size": (1024, 1024),
+        "count": 1,
+        "frames": None,
+        "filename_prefix": "unnoodle/test",
     }
-    manifest = VIDEO_MANIFEST.replace("video.from_frame", "video.reference")
-    workflow = load_workflow(write(tmp_path / "refs", graph, manifest))
-    assert workflow.bindings["start_frame"] == Binding("9", "image")
-    assert workflow.roles == {InputRole.START_FRAME: 1, InputRole.REFERENCE: 2}
+    return Job(prompt=prompt, inputs=attached, **(defaults | fields))
 
 
-def retitle(graph: Graph, node_id: str, title: str) -> Graph:
-    graph[node_id]["_meta"]["title"] = title
-    return graph
+def test_mentions_of_attachments_are_reworded_for_the_model() -> None:
+    prompt = "the woman in photo 1 wearing the dress from Photo 2, moving like clip 1, not like photo 3 or clip2"
+    j = job((EDIT_TARGET, PHOTO), (REFERENCE, CLIP), (REFERENCE, PHOTO), prompt=prompt)
+    assert j.prompt_with(photo="<Picture {n}>", clip="<Video {n}>") == (
+        "the woman in <Picture 1> wearing the dress from <Picture 2>, moving like <Video 1>, not like photo 3 or clip2"
+    )
 
 
-BROKEN: list[tuple[str, Callable[[], Graph], str, str]] = [
-    ("no output", lambda: retitle(image_graph(), "6", "Save"), IMAGE_MANIFEST, "no node is titled 'out.media'"),
+BROKEN: list[tuple[str, dict[str, Any], str]] = [
+    ("model id", {"model": "Krea 2"}, "model 'Krea 2' must be lowercase"),
     (
-        "two outputs",
-        lambda: image_graph() | {"7": node("SaveImage", "out.media", images=["5", 0])},
-        IMAGE_MANIFEST,
-        "2 nodes are titled 'out.media'",
+        "images and videos",
+        {"capabilities": frozenset({Capability.IMAGE_GENERATE, Capability.VIDEO_GENERATE})},
+        "must all make images or all make videos",
     ),
-    (
-        "unknown input",
-        lambda: image_graph() | {"7": node("PrimitiveString", "in.negative", value="")},
-        IMAGE_MANIFEST,
-        "'in.negative' is not an input the app can fill",
-    ),
-    (
-        "input on a node with no value field",
-        lambda: image_graph() | {"1": node("CLIPTextEncode", "in.prompt", text="")},
-        IMAGE_MANIFEST,
-        "'in.prompt' is a CLIPTextEncode node",
-    ),
-    (
-        "asset input on a primitive",
-        lambda: video_graph() | {"9": node("PrimitiveString", "in.start_frame", value="")},
-        VIDEO_MANIFEST,
-        "'in.start_frame' must be a LoadImage or LoadVideo node",
-    ),
-    ("missing seed", lambda: retitle(image_graph(), "2", "Seed"), IMAGE_MANIFEST, "no node is titled 'in.seed'"),
-    (
-        "count without a batch size",
-        image_graph,
-        with_keys(IMAGE_MANIFEST, "max_count = 4"),
-        "no node is titled 'in.batch_size'",
-    ),
-    (
-        "capability without its role",
-        lambda: retitle(video_graph(), "9", "Start"),
-        VIDEO_MANIFEST,
-        "video.from_frame needs a start_frame input",
-    ),
-    (
-        "gap in numbered references",
-        lambda: (
-            video_graph()
-            | {
-                "10": node("LoadImage", "in.reference_1", image="a.png"),
-                "11": node("LoadImage", "in.reference_3", image="b.png"),
-            }
-        ),
-        VIDEO_MANIFEST,
-        "reference inputs must be numbered 1 to 2",
-    ),
-    (
-        "unnumbered reference",
-        lambda: image_graph() | {"7": node("LoadImage", "in.reference", image="a.png")},
-        IMAGE_MANIFEST,
-        "'in.reference' is not an input the app can fill",
-    ),
-    (
-        "video without fps",
-        video_graph,
-        VIDEO_MANIFEST.replace("fps = 24\n", ""),
-        "video workflows need fps and durations_s",
-    ),
-    (
-        "image with durations",
-        image_graph,
-        with_keys(IMAGE_MANIFEST, "durations_s = [5]"),
-        "fps, durations_s and audio are for video workflows",
-    ),
-    (
-        "unknown manifest key",
-        image_graph,
-        with_keys(IMAGE_MANIFEST, 'lora = "x"'),
-        "lora: Extra inputs are not permitted",
-    ),
+    ("edit without a photo", {"capabilities": frozenset({Capability.IMAGE_EDIT})}, "image.edit needs it to accept"),
+    ("missing quality", {"megapixels": {Quality.LOW: 0.5}}, "megapixels for low, medium and high"),
+    ("shape from nothing", {"aspect_ratios": None}, "only a workflow that edits a photo can take its shape"),
+    ("image with lengths", {"frames": {5: 124}}, "lengths and sound are for videos"),
 ]
 
 
-@pytest.mark.parametrize(("graph", "manifest", "problem"), [b[1:] for b in BROKEN], ids=[b[0] for b in BROKEN])
-def test_a_broken_workflow_is_refused_with_the_reason(
-    tmp_path: Path, graph: Callable[[], Graph], manifest: str, problem: str
-) -> None:
-    with pytest.raises(WorkflowError, match="^broken: .*" + problem.replace("(", r"\(")):
-        load_workflow(write(tmp_path / "broken", graph(), manifest))
+@pytest.mark.parametrize(("change", "message"), [b[1:] for b in BROKEN], ids=[b[0] for b in BROKEN])
+def test_a_broken_workflow_is_refused_with_the_reason(change: dict[str, Any], message: str) -> None:
+    with pytest.raises(WorkflowError, match=f"^t2i: .*{message}"):
+        check_catalogue([replace(IMAGE, **change)])
 
 
-def test_a_missing_file_is_named(tmp_path: Path) -> None:
-    folder = write(tmp_path / "broken", image_graph(), IMAGE_MANIFEST)
-    (folder / "workflow.json").unlink()
-    with pytest.raises(WorkflowError, match="broken: missing workflow.json"):
-        load_workflow(folder)
+def test_a_video_workflow_needs_lengths() -> None:
+    with pytest.raises(WorkflowError, match="needs the lengths it offers"):
+        check_catalogue([replace(VIDEO, frames={})])
 
 
-def second_model(manifest: str, default: bool) -> str:
-    renamed = manifest.replace('model = "test"', 'model = "other"')
-    return with_keys(renamed, "default = true") if default else renamed
+def test_a_capability_with_several_workflows_needs_one_default() -> None:
+    other = replace(IMAGE, id="other", model="other")
+    with pytest.raises(
+        WorkflowError, match=r"image.generate has 2 workflows and needs exactly one default, found \[\]"
+    ):
+        check_catalogue([IMAGE, other])
+    check_catalogue([IMAGE, replace(other, default=True)])
 
 
-def test_a_capability_with_several_workflows_needs_one_default(tmp_path: Path) -> None:
-    write(tmp_path / "a", image_graph(), IMAGE_MANIFEST)
-    write(tmp_path / "b", image_graph(), second_model(IMAGE_MANIFEST, default=False))
-    with pytest.raises(WorkflowError, match="image.generate has 2 workflows and needs exactly one default"):
-        load_workflows(tmp_path)
-
-
-def test_the_default_is_the_marked_workflow_or_the_only_one(tmp_path: Path) -> None:
-    write(tmp_path / "a", image_graph(), IMAGE_MANIFEST)
-    write(tmp_path / "b", image_graph(), second_model(IMAGE_MANIFEST, default=True))
-    write(tmp_path / "c", video_graph(), VIDEO_MANIFEST)
-    workflows = load_workflows(tmp_path).values()
-    assert default_workflow(workflows, Capability.IMAGE_GENERATE).id == "b"  # type: ignore[union-attr]
-    assert default_workflow(workflows, Capability.VIDEO_FROM_FRAME).id == "c"  # type: ignore[union-attr]
-    assert default_workflow(workflows, Capability.VIDEO_GENERATE) is None
-
-
-def test_the_api_lists_workflows_with_what_the_composer_offers(tmp_path: Path) -> None:
-    write(tmp_path / "a", image_graph(), IMAGE_MANIFEST)
-    write(tmp_path / "b", image_graph(), second_model(IMAGE_MANIFEST, default=True))
-    write(tmp_path / "c", video_graph(), VIDEO_MANIFEST)
-    settings = Settings(workflows_dir=tmp_path)
-    with TestClient(create_app(settings)) as client:
+def test_the_api_lists_workflows_with_what_the_composer_offers(settings: Settings) -> None:
+    with TestClient(create_app(settings, catalogue())) as client:
         listed = {w["id"]: w for w in client.get("/workflows").json()}
-    assert {id: w["default"] for id, w in listed.items()} == {"a": False, "b": True, "c": True}
-    assert listed["c"]["resolutions"] == {"720p": ["16:9"]}
-    assert listed["c"]["durations_s"] == [5]
-    assert listed["c"]["roles"] == {"start_frame": 1}
+    assert listed["t2i"]["aspect_ratios"] == ["1:1", "3:4"]
+    assert listed["edit"]["aspect_ratios"] == []
+    assert listed["edit"]["accepts"] == [
+        {"role": "edit_target", "media_type": "image", "most": 1},
+        {"role": "reference", "media_type": "image", "most": 2},
+    ]
+    video = listed["video"]
+    assert (video["capabilities"], video["default_for"]) == (["video.generate", "video.reference"],) * 2
+    assert (video["durations_s"], video["sound"], video["max_count"]) == ([5, 10], True, 1)
 
 
-def test_the_api_does_not_start_with_a_broken_workflow(tmp_path: Path) -> None:
-    write(tmp_path / "broken", retitle(image_graph(), "6", "Save"), IMAGE_MANIFEST)
-    with pytest.raises(WorkflowError):
-        create_app(Settings(workflows_dir=tmp_path))
+# The real builders. Whether ComfyUI accepts their graphs is checked against a real one in test_comfy_live.
+
+
+def links(graph: dict[str, Any]) -> list[tuple[str, int]]:
+    return [
+        (value[0], value[1])
+        for node in graph.values()
+        for value in node["inputs"].values()
+        if isinstance(value, list) and len(value) == 2
+    ]
+
+
+def test_krea_makes_the_size_and_count_asked_for() -> None:
+    graph = real.krea2(job(size=(896, 1152), count=3)).nodes
+    assert node_of(graph, "EmptyLatentImage") == {"width": 896, "height": 1152, "batch_size": 3}
+    assert node_of(graph, "KSampler")["seed"] == 7
+    assert node_of(graph, "CLIPTextEncode")["text"] == "a prompt"
+    assert all(node_id in graph for node_id, _ in links(graph))
+
+
+@pytest.mark.parametrize("references", [0, 1, 2])
+def test_klein_chains_every_photo_onto_the_prompt(references: int) -> None:
+    photos = [(EDIT_TARGET, PHOTO)] + [(REFERENCE, PHOTO)] * references
+    built = real.klein(job(*photos, prompt="photo 1 wearing the coat in photo 2", size=None, megapixels=2.0))
+    graph = built.nodes
+    loads = [n for n in graph.values() if n["class_type"] == "LoadImage"]
+    assert [n["inputs"]["image"] for n in loads] == [f"unnoodle/{n}.png" for n in range(len(photos))]
+    # Each photo goes onto both the prompt and the empty negative
+    assert sum(n["class_type"] == "ReferenceLatent" for n in graph.values()) == 2 * len(photos)
+    scales = [n["inputs"] for n in graph.values() if n["class_type"] == "ImageScaleToTotalPixels"]
+    assert [s["megapixels"] for s in scales] == [2.0] + [1.0] * references
+    # The output takes its size from the photo being edited
+    size_from = node_of(graph, "GetImageSize")["image"][0]
+    assert graph[size_from]["inputs"]["image"][0] == next(k for k, n in graph.items() if n["class_type"] == "LoadImage")
+    text = node_of(graph, "CLIPTextEncode")["text"]
+    assert text == ("image 1 wearing the coat in image 2" if references else "image 1 wearing the coat in photo 2")
+    assert built.output_node is not None and graph[built.output_node]["class_type"] == "SaveImage"
+    assert all(node_id in graph for node_id, _ in links(graph))

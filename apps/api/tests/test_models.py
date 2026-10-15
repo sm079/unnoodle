@@ -15,6 +15,7 @@ from app.models import (
     GenerationStatus,
     InputRole,
     MediaType,
+    Quality,
 )
 
 
@@ -32,15 +33,14 @@ def upload(key: str = "uploads/a.png") -> Asset:
 
 def generation(**changes: object) -> Generation:
     fields: dict[str, object] = {
-        "capability": Capability.VIDEO_FROM_FRAME,
-        "workflow_id": "dev-video-from-frame",
+        "capability": Capability.VIDEO_REFERENCE,
+        "workflow_id": "minimax-h3",
         "prompt": "she turns towards the camera",
+        "quality": Quality.MEDIUM,
         "aspect_ratio": "16:9",
-        "resolution": "720p",
         "duration_s": 5.0,
         "count": 1,
         "seed": 42,
-        "audio": False,
     }
     return Generation(**(fields | changes))
 
@@ -48,10 +48,10 @@ def generation(**changes: object) -> Generation:
 def test_a_generation_keeps_its_inputs_in_order_and_its_outputs(engine: Engine) -> None:
     with Session(engine) as session:
         first, second = upload("uploads/1.png"), upload("uploads/2.png")
-        g = generation(capability=Capability.VIDEO_FIRST_LAST)
+        g = generation(capability=Capability.IMAGE_EDIT, aspect_ratio=None, duration_s=None)
         g.inputs = [
-            GenerationInput(position=1, role=InputRole.END_FRAME, asset=second),
-            GenerationInput(position=0, role=InputRole.START_FRAME, asset=first),
+            GenerationInput(position=1, role=InputRole.REFERENCE, asset=second),
+            GenerationInput(position=0, role=InputRole.EDIT_TARGET, asset=first),
         ]
         session.add(g)
         session.flush()
@@ -74,7 +74,7 @@ def test_a_generation_keeps_its_inputs_in_order_and_its_outputs(engine: Engine) 
     with Session(engine) as session:
         loaded = session.get_one(Generation, generation_id)
         assert loaded.status is GenerationStatus.QUEUED
-        assert [i.role for i in loaded.inputs] == [InputRole.START_FRAME, InputRole.END_FRAME]
+        assert [i.role for i in loaded.inputs] == [InputRole.EDIT_TARGET, InputRole.REFERENCE]
         assert [i.asset.storage_key for i in loaded.inputs] == ["uploads/1.png", "uploads/2.png"]
         assert [o.media_type for o in loaded.outputs] == [MediaType.VIDEO]
 
@@ -95,10 +95,8 @@ def done_without_finish_time(session: Session) -> None:
     session.add(generation(status=GenerationStatus.DONE))
 
 
-def keyframe_without_time(session: Session) -> None:
-    g = generation(capability=Capability.VIDEO_KEYFRAMES)
-    g.inputs = [GenerationInput(position=0, role=InputRole.KEYFRAME, asset=upload())]
-    session.add(g)
+def unknown_quality(session: Session) -> None:
+    session.add(generation(quality="2K"))
 
 
 def output_without_generation(session: Session) -> None:
@@ -118,7 +116,7 @@ def video_without_duration(session: Session) -> None:
     [
         failed_without_error,
         done_without_finish_time,
-        keyframe_without_time,
+        unknown_quality,
         output_without_generation,
         video_without_duration,
     ],

@@ -1,14 +1,12 @@
 """Running one claimed generation: fill its workflow in, run it on ComfyUI, store what it made."""
 
-import copy
 import logging
 import time
 import uuid
-from collections import Counter
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import PurePath
-from typing import Any, Literal, cast
+from typing import Literal, cast
 
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import Engine
@@ -18,17 +16,13 @@ from app.media import IMAGE_FORMATS, MediaStore
 from app.models import Asset, AssetSource, Generation, GenerationStatus, InputRole, MediaType
 from app.worker import queue
 from app.worker.comfy import Comfy, ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
-from app.workflows import NUMBERED_ROLES, AspectRatio, Workflow
+from app.workflows import AspectRatio, Job, JobInput, Workflow
 
 logger = logging.getLogger(__name__)
 
 PROGRESS_EVERY_S = 0.5
 
 Outcome = Literal["done", "failed", "released", "lost"]
-
-
-class UnfilledInputs(Exception):
-    """The workflow has input nodes the request gave nothing for."""
 
 
 @dataclass(frozen=True)
@@ -49,22 +43,20 @@ def run_job(
         workflow = workflows.get(generation.workflow_id)
         if workflow is None:
             return fail(engine, claim, "The workflow this used is no longer installed")
-        values = parameter_values(generation, workflow)
-        inputs = {name: asset for name, asset in input_names(generation)}
+        attached = [(i.role, i.asset) for i in generation.inputs]
         # Recorded before submitting, so the run can be found in ComfyUI (to cancel it, say) whatever happens next
         prompt_id = str(uuid.uuid4())
         generation.comfy_prompt_id = prompt_id
         session.commit()
 
     try:
-        for name, asset in inputs.items():
-            data = store.path(asset.storage_key).read_bytes()
-            values[name] = comfy.upload(data, f"{asset.id}{PurePath(asset.storage_key).suffix}")
-        graph = fill_graph(workflow, values, f"unnoodle/{generation.id}")
+        inputs = tuple(upload(store, comfy, role, asset) for role, asset in attached)
+        graph = workflow.build(job_for(generation, workflow, inputs))
+        assert graph.output_node is not None, f"{workflow.id} built a graph that saves nothing"
         progress = ProgressWriter(engine, claim)
-        files = comfy.run(graph, prompt_id, workflow.output_node, progress.update, progress.beat)
+        files = comfy.run(graph.nodes, prompt_id, graph.output_node, progress.update, progress.beat)
         if not files:
-            raise ComfyFailed("The workflow finished without saving anything")
+            raise ComfyFailed("This finished without making anything")
         outputs = [
             store_output(store, comfy, file, f"outputs/{generation.id}/{claim.attempt}-{n}")
             for n, file in enumerate(files)
@@ -75,58 +67,34 @@ def run_job(
         return "released"
     except ComfyRejected as error:
         logger.error("ComfyUI refused workflow %s: %s", workflow.id, error)
-        return fail(engine, claim, "This workflow is broken: ComfyUI refused it")
-    except UnfilledInputs as error:
-        return fail(engine, claim, str(error))
+        return fail(engine, claim, "Something is wrong on our side, so this couldn't start")
     except ComfyFailed as error:
         logger.info("Generation %s failed in %s: %s", generation.id, error.node_type, error)
         return fail(engine, claim, failure_message(error))
     except Exception:
         logger.exception("Generation %s failed", generation.id)
-        return fail(engine, claim, "Something went wrong while running this")
+        return fail(engine, claim, "Something went wrong while making this. Try again.")
     return finish(engine, claim, outputs)
 
 
-def parameter_values(generation: Generation, workflow: Workflow) -> dict[str, Any]:
-    width, height = workflow.manifest.sizes[generation.resolution][cast(AspectRatio, generation.aspect_ratio)]
-    values: dict[str, Any] = {
-        "prompt": generation.prompt,
-        "seed": generation.seed,
-        "width": width,
-        "height": height,
-        "batch_size": generation.count,
-    }
-    fps = workflow.manifest.fps
-    if fps is not None and generation.duration_s is not None:
-        values |= {"fps": fps, "frames": round(generation.duration_s * fps), "audio": generation.audio}
-    return values
+def upload(store: MediaStore, comfy: Comfy, role: InputRole, asset: Asset) -> JobInput:
+    data = store.path(asset.storage_key).read_bytes()
+    return JobInput(role, asset.media_type, comfy.upload(data, f"{asset.id}{PurePath(asset.storage_key).suffix}"))
 
 
-def input_names(generation: Generation) -> list[tuple[str, Asset]]:
-    """The node each attached asset goes to: in.start_frame, or in.reference_1, in.reference_2 for numbered roles."""
-    numbers: Counter[InputRole] = Counter()
-    names = []
-    for i in generation.inputs:
-        if i.role in NUMBERED_ROLES:
-            numbers[i.role] += 1
-            names.append((f"{i.role}_{numbers[i.role]}", i.asset))
-        else:
-            names.append((str(i.role), i.asset))
-    return names
-
-
-def fill_graph(workflow: Workflow, values: dict[str, Any], filename_prefix: str) -> dict[str, Any]:
-    missing = [f"in.{name}" for name in workflow.bindings if name not in values]
-    if missing:
-        raise UnfilledInputs(f"{workflow.manifest.model_name} needs {', '.join(missing)} filled in as well")
-    graph = copy.deepcopy(workflow.graph)
-    for name, binding in workflow.bindings.items():
-        graph[binding.node_id]["inputs"][binding.field] = values[name]
-    saver = graph[workflow.output_node]["inputs"]
-    if "filename_prefix" in saver:
-        # Groups each generation's files in ComfyUI's output folder
-        saver["filename_prefix"] = filename_prefix
-    return graph
+def job_for(generation: Generation, workflow: Workflow, inputs: tuple[JobInput, ...]) -> Job:
+    aspect_ratio = cast(AspectRatio | None, generation.aspect_ratio)
+    duration_s = generation.duration_s
+    return Job(
+        prompt=generation.prompt,
+        seed=generation.seed,
+        megapixels=workflow.megapixels[generation.quality],
+        size=None if aspect_ratio is None else workflow.size(generation.quality, aspect_ratio),
+        count=generation.count,
+        frames=None if duration_s is None else workflow.frames[round(duration_s)],
+        inputs=inputs,
+        filename_prefix=f"unnoodle/{generation.id}",
+    )
 
 
 def store_output(store: MediaStore, comfy: Comfy, file: OutputFile, key_stem: str) -> Output:
@@ -137,7 +105,7 @@ def store_output(store: MediaStore, comfy: Comfy, file: OutputFile, key_stem: st
     except UnidentifiedImageError:
         image_format = None
     if image_format not in IMAGE_FORMATS:
-        raise ComfyFailed(f"The workflow saved {file.filename}, which the app can't store yet")
+        raise ComfyFailed("This made a kind of file the app can't show yet")
     mime_type, extension = IMAGE_FORMATS[image_format]
     key = f"{key_stem}.{extension}"
     store.write(key, data)
@@ -145,10 +113,13 @@ def store_output(store: MediaStore, comfy: Comfy, file: OutputFile, key_stem: st
 
 
 def failure_message(error: ComfyFailed) -> str:
+    """What the person sees. ComfyUI's own messages name nodes and tensors, so they go to the log instead."""
     if error.exception_type and "OutOfMemory" in error.exception_type:
-        return "The GPU ran out of memory. Try a smaller size or fewer outputs."
-    first_line = str(error).splitlines()[0] if str(error) else "no reason given"
-    return f"{error.node_type} failed: {first_line}" if error.node_type else first_line
+        return "This was too big to make. Try a lower quality, a shorter length or fewer at a time."
+    if error.node_type is None and str(error):
+        # Ours, already in plain words
+        return str(error).splitlines()[0]
+    return "Something went wrong while making this. Try again."
 
 
 class ProgressWriter:

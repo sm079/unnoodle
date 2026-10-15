@@ -1,8 +1,10 @@
 """Which workflow runs a request.
 
-The user never picks a workflow. The output type and the roles of the attached inputs decide the capability: a video
-with a start frame is video.from_frame, with a start and an end frame it is video.first_last. Among the workflows for
-that capability, the model the request names runs it, or the capability's default when it names none.
+The user never picks a workflow. The output type and the roles of the attached inputs decide the capability: an
+image with a photo to edit is image.edit, a video with reference photos or clips is video.reference. Among the
+workflows for that capability, the model the request names runs it, or the capability's default when it names none.
+
+The composer works the route out the same way before sending (apps/web/src/lib/routing.ts), with the same messages.
 """
 
 from collections import Counter
@@ -16,87 +18,75 @@ class RoutingError(ValueError):
     """A request that no workflow can run. The message is written for the person who sent it."""
 
 
-A_MEDIA = {MediaType.IMAGE: "an image", MediaType.VIDEO: "a video"}
+# An attachment, as routing sees it: its role and whether it is a photo or a clip
+Attached = tuple[InputRole, MediaType]
 
-
-ROLES_FOR = {
-    MediaType.IMAGE: {InputRole.EDIT_TARGET, InputRole.RESTYLE, InputRole.REFERENCE},
-    MediaType.VIDEO: {
-        InputRole.START_FRAME,
-        InputRole.END_FRAME,
-        InputRole.KEYFRAME,
-        InputRole.REFERENCE,
-        InputRole.SOURCE_VIDEO,
-    },
+DOING = {
+    Capability.IMAGE_GENERATE: "Making a picture",
+    Capability.IMAGE_EDIT: "Editing a photo",
+    Capability.VIDEO_GENERATE: "Making a video",
+    Capability.VIDEO_REFERENCE: "Making a video",
 }
 
 
-def route(workflows: Iterable[Workflow], media_type: MediaType, roles: list[InputRole], model: str | None) -> Workflow:
-    capability = capability_for(media_type, roles)
+def route(workflows: Iterable[Workflow], media_type: MediaType, inputs: list[Attached], model: str | None) -> Workflow:
+    capability = capability_for(media_type, inputs)
     workflow = choose_workflow(workflows, capability, model)
-    for role, count in Counter(roles).items():
-        most = workflow.roles.get(role, 0)
+    for (role, kind), count in Counter(inputs).items():
+        most = workflow.most(role, kind)
         if count > most:
-            raise RoutingError(f"{workflow.manifest.model_name} takes at most {inputs_phrase(role, most)}")
+            what = noun(role, kind)
+            raise RoutingError(
+                f"{DOING[capability]} can't use {plural(what)}"
+                if most == 0
+                else f"{DOING[capability]} takes at most {counted(most, what)}"
+            )
     return workflow
 
 
-def capability_for(media_type: MediaType, roles: Iterable[InputRole]) -> Capability:
-    counts = Counter(roles)
-    present = set(counts)
-    for role in sorted(present - ROLES_FOR[media_type]):
-        raise RoutingError(f"{article(words(role)).capitalize()} can't be used to make {A_MEDIA[media_type]}")
-
+def capability_for(media_type: MediaType, inputs: list[Attached]) -> Capability:
+    roles = Counter(role for role, _ in inputs)
+    if (InputRole.EDIT_TARGET, MediaType.VIDEO) in inputs:
+        raise RoutingError("Only a photo can be edited")
     if media_type is MediaType.IMAGE:
-        if not present:
+        if not inputs:
             return Capability.IMAGE_GENERATE
-        if counts[InputRole.EDIT_TARGET] == 1 and present <= {InputRole.EDIT_TARGET, InputRole.REFERENCE}:
-            return Capability.IMAGE_EDIT
-        if counts == {InputRole.RESTYLE: 1}:
-            return Capability.IMAGE_RESTYLE
-        if present == {InputRole.REFERENCE}:
-            return Capability.IMAGE_MULTI_REF
-    else:
-        if not present:
-            return Capability.VIDEO_GENERATE
-        if counts == {InputRole.START_FRAME: 1}:
-            return Capability.VIDEO_FROM_FRAME
-        if counts == {InputRole.START_FRAME: 1, InputRole.END_FRAME: 1}:
-            return Capability.VIDEO_FIRST_LAST
-        if present == {InputRole.KEYFRAME}:
-            return Capability.VIDEO_KEYFRAMES
-        if present == {InputRole.REFERENCE}:
-            return Capability.VIDEO_REFERENCE
-        if counts == {InputRole.SOURCE_VIDEO: 1, InputRole.REFERENCE: 1}:
-            return Capability.VIDEO_CHARACTER_SWAP
-
-    inputs = " and ".join(inputs_phrase(role, count) for role, count in counts.items())
-    raise RoutingError(f"Nothing makes {A_MEDIA[media_type]} from {inputs}")
+        if roles[InputRole.EDIT_TARGET] > 1:
+            raise RoutingError("Only one photo can be the one to edit")
+        if roles[InputRole.EDIT_TARGET] == 0:
+            raise RoutingError("Pick the photo to edit")
+        return Capability.IMAGE_EDIT
+    if roles[InputRole.EDIT_TARGET]:
+        raise RoutingError("A video can't edit a photo, but it can use one as a reference")
+    return Capability.VIDEO_REFERENCE if inputs else Capability.VIDEO_GENERATE
 
 
 def choose_workflow(workflows: Iterable[Workflow], capability: Capability, model: str | None) -> Workflow:
-    offering = [w for w in workflows if w.capability is capability]
+    offering = [w for w in workflows if capability in w.capabilities]
     if not offering:
-        raise RoutingError(f"No workflow does {capability} yet")
+        raise RoutingError(f"{DOING[capability]} isn't available yet")
     if model is None:
         default = default_workflow(offering, capability)
         # load_workflows refuses a catalogue without one
         assert default is not None
         return default
     for workflow in offering:
-        if workflow.manifest.model == model:
+        if workflow.model == model:
             return workflow
-    available = ", ".join(sorted(w.manifest.model for w in offering))
-    raise RoutingError(f"{model} doesn't do {capability}; these do: {available}")
+    raise RoutingError(f"{DOING[capability]} isn't available with that model")
 
 
-def words(role: InputRole) -> str:
-    return role.replace("_", " ")
+def noun(role: InputRole, media_type: MediaType) -> str:
+    if role is InputRole.EDIT_TARGET:
+        return "photo to edit"
+    return "reference photo" if media_type is MediaType.IMAGE else "reference clip"
 
 
-def inputs_phrase(role: InputRole, count: int) -> str:
-    return f"{count} {words(role)}" + ("s" if count != 1 else "")
+def plural(noun: str) -> str:
+    # "photo to edit" -> "photos to edit"
+    first, _, rest = noun.partition(" to ")
+    return f"{first}s to {rest}" if rest else f"{noun}s"
 
 
-def article(noun: str) -> str:
-    return f"{'an' if noun[0] in 'aeiou' else 'a'} {noun}"
+def counted(count: int, noun: str) -> str:
+    return f"{count} {noun if count == 1 else plural(noun)}"

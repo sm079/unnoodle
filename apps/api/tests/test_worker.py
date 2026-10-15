@@ -1,7 +1,6 @@
 from collections.abc import Callable, Iterator
 from datetime import timedelta
 from io import BytesIO
-from pathlib import Path
 from typing import Any
 
 import psycopg
@@ -19,23 +18,18 @@ from app.settings import Settings
 from app.worker import queue
 from app.worker.comfy import ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
 from app.worker.runner import Outcome, run_job
-from app.workflows import Workflow, load_workflows
-from tests.graphs import write_catalogue
+from app.workflows import Workflow
+from tests.catalogue import catalogue, node_of
 
 
 @pytest.fixture
-def catalogue(tmp_path: Path) -> Path:
-    return write_catalogue(tmp_path / "workflows")
+def workflows() -> dict[str, Workflow]:
+    return catalogue()
 
 
 @pytest.fixture
-def workflows(catalogue: Path) -> dict[str, Workflow]:
-    return load_workflows(catalogue)
-
-
-@pytest.fixture
-def client(settings: Settings, catalogue: Path) -> Iterator[TestClient]:
-    with TestClient(create_app(settings.model_copy(update={"workflows_dir": catalogue}))) as client:
+def client(settings: Settings, workflows: dict[str, Workflow]) -> Iterator[TestClient]:
+    with TestClient(create_app(settings, workflows)) as client:
         yield client
 
 
@@ -46,23 +40,24 @@ def png(size: tuple[int, int] = (64, 36)) -> bytes:
 
 
 def queue_image(client: TestClient, prompt: str = "a greenhouse at dawn", count: int = 2) -> str:
-    params = {"aspect_ratio": "3:4", "resolution": "1K", "count": count, "seed": 7}
+    params = {"aspect_ratio": "3:4", "quality": "medium", "count": count, "seed": 7}
     response = client.post("/generations", json={"media_type": "image", "prompt": prompt, "params": params})
     assert response.status_code == 201
     generation_id: str = response.json()["id"]
     return generation_id
 
 
-def queue_video_from_frame(client: TestClient) -> tuple[str, str]:
-    frame = client.post("/assets", files={"file": ("frame.png", png(), "image/png")}).json()["id"]
+def queue_video(client: TestClient, prompt: str, photos: int) -> list[str]:
+    """Queues a video from reference photos and returns the photos' ids."""
+    ids = [client.post("/assets", files={"file": ("ref.png", png(), "image/png")}).json()["id"] for _ in range(photos)]
     body = {
         "media_type": "video",
-        "prompt": "she turns around",
-        "inputs": [{"asset_id": frame, "role": "start_frame"}],
-        "params": {"aspect_ratio": "16:9", "resolution": "720p", "duration_s": 5},
+        "prompt": prompt,
+        "inputs": [{"asset_id": i, "role": "reference"} for i in ids],
+        "params": {"aspect_ratio": "9:16", "quality": "low", "duration_s": 10},
     }
-    generation_id: str = client.post("/generations", json=body).json()["id"]
-    return generation_id, frame
+    assert client.post("/generations", json=body).status_code == 201
+    return ids
 
 
 def load(engine: Engine, generation_id: str) -> Generation:
@@ -211,38 +206,32 @@ def test_a_finished_run_stores_its_outputs(
         assert client.get(output["url"]).status_code == 200
 
 
-def test_the_request_is_written_into_the_bound_nodes(
+def test_the_graph_is_built_from_the_request(
     client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
 ) -> None:
     generation_id = queue_image(client, "a greenhouse at dawn", count=3)
     comfy = FakeComfy()
     run(engine, workflows, settings, comfy)
     graph = comfy.graphs[0]
-    bound = {
-        graph[node_id]["_meta"]["title"]: graph[node_id]["inputs"]["value"] for node_id in ("1", "2", "3", "4", "7")
-    }
-    assert bound == {
-        "in.prompt": "a greenhouse at dawn",
-        "in.seed": 7,
-        "in.width": 896,
-        "in.height": 1152,
-        "in.batch_size": 3,
-    }
-    assert graph["6"]["inputs"]["filename_prefix"] == f"unnoodle/{generation_id}"
-    # The stored workflow itself is untouched
-    assert workflows["t2i"].graph["1"]["inputs"]["value"] == ""
+    # Medium quality is a megapixel, here at 3:4
+    assert node_of(graph, "EmptyImage") == {"width": 880, "height": 1184, "batch_size": 3, "color": 0}
+    assert node_of(graph, "Job") == {"prompt": "a greenhouse at dawn", "seed": 7, "frames": None}
+    assert node_of(graph, "SaveImage")["filename_prefix"] == f"unnoodle/{generation_id}"
 
 
-def test_attached_files_are_uploaded_and_bound(
+def test_attached_files_are_uploaded_into_the_graph(
     client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
 ) -> None:
-    _, frame = queue_video_from_frame(client)
+    photos = queue_video(client, "photo 2 waves at photo 1", photos=2)
     comfy = FakeComfy(files=1)
     run(engine, workflows, settings, comfy)
-    assert list(comfy.uploads) == [f"{frame}.png"]
+    assert list(comfy.uploads) == [f"{p}.png" for p in photos]
     graph = comfy.graphs[0]
-    assert graph["9"]["inputs"]["image"] == f"unnoodle/{frame}.png"
-    assert (graph["7"]["inputs"]["value"], graph["8"]["inputs"]["value"]) == (120, 24)  # 5 s at 24 fps
+    loads = [n["inputs"]["image"] for n in graph.values() if n["class_type"] == "LoadImage"]
+    assert loads == [f"unnoodle/{p}.png" for p in photos]
+    # Ten seconds is the frame count the workflow gives it, and the prompt names the photos as the model expects
+    assert node_of(graph, "Job")["frames"] == 243
+    assert node_of(graph, "Job")["prompt"] == "image 2 waves at image 1"
 
 
 def test_progress_is_recorded_while_running(
@@ -259,13 +248,17 @@ def test_progress_is_recorded_while_running(
     [
         (
             ComfyFailed("CUDA out of memory", "KSampler", "torch.OutOfMemoryError"),
-            "The GPU ran out of memory. Try a smaller size or fewer outputs.",
+            "This was too big to make. Try a lower quality, a shorter length or fewer at a time.",
         ),
-        (ComfyFailed("bad shape\nTraceback ...", "VAEDecode", "RuntimeError"), "VAEDecode failed: bad shape"),
-        (ComfyRejected("node 7: missing input"), "This workflow is broken: ComfyUI refused it"),
-        (ValueError("a bug"), "Something went wrong while running this"),
+        (
+            ComfyFailed("bad shape\nTraceback ...", "VAEDecode", "RuntimeError"),
+            "Something went wrong while making this. Try again.",
+        ),
+        (ComfyFailed("This was stopped before it finished"), "This was stopped before it finished"),
+        (ComfyRejected("node 7: missing input"), "Something is wrong on our side, so this couldn't start"),
+        (ValueError("a bug"), "Something went wrong while making this. Try again."),
     ],
-    ids=["out of memory", "node error", "refused graph", "unexpected"],
+    ids=["out of memory", "node error", "ours", "refused graph", "unexpected"],
 )
 def test_a_failed_run_records_why(
     client: TestClient,

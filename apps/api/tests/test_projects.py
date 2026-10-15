@@ -1,6 +1,5 @@
 import uuid
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,14 +9,13 @@ from sqlalchemy.orm import Session
 from app.main import create_app
 from app.models import Asset, AssetSource, MediaType
 from app.settings import Settings
-from tests.graphs import write_catalogue
+from tests.catalogue import catalogue
 from tests.test_generations import image_request
 
 
 @pytest.fixture
-def client(settings: Settings, tmp_path: Path) -> Iterator[TestClient]:
-    catalogue = write_catalogue(tmp_path / "workflows")
-    with TestClient(create_app(settings.model_copy(update={"workflows_dir": catalogue}))) as client:
+def client(settings: Settings) -> Iterator[TestClient]:
+    with TestClient(create_app(settings, catalogue())) as client:
         yield client
 
 
