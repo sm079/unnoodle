@@ -42,3 +42,7 @@ playwright-report/
 # Logs and temp
 *.log
 tmp/
+
+# What ComfyUI writes when dev/comfyui is its base directory (inputs, outputs, settings)
+/dev/comfyui/*
+!/dev/comfyui/custom_nodes/
