@@ -4,7 +4,6 @@ import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } fr
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
 import {
-  ChevronDownIcon,
   ChevronRightIcon,
   ClockIcon,
   FocusIcon,
@@ -28,10 +27,10 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { api, messageOf } from '@/lib/api';
-import { defaultRole, qualityLabels, roleLabels, shapeLabels } from '@/lib/capabilities';
+import { qualityLabels, shapeLabels } from '@/lib/capabilities';
 import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
-import { capabilityFor, rolesFor, route, type Attached, type Routed } from '@/lib/routing';
+import { capabilityFor, route, type Attached, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
 import type { AspectRatio, Asset, Generation, InputRole, MediaType, Quality, Workflow } from '@/lib/types';
 
@@ -51,10 +50,13 @@ interface DraftInput {
   role: InputRole;
 }
 
+/** A shape, or the shape of the first attachment. */
+type Shape = AspectRatio | 'first';
+
 /** What the user picked. Each render fits it to the settings the routed workflow offers. */
 interface Settings {
   quality: Quality;
-  aspect_ratio: AspectRatio;
+  aspect_ratio: Shape;
   duration_s: number;
   count: number;
 }
@@ -71,22 +73,25 @@ const modeLabels: Record<MediaType, string> = { image: 'Image', video: 'Video' }
 
 // With something attached, the hint shows how to mention it
 const placeholders: Record<MediaType, [alone: string, attached: string]> = {
-  image: ['Describe the picture you want...', 'Describe the change, like “the coat from photo 2 on the man in photo 1”'],
-  video: ['Describe the video you want...', 'Describe the video, like “the woman in photo 1 dances like clip 1”']
+  image: ['Describe the picture you want...', 'Tap @photo1 to use it, like “@photo1 wearing the coat from @photo2”'],
+  video: ['Describe the video you want...', 'Tap @photo1 to use it, like “@photo1 dances like @clip1”']
 };
+
+// The shape with nothing attached, until another is picked
+const defaultShapes: Record<MediaType, AspectRatio> = { image: '3:4', video: '9:16' };
 
 const initialDrafts: Record<MediaType, Draft> = {
   image: {
     prompt: '',
     inputs: [],
     model: null,
-    settings: { quality: 'medium', aspect_ratio: '3:4', duration_s: 5, count: 1 }
+    settings: { quality: 'medium', aspect_ratio: defaultShapes.image, duration_s: 5, count: 1 }
   },
   video: {
     prompt: '',
     inputs: [],
     model: null,
-    settings: { quality: 'medium', aspect_ratio: '9:16', duration_s: 5, count: 1 }
+    settings: { quality: 'medium', aspect_ratio: defaultShapes.video, duration_s: 5, count: 1 }
   }
 };
 
@@ -115,10 +120,13 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
   const routed: Routed<Workflow> | null = workflows.data ? route(workflows.data, mode, attached, draft.model) : null;
   const workflow = routed?.ok ? routed.value : null;
   const capability = workflow ? capabilityFor(mode, attached) : null;
-  const settings = workflow ? fitSettings(draft.settings, workflow) : draft.settings;
+  const settings = workflow ? fitSettings(draft.settings, workflow, mode, draft.inputs.length > 0) : draft.settings;
+  const first = draft.inputs[0];
+  // Until an upload is stored its size isn't known
+  const firstShape = first && first.asset.width > 0 ? `${first.asset.width}:${first.asset.height}` : '1:1';
   const full = draft.inputs.length >= MAX_INPUTS;
   const uploading = draft.inputs.some(i => i.uploading);
-  // Inputs that route nowhere show as such on the route chip, with Generate disabled. The line under the composer is
+  // Inputs that route nowhere say why on the route line, with Generate disabled. The line under the composer is
   // only for what went wrong: an upload or a request the API refused, or the workflows not loading.
   const status = problem ?? (workflows.error ? workflows.error.message : null);
 
@@ -140,21 +148,18 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     update({ settings: { ...settings, [key]: value } });
   }
 
-  /** Adds inputs with their default roles and returns their keys. */
+  /** Adds inputs and returns their keys. */
   function attach(assets: Asset[], uploading = false): string[] {
     const inputs = [...draft.inputs];
     const added = assets.slice(0, MAX_INPUTS - inputs.length).map(asset => {
-      const role = defaultRole(
-        mode,
-        inputs.map(i => i.role),
-        asset
-      );
-      const input = { key: nextKey(), asset, uploading, role };
+      const input: DraftInput = { key: nextKey(), asset, uploading, role: 'reference' };
       inputs.push(input);
       return input.key;
     });
-    // The model menu only lists models for the new route, so a model picked for the old one no longer applies
-    update({ inputs, model: null });
+    // The model menu only lists models for the new route, so a model picked for the old one no longer applies. The
+    // first attachment makes its shape the default.
+    const settings = draft.inputs.length === 0 ? { ...draft.settings, aspect_ratio: 'first' as const } : draft.settings;
+    update({ inputs, model: null, settings });
     return added;
   }
 
@@ -196,24 +201,20 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     }
   }
 
-  /** Puts "photo 2" or "clip 1" into the prompt where the cursor was, so people never type a label wrong. */
-  function mention(label: string) {
+  /** Puts "@photo2" or "@clip1" into the prompt where the cursor was, so nobody has to type it. */
+  function mention(handle: string) {
     const textarea = promptRef.current;
     const { prompt } = draft;
     const start = textarea?.selectionStart ?? prompt.length;
     const before = prompt.slice(0, start);
     const after = prompt.slice(textarea?.selectionEnd ?? start);
-    const words = `${before === '' || /\s$/.test(before) ? '' : ' '}${label.toLowerCase()}${/^\s/.test(after) ? '' : ' '}`;
+    const words = `${before === '' || /\s$/.test(before) ? '' : ' '}${handle}${/^\s/.test(after) ? '' : ' '}`;
     update({ prompt: before + words + after });
     const caret = before.length + words.length;
     requestAnimationFrame(() => {
       textarea?.focus();
       textarea?.setSelectionRange(caret, caret);
     });
-  }
-
-  function setRole(index: number, role: InputRole) {
-    update({ inputs: draft.inputs.map((input, i) => (i === index ? { ...input, role } : input)), model: null });
   }
 
   async function submit(event: FormEvent) {
@@ -233,8 +234,8 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
         inputs: draft.inputs.map(i => ({ asset_id: i.asset.id, role: i.role })),
         params: {
           quality: settings.quality,
-          // An edit takes its shape from the photo
-          aspect_ratio: workflow.aspect_ratios.length > 0 ? settings.aspect_ratio : null,
+          // Left out, the API takes the first attachment's shape
+          aspect_ratio: settings.aspect_ratio === 'first' ? null : settings.aspect_ratio,
           duration_s: mode === 'video' ? settings.duration_s : null,
           count: settings.count,
           seed: null
@@ -271,8 +272,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                   <ul aria-label="Inputs" className="no-scrollbar flex overflow-x-auto">
                     <AnimatePresence initial={false}>
                       {draft.inputs.map((input, index) => {
-                        const label = attachmentLabel(draft.inputs, index);
-                        const roles = rolesFor(workflows.data ?? [], mode, input.asset.media_type);
+                        const handle = handleOf(draft.inputs, index);
                         return (
                           <m.li
                             key={input.key}
@@ -284,18 +284,18 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                           >
                             <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
                               <Thumbnail asset={input.asset} uploading={input.uploading} />
+                              {/* Looks like the mention it inserts, so it reads as something to tap */}
                               <button
                                 type="button"
-                                aria-label={`Mention ${label.toLowerCase()} in the prompt`}
-                                onClick={() => mention(label)}
-                                className="rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap transition-colors duration-150 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/30"
+                                aria-label={`Mention ${handle} in the prompt`}
+                                onClick={() => mention(handle)}
+                                className="rounded-md bg-lime/12 px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap text-lime transition-[background-color,scale] duration-150 ease-spring outline-none hover:bg-lime/20 focus-visible:ring-2 focus-visible:ring-lime/40 active:scale-90"
                               >
-                                {label}
+                                {handle}
                               </button>
-                              {roles.length > 1 && <RoleMenu roles={roles} value={input.role} onChange={role => setRole(index, role)} />}
                               <button
                                 type="button"
-                                aria-label={`Remove ${label.toLowerCase()}`}
+                                aria-label={`Remove ${handle}`}
                                 onClick={() => detach(index)}
                                 className="flex size-6 items-center justify-center rounded-md text-[#8a8b8c] transition-[color,background-color,scale] duration-150 hover:bg-white/10 hover:text-white active:scale-85"
                               >
@@ -335,7 +335,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                 capability={capability?.ok ? capability.value : null}
                 models={capability?.ok ? (workflows.data ?? []).filter(w => w.capabilities.includes(capability.value)) : []}
                 value={workflow}
-                emptyLabel={workflows.data ? 'Not available yet' : 'Loading models…'}
+                note={routed?.ok === false ? routed.error : workflows.data ? null : 'Loading…'}
                 onChange={next => update({ model: next.model })}
                 className={cn(chipClass, 'px-3')}
               />
@@ -349,16 +349,14 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                     labels={qualityLabels}
                     onChange={value => setSetting('quality', value as Quality)}
                   />
-                  {workflow.aspect_ratios.length > 0 && (
-                    <OptionChip
-                      label="Shape"
-                      icon={<AspectIcon ratio={settings.aspect_ratio} />}
-                      value={settings.aspect_ratio}
-                      options={workflow.aspect_ratios}
-                      labels={shapeLabels}
-                      onChange={value => setSetting('aspect_ratio', value as AspectRatio)}
-                    />
-                  )}
+                  <OptionChip
+                    label="Shape"
+                    icon={<AspectIcon ratio={settings.aspect_ratio === 'first' ? firstShape : settings.aspect_ratio} />}
+                    value={settings.aspect_ratio}
+                    options={[...(first ? ['first'] : []), ...workflow.aspect_ratios]}
+                    labels={{ ...shapeLabels, first: first ? `Same as ${handleOf(draft.inputs, 0)}` : '' }}
+                    onChange={value => setSetting('aspect_ratio', value as Shape)}
+                  />
                   {workflow.durations_s.length > 0 && (
                     <OptionChip
                       label="Length"
@@ -506,23 +504,25 @@ const menuClass =
   'rounded-2xl border border-white/[0.07] bg-[#25282c]/90 p-1.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-0 backdrop-blur-xl';
 
 /** The picked settings, moved to the nearest ones the workflow offers. */
-export function fitSettings(settings: Settings, workflow: Workflow): Settings {
+export function fitSettings(settings: Settings, workflow: Workflow, mode: MediaType, attached: boolean): Settings {
   // Nothing offered keeps the value, so it's still there for the next workflow that does offer it
   const pick = <T,>(value: T, allowed: T[]) => (allowed.length === 0 || allowed.includes(value) ? value : allowed[0]);
+  // With nothing attached there's no first attachment to take the shape of
+  const shape = settings.aspect_ratio === 'first' && !attached ? defaultShapes[mode] : settings.aspect_ratio;
   return {
     quality: settings.quality,
-    aspect_ratio: pick(settings.aspect_ratio, workflow.aspect_ratios),
+    aspect_ratio: shape === 'first' ? shape : pick(shape, workflow.aspect_ratios),
     duration_s: pick(settings.duration_s, workflow.durations_s),
     count: Math.min(settings.count, workflow.max_count)
   };
 }
 
-/** "Photo 2" or "Clip 1": photos and clips are numbered separately, in the order they were attached, as the API
- * reads mentions of them in the prompt. */
-function attachmentLabel(inputs: DraftInput[], index: number): string {
+/** "@photo2" or "@clip1": what the prompt calls an attachment. Photos and clips are numbered separately, in the order
+ * they were attached, as the API reads them. */
+function handleOf(inputs: DraftInput[], index: number): string {
   const kind = inputs[index].asset.media_type;
   const number = inputs.slice(0, index + 1).filter(i => i.asset.media_type === kind).length;
-  return `${kind === 'image' ? 'Photo' : 'Clip'} ${number}`;
+  return `@${kind === 'image' ? 'photo' : 'clip'}${number}`;
 }
 
 /** A short head shake: the prompt is needed before anything can be generated. */
@@ -545,22 +545,6 @@ function previewAsset(file: File): Asset {
     duration_s: null,
     created_at: new Date().toISOString()
   };
-}
-
-/** The role an input plays, as a chip that opens the roles it could play instead. */
-function RoleMenu({ roles, value, onChange }: { roles: InputRole[]; value: InputRole; onChange: (role: InputRole) => void }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`Role: ${roleLabels[value]}`}
-        className="group/role flex items-center gap-0.5 rounded-md py-0.5 pr-0.5 pl-1.5 text-[0.8125rem] font-semibold whitespace-nowrap transition-colors duration-150 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/30 data-[popup-open]:bg-white/10"
-      >
-        <RollingValue value={roleLabels[value]} />
-        <ChevronDownIcon className="size-3.5 text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]/role:rotate-180" />
-      </DropdownMenuTrigger>
-      <OptionList label="Role" value={value} options={roles} labels={roleLabels} onChange={role => onChange(role as InputRole)} />
-    </DropdownMenu>
-  );
 }
 
 function OptionChip({
@@ -627,7 +611,7 @@ function OptionList({
 }
 
 /** A frame drawn at the exact ratio; it reshapes itself when the ratio changes. */
-function AspectIcon({ ratio }: { ratio: AspectRatio }) {
+function AspectIcon({ ratio }: { ratio: string }) {
   const [width, height] = ratio.split(':').map(Number);
   const fit = 0.8125 / Math.max(width, height);
   return (

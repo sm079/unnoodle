@@ -283,9 +283,11 @@ export interface components {
     /**
      * InputRole
      * @description What an attached asset is for. The output type plus the roles of the inputs decide the capability.
+     *
+     *     There is one role while every workflow treats its inputs alike; start and end frames would be others.
      * @enum {string}
      */
-    InputRole: 'edit_target' | 'reference';
+    InputRole: 'reference';
     /**
      * MediaType
      * @enum {string}

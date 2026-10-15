@@ -38,7 +38,8 @@ describe('generations', () => {
 
   test.each(generations)('$id only uses settings its workflow offers', g => {
     const workflow = workflowById.get(g.workflow_id)!;
-    if (g.params.aspect_ratio === null) expect(workflow.aspect_ratios).toEqual([]);
+    // No shape means the first attachment's
+    if (g.params.aspect_ratio === null) expect(g.inputs.length).toBeGreaterThan(0);
     else expect(workflow.aspect_ratios).toContain(g.params.aspect_ratio);
     if (g.params.duration_s === null) expect(workflow.durations_s).toEqual([]);
     else expect(workflow.durations_s).toContain(g.params.duration_s);

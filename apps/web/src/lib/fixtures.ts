@@ -46,16 +46,13 @@ export const workflows: Workflow[] = [
     capabilities: ['image.edit'],
     model: 'flux-2-klein',
     model_name: 'FLUX.2 Klein',
-    description: 'Changes a photo, optionally using up to two more',
+    description: 'Changes or combines up to three photos',
     default_for: ['image.edit'],
-    aspect_ratios: [],
+    aspect_ratios: allShapes,
     max_count: 1,
     durations_s: [],
     sound: false,
-    accepts: [
-      { role: 'edit_target', media_type: 'image', most: 1 },
-      { role: 'reference', media_type: 'image', most: 2 }
-    ]
+    accepts: [{ role: 'reference', media_type: 'image', most: 3 }]
   },
   {
     id: 'minimax-h3',
@@ -120,7 +117,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: 'prj_film',
-    prompt: 'the woman in photo 1 turns towards the camera as the light fades',
+    prompt: '@photo1 turns towards the camera as the light fades',
     params: { ...videoParams, aspect_ratio: '3:4' },
     inputs: [{ role: 'reference', asset: portrait }],
     outputs: [],
@@ -136,7 +133,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: null,
-    prompt: 'the room in photo 1 fills with the plants from photo 2 over a year',
+    prompt: 'the room in @photo1 fills with the plants from @photo2 over a year',
     params: { ...videoParams, quality: 'high', duration_s: 15 },
     inputs: [
       { role: 'reference', asset: room },
@@ -154,7 +151,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: null,
-    prompt: 'the character in photo 1 dances like the dancer in clip 1',
+    prompt: 'the character in @photo1 dances like the dancer in @clip1',
     params: { ...videoParams, aspect_ratio: '9:16', seed: 5521 },
     inputs: [
       { role: 'reference', asset: danceClip },
@@ -172,7 +169,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: 'prj_film',
-    prompt: 'slow morph from the woman in photo 1 to the character in photo 2',
+    prompt: 'slow morph from the woman in @photo1 to the character in @photo2',
     params: { ...videoParams, aspect_ratio: '3:4', duration_s: 10, seed: 77 },
     inputs: [
       { role: 'reference', asset: portrait },
@@ -192,7 +189,7 @@ export const generations: Generation[] = [
     project_id: 'prj_mood',
     prompt: 'replace the sofa with a green velvet armchair',
     params: { ...editParams, seed: 3130 },
-    inputs: [{ role: 'edit_target', asset: room }],
+    inputs: [{ role: 'reference', asset: room }],
     outputs: [roomEdit],
     ...ended,
     error: null,
