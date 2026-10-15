@@ -20,8 +20,9 @@ from app.models import (
     InputRole,
     MediaType,
     Project,
+    Quality,
 )
-from app.routing import RoutingError, route
+from app.routing import RoutingError, capability_for, route
 from app.worker import queue
 from app.workflows import AspectRatio, Workflow, WorkflowsDep
 
@@ -34,22 +35,18 @@ MAX_SEED = 2**53 - 1
 class InputIn(BaseModel):
     asset_id: uuid.UUID
     role: InputRole
-    # Seconds into the clip. Keyframes only.
-    position_s: float | None = Field(default=None, ge=0)
 
 
 class Params(BaseModel):
-    aspect_ratio: AspectRatio
-    # As offered by the workflow, e.g. "1K" or "720p"
-    resolution: str
-    # Videos only
-    duration_s: float | None = None
+    quality: Quality = Quality.MEDIUM
+    # One the workflow offers. Left out when the output takes its shape from a photo, as an edit does.
+    aspect_ratio: AspectRatio | None = None
+    # Videos only, in seconds, one the workflow offers
+    duration_s: int | None = None
     # Outputs per run
     count: int = Field(default=1, ge=1)
     # Left out for a random one; the generation records the seed it used
     seed: int | None = Field(default=None, ge=0, le=MAX_SEED)
-    # Videos only, where the workflow offers it
-    audio: bool = False
 
 
 class GenerationIn(BaseModel):
@@ -67,7 +64,6 @@ class GenerationIn(BaseModel):
 
 class GenerationInputOut(BaseModel):
     role: InputRole
-    position_s: float | None
     asset: AssetOut
 
 
@@ -104,17 +100,14 @@ class GenerationOut(BaseModel):
             prompt=g.prompt,
             project_id=g.project_id,
             params=ParamsOut(
+                quality=g.quality,
                 # Checked against the workflow when the request was accepted
-                aspect_ratio=cast(AspectRatio, g.aspect_ratio),
-                resolution=g.resolution,
-                duration_s=g.duration_s,
+                aspect_ratio=cast(AspectRatio | None, g.aspect_ratio),
+                duration_s=None if g.duration_s is None else round(g.duration_s),
                 count=g.count,
                 seed=g.seed,
-                audio=g.audio,
             ),
-            inputs=[
-                GenerationInputOut(role=i.role, position_s=i.position_s, asset=AssetOut.of(i.asset)) for i in g.inputs
-            ],
+            inputs=[GenerationInputOut(role=i.role, asset=AssetOut.of(i.asset)) for i in g.inputs],
             outputs=[AssetOut.of(asset) for asset in g.outputs],
             progress=g.progress,
             error=g.error,
@@ -134,9 +127,10 @@ router = APIRouter()
 @router.post("/generations", status_code=status.HTTP_201_CREATED, responses={422: {"description": "Can't be run"}})
 def create_generation(body: GenerationIn, session: SessionDep, workflows: WorkflowsDep) -> GenerationOut:
     try:
-        workflow = route(workflows.values(), body.media_type, [i.role for i in body.inputs], body.model)
-        check_params(workflow, body.params)
         assets = attached_assets(session, body.inputs)
+        attached = [(i.role, assets[i.asset_id].media_type) for i in body.inputs]
+        workflow = route(workflows.values(), body.media_type, attached, body.model)
+        check_params(workflow, body.params)
         if body.project_id is not None and session.get(Project, body.project_id) is None:
             raise RequestError("That project no longer exists")
     except (RoutingError, RequestError) as error:
@@ -144,20 +138,16 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
 
     p = body.params
     generation = Generation(
-        capability=workflow.capability,
+        capability=capability_for(body.media_type, attached),
         workflow_id=workflow.id,
         prompt=body.prompt,
         project_id=body.project_id,
+        quality=p.quality,
         aspect_ratio=p.aspect_ratio,
-        resolution=p.resolution,
         duration_s=p.duration_s,
         count=p.count,
         seed=p.seed if p.seed is not None else secrets.randbelow(PICKED_SEEDS),
-        audio=p.audio,
-        inputs=[
-            GenerationInput(position=n, role=i.role, asset=assets[i.asset_id], position_s=i.position_s)
-            for n, i in enumerate(body.inputs)
-        ],
+        inputs=[GenerationInput(position=n, role=i.role, asset=assets[i.asset_id]) for n, i in enumerate(body.inputs)],
     )
     session.add(generation)
     queue.notify_queued(session)
@@ -189,38 +179,25 @@ def get_generation(generation_id: uuid.UUID, session: SessionDep) -> GenerationO
 
 
 def check_params(workflow: Workflow, params: Params) -> None:
-    m = workflow.manifest
-    name = m.model_name
-    sizes = m.sizes.get(params.resolution)
-    if sizes is None:
-        raise RequestError(f"{name} offers {', '.join(m.sizes)}, not {params.resolution}")
-    if params.aspect_ratio not in sizes:
-        raise RequestError(f"{name} at {params.resolution} offers {', '.join(sizes)}, not {params.aspect_ratio}")
-    if params.count > m.max_count:
-        raise RequestError(f"{name} makes at most {m.max_count} at a time")
-    if workflow.capability.media_type is MediaType.VIDEO:
-        if params.duration_s not in m.durations_s:
-            offered = ", ".join(f"{d:g}s" for d in m.durations_s)
-            raise RequestError(f"{name} makes videos of {offered}")
+    shapes = workflow.aspect_ratios
+    if shapes is None and params.aspect_ratio is not None:
+        raise RequestError("An edit keeps the shape of the photo being edited")
+    if shapes is not None and params.aspect_ratio not in shapes:
+        raise RequestError("Pick a shape" if params.aspect_ratio is None else "That shape isn't offered here")
+    if params.count > workflow.max_count:
+        raise RequestError(f"This makes at most {workflow.max_count} at a time")
+    if workflow.media_type is MediaType.VIDEO:
+        if params.duration_s not in workflow.frames:
+            lengths = [str(s) for s in sorted(workflow.frames)]
+            offered = lengths[0] if len(lengths) == 1 else f"{', '.join(lengths[:-1])} or {lengths[-1]}"
+            raise RequestError(f"Videos can be {offered} seconds long")
     elif params.duration_s is not None:
-        raise RequestError("Only videos have a duration")
-    if params.audio and not m.audio:
-        raise RequestError(f"{name} doesn't make sound")
+        raise RequestError("Only videos have a length")
 
 
 def attached_assets(session: SessionDep, inputs: list[InputIn]) -> dict[uuid.UUID, Asset]:
-    for i in inputs:
-        if (i.position_s is not None) != (i.role is InputRole.KEYFRAME):
-            raise RequestError("Keyframes need a time in the clip, and only keyframes have one")
     ids = {i.asset_id for i in inputs}
     assets = {a.id: a for a in session.scalars(select(Asset).where(Asset.id.in_(ids)))} if ids else {}
-    for i in inputs:
-        asset = assets.get(i.asset_id)
-        if asset is None:
-            raise RequestError("An attached file no longer exists")
-        needed = MediaType.VIDEO if i.role is InputRole.SOURCE_VIDEO else MediaType.IMAGE
-        if asset.media_type is not needed:
-            raise RequestError(
-                f"A {i.role.replace('_', ' ')} has to be {'a video' if needed is MediaType.VIDEO else 'an image'}"
-            )
+    if ids - assets.keys():
+        raise RequestError("An attached file no longer exists")
     return assets

@@ -393,6 +393,27 @@
   },
   "components": {
     "schemas": {
+      "AcceptsOut": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/InputRole"
+          },
+          "media_type": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "most": {
+            "type": "integer",
+            "title": "Most"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "media_type",
+          "most"
+        ],
+        "title": "AcceptsOut"
+      },
       "AssetOut": {
         "properties": {
           "id": {
@@ -480,14 +501,8 @@
         "enum": [
           "image.generate",
           "image.edit",
-          "image.restyle",
-          "image.multi_ref",
           "video.generate",
-          "video.from_frame",
-          "video.first_last",
-          "video.keyframes",
-          "video.reference",
-          "video.character_swap"
+          "video.reference"
         ],
         "title": "Capability"
       },
@@ -552,17 +567,6 @@
           "role": {
             "$ref": "#/components/schemas/InputRole"
           },
-          "position_s": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Position S"
-          },
           "asset": {
             "$ref": "#/components/schemas/AssetOut"
           }
@@ -570,7 +574,6 @@
         "type": "object",
         "required": [
           "role",
-          "position_s",
           "asset"
         ],
         "title": "GenerationInputOut"
@@ -754,18 +757,6 @@
           },
           "role": {
             "$ref": "#/components/schemas/InputRole"
-          },
-          "position_s": {
-            "anyOf": [
-              {
-                "type": "number",
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Position S"
           }
         },
         "type": "object",
@@ -778,13 +769,8 @@
       "InputRole": {
         "type": "string",
         "enum": [
-          "start_frame",
-          "end_frame",
-          "keyframe",
-          "reference",
           "edit_target",
-          "restyle",
-          "source_video"
+          "reference"
         ],
         "title": "InputRole",
         "description": "What an attached asset is for. The output type plus the roles of the inputs decide the capability."
@@ -799,25 +785,35 @@
       },
       "Params": {
         "properties": {
+          "quality": {
+            "$ref": "#/components/schemas/Quality",
+            "default": "medium"
+          },
           "aspect_ratio": {
-            "type": "string",
-            "enum": [
-              "1:1",
-              "4:3",
-              "3:4",
-              "16:9",
-              "9:16"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "1:1",
+                  "2:3",
+                  "3:2",
+                  "3:4",
+                  "4:3",
+                  "9:16",
+                  "16:9",
+                  "21:9"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Aspect Ratio"
-          },
-          "resolution": {
-            "type": "string",
-            "title": "Resolution"
           },
           "duration_s": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -843,41 +839,42 @@
               }
             ],
             "title": "Seed"
-          },
-          "audio": {
-            "type": "boolean",
-            "title": "Audio",
-            "default": false
           }
         },
         "type": "object",
-        "required": [
-          "aspect_ratio",
-          "resolution"
-        ],
         "title": "Params"
       },
       "ParamsOut": {
         "properties": {
+          "quality": {
+            "$ref": "#/components/schemas/Quality",
+            "default": "medium"
+          },
           "aspect_ratio": {
-            "type": "string",
-            "enum": [
-              "1:1",
-              "4:3",
-              "3:4",
-              "16:9",
-              "9:16"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "1:1",
+                  "2:3",
+                  "3:2",
+                  "3:4",
+                  "4:3",
+                  "9:16",
+                  "16:9",
+                  "21:9"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Aspect Ratio"
-          },
-          "resolution": {
-            "type": "string",
-            "title": "Resolution"
           },
           "duration_s": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -894,17 +891,10 @@
           "seed": {
             "type": "integer",
             "title": "Seed"
-          },
-          "audio": {
-            "type": "boolean",
-            "title": "Audio",
-            "default": false
           }
         },
         "type": "object",
         "required": [
-          "aspect_ratio",
-          "resolution",
           "seed"
         ],
         "title": "ParamsOut"
@@ -962,6 +952,16 @@
         ],
         "title": "ProjectOut"
       },
+      "Quality": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "Quality",
+        "description": "How big an output is: each workflow maps these to its own sizes and the person never sees pixels."
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -1008,8 +1008,12 @@
             "type": "string",
             "title": "Id"
           },
-          "capability": {
-            "$ref": "#/components/schemas/Capability"
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            },
+            "type": "array",
+            "title": "Capabilities"
           },
           "model": {
             "type": "string",
@@ -1023,26 +1027,29 @@
             "type": "string",
             "title": "Description"
           },
-          "default": {
-            "type": "boolean",
-            "title": "Default"
-          },
-          "resolutions": {
-            "additionalProperties": {
-              "items": {
-                "type": "string",
-                "enum": [
-                  "1:1",
-                  "4:3",
-                  "3:4",
-                  "16:9",
-                  "9:16"
-                ]
-              },
-              "type": "array"
+          "default_for": {
+            "items": {
+              "$ref": "#/components/schemas/Capability"
             },
-            "type": "object",
-            "title": "Resolutions"
+            "type": "array",
+            "title": "Default For"
+          },
+          "aspect_ratios": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "1:1",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:3",
+                "9:16",
+                "16:9",
+                "21:9"
+              ]
+            },
+            "type": "array",
+            "title": "Aspect Ratios"
           },
           "max_count": {
             "type": "integer",
@@ -1050,39 +1057,36 @@
           },
           "durations_s": {
             "items": {
-              "type": "number"
+              "type": "integer"
             },
             "type": "array",
             "title": "Durations S"
           },
-          "audio": {
+          "sound": {
             "type": "boolean",
-            "title": "Audio"
+            "title": "Sound"
           },
-          "roles": {
-            "additionalProperties": {
-              "type": "integer"
+          "accepts": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptsOut"
             },
-            "propertyNames": {
-              "$ref": "#/components/schemas/InputRole"
-            },
-            "type": "object",
-            "title": "Roles"
+            "type": "array",
+            "title": "Accepts"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "capability",
+          "capabilities",
           "model",
           "model_name",
           "description",
-          "default",
-          "resolutions",
+          "default_for",
+          "aspect_ratios",
           "max_count",
           "durations_s",
-          "audio",
-          "roles"
+          "sound",
+          "accepts"
         ],
         "title": "WorkflowOut"
       }

@@ -9,7 +9,7 @@ from app.db import make_engine
 from app.settings import Settings
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, catalogue: dict[str, workflows.Workflow] | None = None) -> FastAPI:
     settings = settings or Settings()
     engine = make_engine(settings.database_url)
 
@@ -20,8 +20,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="unnoodle API", lifespan=lifespan)
     app.state.engine = engine
-    # Loaded once, and checked as they load, so a broken workflow stops the API from starting
-    app.state.workflows = workflows.load_workflows(settings.workflows_dir)
+    # Loaded once, and checked as they load, so a broken workflow stops the API from starting. Tests pass their own.
+    app.state.workflows = catalogue if catalogue is not None else workflows.load_workflows(settings.workflows)
     settings.media_dir.mkdir(parents=True, exist_ok=True)
     app.state.media = media.MediaStore(settings.media_dir)
 

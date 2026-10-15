@@ -1,86 +1,87 @@
 // Which workflow a request runs on, worked out in the composer so it can show the route before anything is sent. The
-// API decides for real (apps/api/app/routing.py); this follows the same rules, and routing.test.ts runs the same cases
-// as the API's tests.
+// API decides for real (apps/api/app/routing.py); this follows the same rules with the same messages, and
+// routing.test.ts runs the same cases as the API's tests.
 
 import type { Capability, InputRole, MediaType, Workflow } from './types';
 
 /** The roles an input can take for each output type, in the order a role picker lists them. */
 export const rolesFor: Record<MediaType, InputRole[]> = {
-  image: ['edit_target', 'restyle', 'reference'],
-  video: ['start_frame', 'end_frame', 'keyframe', 'reference', 'source_video']
+  image: ['edit_target', 'reference'],
+  video: ['reference']
 };
+
+/** An attachment, as routing sees it: its role and whether it is a photo or a clip. */
+export type Attached = [role: InputRole, mediaType: MediaType];
 
 /** Either where a request goes, or why it can't go anywhere, in words for the person sending it. */
 export type Routed<T> = { ok: true; value: T } | { ok: false; error: string };
 
-const aMedia: Record<MediaType, string> = { image: 'an image', video: 'a video' };
+const doing: Record<Capability, string> = {
+  'image.generate': 'Making a picture',
+  'image.edit': 'Editing a photo',
+  'video.generate': 'Making a video',
+  'video.reference': 'Making a video'
+};
 
-export function route(workflows: Workflow[], mediaType: MediaType, roles: InputRole[], model: string | null): Routed<Workflow> {
-  const capability = capabilityFor(mediaType, roles);
+export function route(workflows: Workflow[], mediaType: MediaType, inputs: Attached[], model: string | null): Routed<Workflow> {
+  const capability = capabilityFor(mediaType, inputs);
   if (!capability.ok) return capability;
   const chosen = chooseWorkflow(workflows, capability.value, model);
   if (!chosen.ok) return chosen;
-  for (const [role, count] of counted(roles)) {
-    const most = chosen.value.roles[role] ?? 0;
-    if (count > most) return failed(`${chosen.value.model_name} takes at most ${inputsPhrase(role, most)}`);
+  for (const [[role, kind], count] of counted(inputs)) {
+    const most = chosen.value.accepts.find(a => a.role === role && a.media_type === kind)?.most ?? 0;
+    if (count > most) {
+      const what = noun(role, kind);
+      const doingIt = doing[capability.value];
+      return failed(most === 0 ? `${doingIt} can't use ${plural(what)}` : `${doingIt} takes at most ${countOf(most, what)}`);
+    }
   }
   return chosen;
 }
 
-export function capabilityFor(mediaType: MediaType, roles: InputRole[]): Routed<Capability> {
-  const counts = counted(roles);
-  const present = [...counts.keys()];
-  const only = (...allowed: InputRole[]) => present.every(role => allowed.includes(role));
-  const exactly = (expected: Partial<Record<InputRole, number>>) =>
-    counts.size === Object.keys(expected).length &&
-    Object.entries(expected).every(([role, count]) => counts.get(role as InputRole) === count);
+export function capabilityFor(mediaType: MediaType, inputs: Attached[]): Routed<Capability> {
+  const targets = inputs.filter(([role]) => role === 'edit_target');
   const found = (capability: Capability): Routed<Capability> => ({ ok: true, value: capability });
-
-  const misplaced = present.find(role => !rolesFor[mediaType].includes(role));
-  if (misplaced) return failed(`${capitalize(article(words(misplaced)))} can't be used to make ${aMedia[mediaType]}`);
-
+  if (targets.some(([, kind]) => kind === 'video')) return failed('Only a photo can be edited');
   if (mediaType === 'image') {
-    if (present.length === 0) return found('image.generate');
-    if (counts.get('edit_target') === 1 && only('edit_target', 'reference')) return found('image.edit');
-    if (exactly({ restyle: 1 })) return found('image.restyle');
-    if (only('reference')) return found('image.multi_ref');
-  } else {
-    if (present.length === 0) return found('video.generate');
-    if (exactly({ start_frame: 1 })) return found('video.from_frame');
-    if (exactly({ start_frame: 1, end_frame: 1 })) return found('video.first_last');
-    if (only('keyframe')) return found('video.keyframes');
-    if (only('reference')) return found('video.reference');
-    if (exactly({ source_video: 1, reference: 1 })) return found('video.character_swap');
+    if (inputs.length === 0) return found('image.generate');
+    if (targets.length > 1) return failed('Only one photo can be the one to edit');
+    if (targets.length === 0) return failed('Pick the photo to edit');
+    return found('image.edit');
   }
-  const inputs = [...counts].map(([role, count]) => inputsPhrase(role, count)).join(' and ');
-  return failed(`Nothing makes ${aMedia[mediaType]} from ${inputs}`);
+  if (targets.length > 0) return failed("A video can't edit a photo, but it can use one as a reference");
+  return found(inputs.length > 0 ? 'video.reference' : 'video.generate');
 }
 
 export function chooseWorkflow(workflows: Workflow[], capability: Capability, model: string | null): Routed<Workflow> {
-  const offering = workflows.filter(w => w.capability === capability);
-  if (offering.length === 0) return failed(`No workflow does ${capability} yet`);
-  const workflow = model === null ? (offering.find(w => w.default) ?? offering[0]) : offering.find(w => w.model === model);
-  if (workflow) return { ok: true, value: workflow };
-  const available = offering
-    .map(w => w.model)
-    .sort()
-    .join(', ');
-  return failed(`${model} doesn't do ${capability}; these do: ${available}`);
+  const offering = workflows.filter(w => w.capabilities.includes(capability));
+  if (offering.length === 0) return failed(`${doing[capability]} isn't available yet`);
+  const workflow =
+    model === null ? (offering.find(w => w.default_for.includes(capability)) ?? offering[0]) : offering.find(w => w.model === model);
+  return workflow ? { ok: true, value: workflow } : failed(`${doing[capability]} isn't available with that model`);
 }
 
-/** Counts each role, in the order the roles first appear, as the API's messages list them. */
-function counted(roles: InputRole[]): Map<InputRole, number> {
-  const counts = new Map<InputRole, number>();
-  for (const role of roles) counts.set(role, (counts.get(role) ?? 0) + 1);
-  return counts;
+/** Counts each kind of attachment, in the order they first appear, as the API's messages list them. */
+function counted(inputs: Attached[]): [Attached, number][] {
+  const counts = new Map<string, [Attached, number]>();
+  for (const input of inputs) {
+    const key = input.join('/');
+    counts.set(key, [input, (counts.get(key)?.[1] ?? 0) + 1]);
+  }
+  return [...counts.values()];
 }
 
 const failed = (error: string): { ok: false; error: string } => ({ ok: false, error });
 
-const words = (role: InputRole) => role.replaceAll('_', ' ');
+function noun(role: InputRole, mediaType: MediaType): string {
+  if (role === 'edit_target') return 'photo to edit';
+  return mediaType === 'image' ? 'reference photo' : 'reference clip';
+}
 
-const inputsPhrase = (role: InputRole, count: number) => `${count} ${words(role)}${count === 1 ? '' : 's'}`;
+/** "photo to edit" becomes "photos to edit". */
+function plural(noun: string): string {
+  const [first, rest] = noun.split(' to ');
+  return rest ? `${first}s to ${rest}` : `${noun}s`;
+}
 
-const article = (noun: string) => `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
-
-const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const countOf = (count: number, noun: string) => `${count} ${count === 1 ? noun : plural(noun)}`;

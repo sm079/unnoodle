@@ -1,9 +1,12 @@
 # unnoodle
 
-Hand-picked ComfyUI workflows behind one prompt box, built for phones. You choose image or video, attach inputs and give
-each one a role (start frame, reference, edit target and so on), and the request goes to the workflow that fits.
+Hand-picked ComfyUI workflows behind one prompt box, built for phones. You choose a picture or a video, describe it and
+attach any photos or clips to work from, and the request goes to the workflow that fits: a prompt alone makes a picture
+(Krea 2) or a video (MiniMax H3), a photo to edit goes to FLUX.2 Klein, and photos or clips attached to a video are its
+references. Settings are in plain words: a quality, a shape and, for videos, a length.
 
-This is the scaffold: the web app runs on mock data and the API only reports its health.
+The web app sends requests to the API, which queues them in Postgres; a worker runs each one on ComfyUI and stores what
+it makes.
 
 ## Layout
 
@@ -48,9 +51,9 @@ It then loads only the development node in `dev/comfyui/custom_nodes`, and keeps
 reports progress step by step, tints each image by the seed and writes the prompt on it, and fails like a GPU out of
 memory when the prompt contains `#oom`. Port 8189 keeps it clear of a normal ComfyUI on 8188.
 
-The workflows that run on it are in `dev/workflows`: each is a graph exported from ComfyUI in API format plus a
-`manifest.toml`. `app/workflows.py` describes the format, and `UNNOODLE_WORKFLOWS_DIR` points the API and the worker
-at another set.
+Workflows are code: each one builds its ComfyUI graph for every request, with one image chain per attached photo
+(`app/workflows.py` describes the contract). `app/catalogues/dev.py` holds stand-ins that run on this ComfyUI, and
+`app/catalogues/real.py` the ones that need models. `UNNOODLE_WORKFLOWS` picks the catalogue (`dev` unless set).
 
 ### On a phone
 

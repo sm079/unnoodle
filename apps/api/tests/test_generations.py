@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from io import BytesIO
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -12,14 +11,13 @@ from sqlalchemy.orm import Session
 from app.main import create_app
 from app.models import Asset, AssetSource, MediaType
 from app.settings import Settings
-from tests.graphs import write_catalogue
+from tests.catalogue import catalogue
 
 
 @pytest.fixture
-def client(settings: Settings, tmp_path: Path) -> Iterator[TestClient]:
-    """An app with three workflows: text to image, video from a frame, and a character swap."""
-    catalogue = write_catalogue(tmp_path / "workflows")
-    with TestClient(create_app(settings.model_copy(update={"workflows_dir": catalogue}))) as client:
+def client(settings: Settings) -> Iterator[TestClient]:
+    """An app with three workflows: text to image, an edit, and video from a prompt or references."""
+    with TestClient(create_app(settings, catalogue())) as client:
         yield client
 
 
@@ -31,13 +29,35 @@ def upload(client: TestClient) -> str:
     return asset_id
 
 
+def clip(engine: Engine) -> str:
+    # Straight into the table: what matters here is that it is a video
+    with Session(engine) as session:
+        asset = Asset(
+            media_type=MediaType.VIDEO,
+            source=AssetSource.UPLOAD,
+            storage_key="uploads/clip.mp4",
+            mime_type="video/mp4",
+            size_bytes=1,
+            width=720,
+            height=1280,
+            duration_s=6.0,
+        )
+        session.add(asset)
+        session.commit()
+        return str(asset.id)
+
+
 def image_request(**changes: Any) -> dict[str, Any]:
-    params = {"aspect_ratio": "3:4", "resolution": "1K", "count": 2} | changes.pop("params", {})
+    params = {"aspect_ratio": "3:4", "quality": "high", "count": 2} | changes.pop("params", {})
     return {"media_type": "image", "prompt": "a greenhouse at dawn", "params": params} | changes
 
 
+def edit_request(inputs: list[dict[str, Any]], **params: Any) -> dict[str, Any]:
+    return {"media_type": "image", "prompt": "make it night", "inputs": inputs, "params": params}
+
+
 def video_request(inputs: list[dict[str, Any]], **params: Any) -> dict[str, Any]:
-    defaults = {"aspect_ratio": "16:9", "resolution": "720p", "duration_s": 5}
+    defaults = {"aspect_ratio": "9:16", "duration_s": 5}
     return {"media_type": "video", "prompt": "she turns around", "inputs": inputs, "params": defaults | params}
 
 
@@ -46,7 +66,11 @@ def test_a_prompt_alone_queues_text_to_image(client: TestClient) -> None:
     assert response.status_code == 201
     g = response.json()
     assert (g["status"], g["capability"], g["workflow_id"]) == ("queued", "image.generate", "t2i")
-    assert g["params"]["count"] == 2
+    assert {k: g["params"][k] for k in ("quality", "aspect_ratio", "count")} == {
+        "quality": "high",
+        "aspect_ratio": "3:4",
+        "count": 2,
+    }
     assert 0 <= g["params"]["seed"] < 2**32
     assert (g["inputs"], g["outputs"], g["progress"], g["error"]) == ([], [], None, None)
     assert client.get(f"/generations/{g['id']}").json() == g
@@ -57,13 +81,25 @@ def test_a_seed_sent_in_is_kept(client: TestClient) -> None:
     assert g["params"]["seed"] == 2**40
 
 
-def test_an_attached_start_frame_queues_video_from_frame(client: TestClient) -> None:
-    frame = upload(client)
-    response = client.post("/generations", json=video_request([{"asset_id": frame, "role": "start_frame"}]))
+def test_a_photo_to_edit_queues_an_edit_with_no_shape(client: TestClient) -> None:
+    photo, reference = upload(client), upload(client)
+    inputs = [{"asset_id": photo, "role": "edit_target"}, {"asset_id": reference, "role": "reference"}]
+    response = client.post("/generations", json=edit_request(inputs))
     assert response.status_code == 201
     g = response.json()
-    assert (g["capability"], g["workflow_id"]) == ("video.from_frame", "i2v")
-    assert [(i["role"], i["asset"]["id"]) for i in g["inputs"]] == [("start_frame", frame)]
+    assert (g["capability"], g["workflow_id"], g["params"]["aspect_ratio"]) == ("image.edit", "edit", None)
+    assert [(i["role"], i["asset"]["id"]) for i in g["inputs"]] == [("edit_target", photo), ("reference", reference)]
+
+
+def test_references_queue_video_from_references(client: TestClient, engine: Engine) -> None:
+    inputs = [{"asset_id": upload(client), "role": "reference"}, {"asset_id": clip(engine), "role": "reference"}]
+    g = client.post("/generations", json=video_request(inputs, duration_s=10)).json()
+    assert (g["capability"], g["workflow_id"], g["params"]["duration_s"]) == ("video.reference", "video", 10)
+
+
+def test_a_prompt_alone_queues_text_to_video(client: TestClient) -> None:
+    g = client.post("/generations", json=video_request([])).json()
+    assert (g["capability"], g["workflow_id"]) == ("video.generate", "video")
 
 
 def test_generations_are_listed_newest_first_a_page_at_a_time(client: TestClient) -> None:
@@ -78,48 +114,37 @@ def test_an_unknown_generation_is_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def video_with_frame(client: TestClient, **params: Any) -> dict[str, Any]:
-    return video_request([{"asset_id": upload(client), "role": "start_frame"}], **params)
-
-
-def swap_with_image_as_source(client: TestClient) -> dict[str, Any]:
-    image = upload(client)
-    return video_request([{"asset_id": image, "role": "source_video"}, {"asset_id": image, "role": "reference"}])
+def photo_to_edit(client: TestClient) -> list[dict[str, Any]]:
+    return [{"asset_id": upload(client), "role": "edit_target"}]
 
 
 REFUSED: list[tuple[str, Any, str]] = [
-    ("resolution not offered", lambda c: image_request(params={"resolution": "4K"}), "Test offers 1K, not 4K"),
+    ("no shape", lambda c: image_request(params={"aspect_ratio": None}), "Pick a shape"),
+    ("shape not offered", lambda c: image_request(params={"aspect_ratio": "16:9"}), "That shape isn't offered here"),
     (
-        "ratio not offered",
-        lambda c: image_request(params={"aspect_ratio": "16:9"}),
-        "Test at 1K offers 3:4, 1:1, not 16:9",
+        "shape for an edit",
+        lambda c: edit_request(photo_to_edit(c), aspect_ratio="1:1"),
+        "An edit keeps the shape of the photo being edited",
     ),
-    ("too many outputs", lambda c: image_request(params={"count": 5}), "Test makes at most 4 at a time"),
-    ("image with a duration", lambda c: image_request(params={"duration_s": 5}), "Only videos have a duration"),
-    ("duration not offered", lambda c: video_with_frame(c, duration_s=8), "Test makes videos of 5s"),
-    ("sound not offered", lambda c: video_with_frame(c, audio=True), "Test doesn't make sound"),
+    ("too many outputs", lambda c: image_request(params={"count": 5}), "This makes at most 4 at a time"),
+    ("image with a length", lambda c: image_request(params={"duration_s": 5}), "Only videos have a length"),
+    ("length not offered", lambda c: video_request([], duration_s=8), "Videos can be 5 or 10 seconds long"),
     (
-        "role the output type can't use",
-        lambda c: image_request(inputs=[{"asset_id": upload(c), "role": "start_frame"}]),
-        "A start frame can't be used to make an image",
+        "no photo to edit",
+        lambda c: edit_request([{"asset_id": upload(c), "role": "reference"}]),
+        "Pick the photo to edit",
     ),
-    ("unknown model", lambda c: image_request(model="flux"), "flux doesn't do image.generate; these do: test"),
+    ("unknown model", lambda c: image_request(model="flux"), "Making a picture isn't available with that model"),
     (
-        "capability nothing offers",
-        lambda c: video_request([]),
-        "No workflow does video.generate yet",
+        "too many references",
+        lambda c: video_request([{"asset_id": upload(c), "role": "reference"} for _ in range(3)]),
+        "Making a video takes at most 2 reference photos",
     ),
     (
         "missing file",
-        lambda c: video_request([{"asset_id": "0199e0a0-0000-7000-8000-000000000000", "role": "start_frame"}]),
+        lambda c: video_request([{"asset_id": "0199e0a0-0000-7000-8000-000000000000", "role": "reference"}]),
         "An attached file no longer exists",
     ),
-    (
-        "time on a start frame",
-        lambda c: video_request([{"asset_id": upload(c), "role": "start_frame", "position_s": 1}]),
-        "Keyframes need a time in the clip, and only keyframes have one",
-    ),
-    ("image as the source video", swap_with_image_as_source, "A source video has to be a video"),
 ]
 
 
@@ -134,26 +159,3 @@ def test_requests_that_dont_fit_are_refused_with_the_reason(client: TestClient, 
 def test_a_blank_prompt_is_refused(client: TestClient) -> None:
     response = client.post("/generations", json=image_request(prompt="   "))
     assert response.status_code == 422
-
-
-def test_a_video_upload_can_be_the_source_video(client: TestClient, engine: Engine) -> None:
-    # Video uploads aren't accepted yet, so the clip goes straight into the table
-    with Session(engine) as session:
-        clip = Asset(
-            media_type=MediaType.VIDEO,
-            source=AssetSource.UPLOAD,
-            storage_key="uploads/clip.mp4",
-            mime_type="video/mp4",
-            size_bytes=1,
-            width=720,
-            height=1280,
-            duration_s=6.0,
-        )
-        session.add(clip)
-        session.commit()
-        clip_id = str(clip.id)
-    face = upload(client)
-    inputs = [{"asset_id": clip_id, "role": "source_video"}, {"asset_id": face, "role": "reference"}]
-    response = client.post("/generations", json=video_request(inputs))
-    assert response.status_code == 201
-    assert response.json()["capability"] == "video.character_swap"

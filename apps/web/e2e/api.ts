@@ -45,15 +45,22 @@ export async function mockApi(page: Page) {
 
   function queue(route: Route): Generation {
     const body = route.request().postDataJSON() as GenerationRequest;
-    const workflow = workflows.find(w => w.capability.startsWith(`${body.media_type}.`) && w.default)!;
+    const capability = body.media_type === 'image' ? 'image.generate' : 'video.generate';
+    const workflow = workflows.find(w => w.default_for.includes(capability))!;
     const generation: Generation = {
       id: `gen_new_${created.length}`,
       status: 'queued',
-      capability: workflow.capability,
+      capability,
       workflow_id: workflow.id,
       prompt: body.prompt,
       project_id: body.project_id ?? null,
-      params: { ...body.params, seed: body.params.seed ?? 42 },
+      params: {
+        quality: body.params.quality ?? 'medium',
+        aspect_ratio: body.params.aspect_ratio ?? null,
+        duration_s: body.params.duration_s ?? null,
+        count: body.params.count ?? 1,
+        seed: body.params.seed ?? 42
+      },
       inputs: [],
       outputs: [],
       progress: null,

@@ -10,7 +10,10 @@ export type Capability = Schemas['Capability'];
 /** What an attached asset is for. The output type plus the roles of the inputs decide the capability. */
 export type InputRole = Schemas['InputRole'];
 export type GenerationStatus = Schemas['GenerationStatus'];
-export type AspectRatio = Schemas['Params']['aspect_ratio'];
+/** A shape as width:height. The composer shows it in words (capabilities.ts). */
+export type AspectRatio = NonNullable<Schemas['Params']['aspect_ratio']>;
+/** How big an output is; each workflow maps it to its own sizes. */
+export type Quality = Schemas['Quality'];
 
 export type Asset = Schemas['AssetOut'];
 export type Generation = Schemas['GenerationOut'];

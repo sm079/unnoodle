@@ -25,117 +25,54 @@ function video(id: string, poster: MockFile, duration_s: number, source: Asset['
   return { ...image(id, poster, source, created_at), media_type: 'video', duration_s };
 }
 
-const allRatios: AspectRatio[] = ['1:1', '3:4', '4:3', '9:16', '16:9'];
-const videoRatios: AspectRatio[] = ['16:9', '9:16', '3:4', '1:1'];
+const allShapes: AspectRatio[] = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'];
 
-const imageWorkflow = {
-  resolutions: { '1K': allRatios, '2K': allRatios },
-  max_count: 4,
-  durations_s: [],
-  audio: false,
-  roles: {},
-  default: false
-} satisfies Partial<Workflow>;
-
-const videoWorkflow = {
-  resolutions: { '540p': videoRatios, '720p': videoRatios, '1080p': videoRatios },
-  max_count: 4,
-  durations_s: [5, 8, 10],
-  audio: true,
-  roles: {},
-  default: true
-} satisfies Partial<Workflow>;
-
+/** The real catalogue, as the API lists it. */
 export const workflows: Workflow[] = [
   {
-    ...imageWorkflow,
-    id: 'illustrious-t2i',
-    capability: 'image.generate',
-    model: 'illustrious',
-    model_name: 'Illustrious',
-    description: 'Anime and illustration styles'
+    id: 'krea2-turbo',
+    capabilities: ['image.generate'],
+    model: 'krea-2',
+    model_name: 'Krea 2',
+    description: 'Pictures from a description',
+    default_for: ['image.generate'],
+    aspect_ratios: allShapes,
+    max_count: 4,
+    durations_s: [],
+    sound: false,
+    accepts: []
   },
   {
-    ...imageWorkflow,
-    id: 'anima-t2i',
-    capability: 'image.generate',
-    model: 'anima',
-    model_name: 'Anima',
-    description: 'Stylised characters with clean line art'
+    id: 'flux2-klein-edit',
+    capabilities: ['image.edit'],
+    model: 'flux-2-klein',
+    model_name: 'FLUX.2 Klein',
+    description: 'Changes a photo, optionally using up to two more',
+    default_for: ['image.edit'],
+    aspect_ratios: [],
+    max_count: 1,
+    durations_s: [],
+    sound: false,
+    accepts: [
+      { role: 'edit_target', media_type: 'image', most: 1 },
+      { role: 'reference', media_type: 'image', most: 2 }
+    ]
   },
   {
-    ...imageWorkflow,
-    id: 'flux-klein-9b-t2i',
-    capability: 'image.generate',
-    model: 'flux-klein-9b',
-    model_name: 'Flux Klein 9B',
-    description: 'Photoreal images from a prompt',
-    default: true,
-    resolutions: { '1K': allRatios, '2K': allRatios, '4K': allRatios }
-  },
-  {
-    ...imageWorkflow,
-    id: 'flux-klein-9b-edit',
-    capability: 'image.edit',
-    model: 'flux-klein-9b',
-    model_name: 'Flux Klein 9B',
-    description: 'Change part of an image and keep the rest',
-    default: true,
-    roles: { edit_target: 1, reference: 2 }
-  },
-  {
-    ...videoWorkflow,
-    id: 'ltx-2.5-t2v',
-    capability: 'video.generate',
-    model: 'ltx-2.5',
-    model_name: 'LTX 2.5',
-    description: 'Fast video from a prompt'
-  },
-  {
-    ...videoWorkflow,
-    id: 'ltx-2.5-i2v',
-    capability: 'video.from_frame',
-    model: 'ltx-2.5',
-    model_name: 'LTX 2.5',
-    description: 'Animate a start frame',
-    resolutions: { '720p': videoRatios, '1080p': videoRatios },
-    roles: { start_frame: 1 }
-  },
-  {
-    ...videoWorkflow,
-    id: 'ltx-2.5-keyframes',
-    capability: 'video.keyframes',
-    model: 'ltx-2.5',
-    model_name: 'LTX 2.5',
-    description: 'Move between keyframes placed on a timeline',
-    resolutions: { '720p': videoRatios },
-    roles: { keyframe: 8 }
-  },
-  {
-    ...videoWorkflow,
-    id: 'minimax-h3-first-last',
-    capability: 'video.first_last',
+    id: 'minimax-h3',
+    capabilities: ['video.generate', 'video.reference'],
     model: 'minimax-h3',
     model_name: 'MiniMax H3',
-    description: 'Fill in the motion between two frames',
-    resolutions: { '768p': videoRatios, '1080p': videoRatios },
-    durations_s: [6, 10],
-    audio: false,
-    max_count: 2,
-    roles: { start_frame: 1, end_frame: 1 }
-  },
-  {
-    ...videoWorkflow,
-    id: 'scail-swap',
-    capability: 'video.character_swap',
-    model: 'scail',
-    model_name: 'SCAIL',
-    description: 'Replace the person in a clip with a character',
-    resolutions: { '720p': ['9:16', '16:9', '1:1'] },
-    durations_s: [6],
-    audio: false,
+    description: 'Video with sound, from a description and any photos or clips to follow',
+    default_for: ['video.generate', 'video.reference'],
+    aspect_ratios: allShapes,
     max_count: 1,
-    roles: { source_video: 1, reference: 1 }
+    durations_s: [5, 10, 15],
+    sound: true,
+    accepts: [
+      { role: 'reference', media_type: 'image', most: 9 },
+      { role: 'reference', media_type: 'video', most: 3 }
+    ]
   }
 ];
 
@@ -154,8 +91,9 @@ const greenhouse = [
   image('ast_greenhouse_2', 'garden-square', 'generation', '2026-10-11T15:00:20Z')
 ];
 
-const imageParams = { aspect_ratio: '3:4', resolution: '1K', duration_s: null, count: 1, seed: 12, audio: false } as const;
-const videoParams = { aspect_ratio: '16:9', resolution: '720p', duration_s: 5, count: 1, seed: 901, audio: false } as const;
+const imageParams = { quality: 'medium', aspect_ratio: '3:4', duration_s: null, count: 1, seed: 12 } as const;
+const editParams = { ...imageParams, aspect_ratio: null } as const;
+const videoParams = { quality: 'medium', aspect_ratio: '16:9', duration_s: 5, count: 1, seed: 901 } as const;
 
 const ended = { progress: null, started_at: null };
 
@@ -165,7 +103,7 @@ export const generations: Generation[] = [
     id: 'gen_queued',
     status: 'queued',
     capability: 'image.generate',
-    workflow_id: 'anima-t2i',
+    workflow_id: 'krea2-turbo',
     project_id: null,
     prompt: 'girl with silver hair on a rain-soaked neon street, looking back over her shoulder',
     params: { ...imageParams, seed: 7 },
@@ -180,12 +118,12 @@ export const generations: Generation[] = [
   {
     id: 'gen_running',
     status: 'running',
-    capability: 'video.from_frame',
-    workflow_id: 'ltx-2.5-i2v',
+    capability: 'video.reference',
+    workflow_id: 'minimax-h3',
     project_id: 'prj_film',
-    prompt: 'she turns towards the camera as the light fades',
+    prompt: 'the woman in photo 1 turns towards the camera as the light fades',
     params: { ...videoParams, aspect_ratio: '3:4' },
-    inputs: [{ role: 'start_frame', asset: portrait, position_s: null }],
+    inputs: [{ role: 'reference', asset: portrait }],
     outputs: [],
     progress: 0.42,
     error: null,
@@ -196,50 +134,50 @@ export const generations: Generation[] = [
   {
     id: 'gen_failed',
     status: 'failed',
-    capability: 'video.first_last',
-    workflow_id: 'minimax-h3-first-last',
+    capability: 'video.reference',
+    workflow_id: 'minimax-h3',
     project_id: null,
-    prompt: 'the empty room fills with plants over a year, timelapse',
-    params: { ...videoParams, resolution: '1080p', duration_s: 6 },
+    prompt: 'the room in photo 1 fills with the plants from photo 2 over a year',
+    params: { ...videoParams, quality: 'high', duration_s: 15 },
     inputs: [
-      { role: 'start_frame', asset: room, position_s: null },
-      { role: 'end_frame', asset: greenhouse[0], position_s: null }
+      { role: 'reference', asset: room },
+      { role: 'reference', asset: greenhouse[0] }
     ],
     outputs: [],
     ...ended,
-    error: 'The GPU ran out of memory. Try a smaller size or fewer outputs.',
+    error: 'This was too big to make. Try a lower quality, a shorter length or fewer at a time.',
     created_at: '2026-10-14T18:30:00Z',
     finished_at: '2026-10-14T18:31:10Z'
   },
   {
-    id: 'gen_swap',
+    id: 'gen_dance',
     status: 'done',
-    capability: 'video.character_swap',
-    workflow_id: 'scail-swap',
+    capability: 'video.reference',
+    workflow_id: 'minimax-h3',
     project_id: null,
-    prompt: 'replace the dancer with the character',
-    params: { ...videoParams, aspect_ratio: '9:16', duration_s: 6, seed: 5521 },
+    prompt: 'the character in photo 1 dances like the dancer in clip 1',
+    params: { ...videoParams, aspect_ratio: '9:16', seed: 5521 },
     inputs: [
-      { role: 'source_video', asset: danceClip, position_s: null },
-      { role: 'reference', asset: character, position_s: null }
+      { role: 'reference', asset: danceClip },
+      { role: 'reference', asset: character }
     ],
-    outputs: [video('ast_swap', 'city-vertical', 6, 'generation', '2026-10-14T12:04:00Z')],
+    outputs: [video('ast_dance_out', 'city-vertical', 5, 'generation', '2026-10-14T12:04:00Z')],
     ...ended,
     error: null,
     created_at: '2026-10-14T12:00:00Z',
     finished_at: '2026-10-14T12:04:00Z'
   },
   {
-    id: 'gen_keyframes',
+    id: 'gen_morph',
     status: 'done',
-    capability: 'video.keyframes',
-    workflow_id: 'ltx-2.5-keyframes',
+    capability: 'video.reference',
+    workflow_id: 'minimax-h3',
     project_id: 'prj_film',
-    prompt: 'slow morph between the two portraits',
-    params: { ...videoParams, aspect_ratio: '3:4', duration_s: 8, seed: 77 },
+    prompt: 'slow morph from the woman in photo 1 to the character in photo 2',
+    params: { ...videoParams, aspect_ratio: '3:4', duration_s: 10, seed: 77 },
     inputs: [
-      { role: 'keyframe', asset: portrait, position_s: 0 },
-      { role: 'keyframe', asset: character, position_s: 6 }
+      { role: 'reference', asset: portrait },
+      { role: 'reference', asset: character }
     ],
     outputs: [morph],
     ...ended,
@@ -251,11 +189,11 @@ export const generations: Generation[] = [
     id: 'gen_edit',
     status: 'done',
     capability: 'image.edit',
-    workflow_id: 'flux-klein-9b-edit',
+    workflow_id: 'flux2-klein-edit',
     project_id: 'prj_mood',
     prompt: 'replace the sofa with a green velvet armchair',
-    params: { ...imageParams, aspect_ratio: '4:3', seed: 3130 },
-    inputs: [{ role: 'edit_target', asset: room, position_s: null }],
+    params: { ...editParams, seed: 3130 },
+    inputs: [{ role: 'edit_target', asset: room }],
     outputs: [roomEdit],
     ...ended,
     error: null,
@@ -266,7 +204,7 @@ export const generations: Generation[] = [
     id: 'gen_road',
     status: 'done',
     capability: 'video.generate',
-    workflow_id: 'ltx-2.5-t2v',
+    workflow_id: 'minimax-h3',
     project_id: 'prj_film',
     prompt: 'an old jeep on an empty road at dusk, low angle, film grain',
     params: videoParams,
@@ -281,7 +219,7 @@ export const generations: Generation[] = [
     id: 'gen_greenhouse',
     status: 'done',
     capability: 'image.generate',
-    workflow_id: 'flux-klein-9b-t2i',
+    workflow_id: 'krea2-turbo',
     project_id: 'prj_mood',
     prompt: 'overgrown greenhouse, morning light, film photo',
     params: { ...imageParams, aspect_ratio: '1:1', count: 2, seed: 4410 },
@@ -296,7 +234,7 @@ export const generations: Generation[] = [
     id: 'gen_portrait',
     status: 'done',
     capability: 'image.generate',
-    workflow_id: 'illustrious-t2i',
+    workflow_id: 'krea2-turbo',
     project_id: null,
     prompt: 'portrait of a woman in a red coat, warm backlight',
     params: imageParams,

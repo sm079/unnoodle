@@ -28,14 +28,8 @@ class GenerationStatus(StrEnum):
 class Capability(StrEnum):
     IMAGE_GENERATE = "image.generate"
     IMAGE_EDIT = "image.edit"
-    IMAGE_RESTYLE = "image.restyle"
-    IMAGE_MULTI_REF = "image.multi_ref"
     VIDEO_GENERATE = "video.generate"
-    VIDEO_FROM_FRAME = "video.from_frame"
-    VIDEO_FIRST_LAST = "video.first_last"
-    VIDEO_KEYFRAMES = "video.keyframes"
     VIDEO_REFERENCE = "video.reference"
-    VIDEO_CHARACTER_SWAP = "video.character_swap"
 
     @property
     def media_type(self) -> MediaType:
@@ -45,13 +39,18 @@ class Capability(StrEnum):
 class InputRole(StrEnum):
     """What an attached asset is for. The output type plus the roles of the inputs decide the capability."""
 
-    START_FRAME = "start_frame"
-    END_FRAME = "end_frame"
-    KEYFRAME = "keyframe"
-    REFERENCE = "reference"
+    # The photo an edit changes
     EDIT_TARGET = "edit_target"
-    RESTYLE = "restyle"
-    SOURCE_VIDEO = "source_video"
+    # A photo or clip to take a person, an outfit, a style or a motion from
+    REFERENCE = "reference"
+
+
+class Quality(StrEnum):
+    """How big an output is: each workflow maps these to its own sizes and the person never sees pixels."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
 
 
 def string_enum[E: StrEnum](enum: type[E], name: str) -> Enum:
@@ -121,19 +120,19 @@ class Generation(Base):
         string_enum(GenerationStatus, "status"), default=GenerationStatus.QUEUED
     )
     capability: Mapped[Capability] = mapped_column(string_enum(Capability, "capability"))
-    # The manifest the request resolved to
+    # The workflow the request resolved to
     workflow_id: Mapped[str] = mapped_column(String(64))
     prompt: Mapped[str] = mapped_column(Text)
     # The project it was made in, if any. Deleting a project leaves its generations in My generations.
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"))
 
-    aspect_ratio: Mapped[str] = mapped_column(String(8))
-    resolution: Mapped[str] = mapped_column(String(16))
+    quality: Mapped[Quality] = mapped_column(string_enum(Quality, "quality"))
+    # Width to height, e.g. "3:4". None when the output takes its shape from an input, as an edit does.
+    aspect_ratio: Mapped[str | None] = mapped_column(String(8))
     duration_s: Mapped[float | None]
     count: Mapped[int]
     # Chosen when the request is accepted, so running the job again gives the same result
     seed: Mapped[int] = mapped_column(BigInteger)
-    audio: Mapped[bool]
 
     # 0 to 1 while running
     progress: Mapped[float | None]
@@ -171,14 +170,10 @@ class GenerationInput(Base):
     __tablename__ = "generation_inputs"
 
     generation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("generations.id", ondelete="CASCADE"), primary_key=True)
-    # Order within the request: reference 1, reference 2, ...
+    # Order within the request, which is how the prompt numbers them: photo 1, photo 2, clip 1
     position: Mapped[int] = mapped_column(primary_key=True)
     role: Mapped[InputRole] = mapped_column(string_enum(InputRole, "role"))
     # An asset that is in use can't be deleted
     asset_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("assets.id", ondelete="RESTRICT"), index=True)
-    # Seconds into the clip. Keyframes only.
-    position_s: Mapped[float | None]
 
     asset: Mapped[Asset] = relationship(lazy="selectin")
-
-    __table_args__ = (CheckConstraint("(role = 'keyframe') = (position_s IS NOT NULL)", name="position_for_keyframes"),)

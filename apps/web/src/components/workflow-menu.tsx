@@ -9,10 +9,12 @@ import { RollingValue } from '@/components/rolling-value';
 import { capabilityLabels } from '@/lib/capabilities';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import type { Workflow } from '@/lib/types';
+import type { Capability, Workflow } from '@/lib/types';
 
 interface WorkflowMenuProps {
-  /** The workflows for the capability the inputs route to: one per model. */
+  /** What the inputs route to, or null when they route nowhere. */
+  capability: Capability | null;
+  /** The workflows for that capability: one per model. */
   models: Workflow[];
   /** Where the request goes now, or null when the inputs route nowhere. */
   value: Workflow | null;
@@ -22,10 +24,15 @@ interface WorkflowMenuProps {
   className?: string;
 }
 
-/** Shows where the request goes, as "capability · model", and lets the user pick another model that does the same. */
-export function WorkflowMenu({ models, value, emptyLabel, onChange, className }: WorkflowMenuProps) {
+/**
+ * Shows what the request will do, and where several models can do it, which one, with a menu to pick another. Model
+ * names only appear once there is a choice to make.
+ */
+export function WorkflowMenu({ capability, models, value, emptyLabel, onChange, className }: WorkflowMenuProps) {
   const [open, setOpen] = useState(false);
-  const label = value ? `${capabilityLabels[value.capability]} · ${value.model_name}` : emptyLabel;
+  const choice = models.length > 1;
+  const doing = capability ? capabilityLabels[capability] : null;
+  const label = value && doing ? (choice ? `${doing} · ${value.model_name}` : doing) : emptyLabel;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -40,20 +47,17 @@ export function WorkflowMenu({ models, value, emptyLabel, onChange, className }:
         <RollingValue value={label} className="max-w-64" />
         <ChevronRightIcon className="text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]:-rotate-90" />
       </PopoverTrigger>
-      {value && (
+      {value && doing && choice && (
         <PopoverContent
           side="top"
           align="start"
           sideOffset={10}
           className="w-[min(31rem,calc(100vw-2rem))] gap-0 overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#25282c]/85 p-0 shadow-[0_24px_60px_rgb(0_0_0/0.6)] ring-0 backdrop-blur-2xl"
         >
-          <section
-            aria-label={capabilityLabels[value.capability]}
-            className="max-h-[min(28rem,var(--available-height))] overflow-y-auto p-2"
-          >
+          <section aria-label={doing} className="max-h-[min(28rem,var(--available-height))] overflow-y-auto p-2">
             <h3 className="flex items-center gap-2 px-2 py-2 text-sm text-[#8a8b8c]">
               <SparkleIcon className="size-4 fill-current" />
-              {capabilityLabels[value.capability]}
+              {doing}
             </h3>
             <ul className="flex flex-col gap-1">
               {models.map((workflow, index) => {
@@ -108,9 +112,7 @@ export function WorkflowMenu({ models, value, emptyLabel, onChange, className }:
   );
 }
 
-function workflowTags({ resolutions, durations_s }: Workflow): string[] {
-  const range = (values: string[]) => (values.length > 1 ? `${values[0]}–${values.at(-1)}` : values[0]);
-  const tags = [range(Object.keys(resolutions))];
-  if (durations_s.length > 0) tags.push(range(durations_s.map(s => `${s}s`)));
-  return tags;
+function workflowTags({ durations_s }: Workflow): string[] {
+  if (durations_s.length === 0) return [];
+  return [durations_s.length > 1 ? `${durations_s[0]}–${durations_s.at(-1)} sec` : `${durations_s[0]} sec`];
 }
