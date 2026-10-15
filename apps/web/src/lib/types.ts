@@ -58,9 +58,43 @@ export interface GenerationParams {
 /** A ComfyUI workflow that implements one capability. */
 export interface Workflow {
   id: string;
-  /** Shown in the route line, e.g. 'LTX 2.5'. */
+  /** Shown on the workflow chip, e.g. 'LTX 2.5'. */
   name: string;
   capability: Capability;
+  /** One line under the name in the workflow menu. */
+  description: string;
+  /** Credits one output costs at the default settings. */
+  credits: number;
+  /** What the composer offers once this workflow is chosen. */
+  options: WorkflowOptions;
+}
+
+export interface WorkflowOptions {
+  aspect_ratios: AspectRatio[];
+  resolutions: string[];
+  /** Videos only; empty for images. */
+  durations_s: number[];
+  /** Whether it can add sound. Videos only. */
+  audio: boolean;
+  /** Most outputs per run. */
+  max_count: number;
+  /** Most inputs it accepts. */
+  max_inputs: number;
+  /** Look settings shown as cards, in order. */
+  controls: WorkflowControl[];
+}
+
+/** A look setting such as camera or lighting. The first option is the default. */
+export interface WorkflowControl {
+  id: string;
+  label: string;
+  options: string[];
+}
+
+export interface User {
+  id: string;
+  name: string;
+  avatar_url: string | null;
 }
 
 export interface Generation {

@@ -1,27 +1,29 @@
 import type { Metadata } from 'next';
+import { AppShell } from '@/components/app-shell';
 import { Composer } from '@/components/composer';
-import { Gallery } from '@/components/gallery';
-import { LibraryDrawer } from '@/components/library-drawer';
-import { SettingsSheet } from '@/components/settings-sheet';
-import { composerDrafts, generations, projects, uploads, workflows } from '@/lib/fixtures';
+import { Hero } from '@/components/hero';
+import { ProjectGrid } from '@/components/project-grid';
+import { composerDrafts, generations, me, projects, uploads, workflows } from '@/lib/fixtures';
 
 export const metadata: Metadata = {
-  title: 'Generate · unnoodle'
+  title: 'Home · unnoodle'
 };
 
+const highlights = generations.flatMap(g => g.outputs).filter((asset, i, all) => all.findIndex(a => a.url === asset.url) === i);
+
 // Renders the mock fixtures until the API serves real data
-export default function GeneratePage() {
+export default function HomePage() {
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="flex shrink-0 items-center justify-between border-b px-2 py-1">
-        <LibraryDrawer uploads={uploads} projects={projects} />
-        <span className="text-sm font-medium">unnoodle</span>
-        <SettingsSheet />
-      </header>
-      <main className="min-h-0 flex-1 overflow-y-auto">
-        <Gallery generations={generations} />
-      </main>
-      <Composer drafts={composerDrafts} workflows={workflows} />
-    </div>
+    <AppShell projects={projects} user={me}>
+      <div className="flex flex-col gap-20 px-4 pt-6 pb-16 lg:gap-[92px] lg:px-[50px] lg:pt-[73px]">
+        <div className="flex flex-col items-center gap-10 lg:gap-[55px]">
+          <Hero assets={highlights} title="One prompt, any workflow" />
+          <div className="w-full max-w-[1092px]">
+            <Composer drafts={composerDrafts} workflows={workflows} library={uploads} />
+          </div>
+        </div>
+        <ProjectGrid projects={projects} generations={generations} />
+      </div>
+    </AppShell>
   );
 }
