@@ -136,7 +136,7 @@ export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
   }
 
   return (
-    <section className="flex flex-col items-center gap-10 lg:gap-[52px]">
+    <section className="flex flex-col items-center gap-7 lg:gap-12">
       <div
         ref={stageRef}
         role="region"
@@ -247,7 +247,7 @@ export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
         </p>
       </div>
 
-      <h1 className="px-4 text-center font-display text-[32px] leading-none font-bold tracking-[-0.01em] uppercase font-stretch-[86%] lg:text-[47px]">
+      <h1 className="px-4 text-center font-display text-[clamp(1.625rem,1.1rem+2.4vw,2.95rem)] leading-none font-bold tracking-[-0.01em] text-balance uppercase font-stretch-[86%]">
         {title.split(' ').map((word, index) => (
           <Fragment key={index}>
             {index > 0 && ' '}

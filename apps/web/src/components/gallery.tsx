@@ -51,7 +51,7 @@ function GalleryTile({ generation }: { generation: Generation }) {
   const TypeIcon = outputType(generation.capability) === 'video' ? VideoIcon : ImageIcon;
 
   return (
-    <div className={`${tileClass} flex flex-col gap-2 p-3 text-[13px]`}>
+    <div className={`${tileClass} flex flex-col gap-2 p-3 text-[0.8125rem]`}>
       <span className="flex items-center gap-1.5 text-[#8a8b8c]">
         <TypeIcon className="size-4" aria-hidden />
         {capabilityLabels[generation.capability]}
@@ -106,7 +106,7 @@ function StatusLine({ generation }: { generation: Generation }) {
 
 function TileBadge({ children }: { children: ReactNode }) {
   return (
-    <span className="flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+    <span className="flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-white backdrop-blur-sm">
       {children}
     </span>
   );

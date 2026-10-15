@@ -13,6 +13,15 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, 'page scrolls sideways').toBe(0);
 
+  // Docked at the bottom, leaving most of the screen to the content, with the output type beside Generate
+  const viewport = page.viewportSize()!;
+  const form = (await composer.boundingBox())!;
+  expect(form.y + form.height, 'composer docked at the bottom').toBeGreaterThan(viewport.height - 40);
+  expect(form.height, 'composer height').toBeLessThan(viewport.height / 3);
+  const toggle = (await composer.getByRole('group', { name: 'Output type' }).boundingBox())!;
+  const generate = (await composer.getByRole('button', { name: 'Generate' }).boundingBox())!;
+  expect(Math.abs(toggle.y + toggle.height / 2 - (generate.y + generate.height / 2)), 'toggle in the Generate row').toBeLessThan(4);
+
   await expect(composer.getByRole('button', { name: 'Route: Text to video · LTX 2.5' })).toBeVisible();
   await expect(composer.getByRole('button', { name: /^Duration/ })).toBeVisible();
   await composer.getByRole('button', { name: 'Image', exact: true }).click();

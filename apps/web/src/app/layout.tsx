@@ -11,12 +11,17 @@ const archivo = Archivo({ subsets: ['latin'], axes: ['wdth'], variable: '--font-
 
 export const metadata: Metadata = {
   title: 'unnoodle',
-  description: 'Hand-picked ComfyUI workflows behind one prompt box.'
+  description: 'Hand-picked ComfyUI workflows behind one prompt box.',
+  // Chrome on Android leaves text at its default size whatever the phone's text size setting is, unless the page opts
+  // in to scaling the root font size by it. Sizes in the app are in rem, so the layout grows along with the text.
+  other: { 'text-scale': 'scale' }
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // Draw under the home indicator and the rounded corners; the edges that need it pad by env(safe-area-inset-*)
+  viewportFit: 'cover',
   // Shrink the layout when the on-screen keyboard opens, so the docked composer stays visible
   interactiveWidget: 'resizes-content'
 };
