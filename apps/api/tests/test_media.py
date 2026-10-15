@@ -6,6 +6,7 @@ from PIL import Image
 
 from app import media
 from app.settings import Settings
+from tests.clips import clip, needs_ffmpeg
 
 
 def image_bytes(format: str = "PNG", size: tuple[int, int] = (40, 30), orientation: int | None = None) -> bytes:
@@ -58,7 +59,34 @@ def test_a_phone_photo_turned_by_exif_reports_its_shown_size(client: TestClient)
 def test_files_that_are_not_a_supported_image_are_refused(client: TestClient, data: bytes) -> None:
     response = client.post("/assets", files={"file": ("x.png", data, "image/png")})
     assert response.status_code == 415
-    assert response.json() == {"detail": "Upload a PNG, JPEG or WebP image"}
+    assert response.json() == {"detail": "Upload a photo (PNG, JPEG or WebP) or a video clip"}
+
+
+@needs_ffmpeg
+def test_a_clip_is_stored_as_mp4_with_a_poster(client: TestClient, settings: Settings) -> None:
+    asset = upload(client, clip(3, size=(640, 360)), name="clip.mov", content_type="video/quicktime")
+    assert asset["status"] == 201
+    assert (asset["media_type"], asset["width"], asset["height"]) == ("video", 640, 360)
+    assert asset["duration_s"] == pytest.approx(3, abs=0.1)
+    assert asset["url"] == f"/media/uploads/{asset['id']}.mp4"
+    assert asset["thumbnail_url"] == f"/media/uploads/{asset['id']}.jpg"
+    assert client.get(str(asset["url"])).headers["content-type"] == "video/mp4"
+    with Image.open(settings.media_dir / "uploads" / f"{asset['id']}.jpg") as poster:
+        assert poster.size == (640, 360)
+
+
+@needs_ffmpeg
+def test_a_long_tall_clip_is_cut_to_what_the_video_model_uses(client: TestClient) -> None:
+    asset = upload(client, clip(17, size=(800, 1600), fps=10), name="tall.mp4", content_type="video/mp4")
+    # The first 15 seconds, with the short edge at 768
+    assert (asset["width"], asset["height"], asset["duration_s"]) == (768, 1536, 15)
+
+
+@needs_ffmpeg
+def test_a_clip_too_short_to_use_is_refused(client: TestClient) -> None:
+    response = client.post("/assets", files={"file": ("blink.mp4", clip(1), "video/mp4")})
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Clips need to be at least 2 seconds long"}
 
 
 def test_uploads_over_the_limit_are_refused(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

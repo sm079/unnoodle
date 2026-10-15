@@ -15,7 +15,8 @@ it makes.
 
 ## Running it
 
-You need Node 24 with pnpm, uv, and Docker.
+You need Node 24 with pnpm, uv, and Docker, and for videos ffmpeg (with ffprobe) on the PATH: the API uses it to cut
+uploaded clips to what the video model uses and to make a still of each video.
 
 ```sh
 pnpm install

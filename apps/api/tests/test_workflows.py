@@ -154,3 +154,28 @@ def test_klein_chains_every_photo_onto_the_prompt(references: int) -> None:
     assert text == ("image 1 wearing the coat in image 2" if references else "image 1 wearing the coat in photo 2")
     assert built.output_node is not None and graph[built.output_node]["class_type"] == "SaveImage"
     assert all(node_id in graph for node_id, _ in links(graph))
+
+
+def test_minimax_gives_each_photo_and_clip_its_place_and_tag() -> None:
+    attached = [(REFERENCE, CLIP), (REFERENCE, PHOTO), (REFERENCE, PHOTO)]
+    prompt = "the man in photo 2 dances like clip 1 next to photo 1"
+    graph = real.minimax_h3(job(*attached, prompt=prompt, size=(480, 864), frames=243)).nodes
+    node = node_of(graph, "MiniMaxH3ReferenceToVideo")
+    assert (node["width"], node["height"], node["length"]) == (480, 864, 243)
+    assert node["prompt"] == "the man in <Picture 2> dances like <Video 1> next to <Picture 1>"
+    # Photos and clips are numbered separately, in the order they were attached
+    loads = {k: n["inputs"] for k, n in graph.items() if n["class_type"] in ("LoadImage", "LoadVideo")}
+    image_of = {
+        key: graph[link[0]]["inputs"]["image"][0] for key, link in node.items() if key.startswith("ref_images.")
+    }
+    assert [loads[load]["image"] for _, load in sorted(image_of.items())] == ["unnoodle/1.png", "unnoodle/2.png"]
+    clip_of = graph[node["ref_videos.ref_video_0"][0]]["inputs"]["video"][0]
+    assert loads[clip_of] == {"file": "unnoodle/0.mp4"}
+    # Sound comes with the video
+    assert "audio" in node_of(graph, "CreateVideo")
+    assert all(node_id in graph for node_id, _ in links(graph))
+
+
+def test_minimax_from_a_prompt_alone_has_no_references() -> None:
+    node = node_of(real.minimax_h3(job(size=(480, 864), frames=124)).nodes, "MiniMaxH3ReferenceToVideo")
+    assert not any(key.startswith("ref_") and key != "ref_image_size" for key in node)

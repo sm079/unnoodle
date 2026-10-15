@@ -166,14 +166,13 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
   function attachFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
-    const fits = (file: File) => file.type.startsWith('image/') && file.size <= MAX_UPLOAD_BYTES;
+    const media = (file: File) => file.type.startsWith('image/') || file.type.startsWith('video/');
+    const fits = (file: File) => media(file) && file.size <= MAX_UPLOAD_BYTES;
     const accepted = files.filter(fits);
     const refused = files.find(file => !fits(file));
     const keys = attach(accepted.map(previewAsset), true);
     if (refused) {
-      setProblem(
-        refused.type.startsWith('image/') ? `${refused.name} is over ${MAX_UPLOAD_BYTES >> 20} MB` : 'Only images can be attached for now'
-      );
+      setProblem(media(refused) ? `${refused.name} is over ${MAX_UPLOAD_BYTES >> 20} MB` : 'Only photos and video clips can be attached');
     }
     // Each file uploads as soon as it's attached; its chip shows it until the API has stored it
     keys.forEach((key, i) => upload(mode, key, accepted[i]));

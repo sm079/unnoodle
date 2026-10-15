@@ -20,6 +20,7 @@ from app.worker.comfy import ComfyFailed, ComfyRejected, ComfyUnavailable, Outpu
 from app.worker.runner import Outcome, run_job
 from app.workflows import Workflow
 from tests.catalogue import catalogue, node_of
+from tests.clips import clip, needs_ffmpeg
 
 
 @pytest.fixture
@@ -157,8 +158,11 @@ class FakeComfy:
         files: int = 2,
         error: Exception | None = None,
         during: Callable[[], None] = lambda: None,
+        output: bytes | None = None,
     ) -> None:
         self.files, self.error, self.during = files, error, during
+        # What each output file holds: a picture unless a test says otherwise
+        self.output = output if output is not None else png((896, 1152))
         self.uploads: dict[str, bytes] = {}
         self.graphs: list[dict[str, Any]] = []
 
@@ -183,7 +187,7 @@ class FakeComfy:
         return [OutputFile(f"out_{n}.png", "unnoodle", "output") for n in range(self.files)]
 
     def download(self, file: OutputFile) -> bytes:
-        return png((896, 1152))
+        return self.output
 
 
 def run(engine: Engine, workflows: dict[str, Workflow], settings: Settings, comfy: FakeComfy) -> Outcome:
@@ -204,6 +208,29 @@ def test_a_finished_run_stores_its_outputs(
     assert [(o["width"], o["height"], o["source"]) for o in g["outputs"]] == [(896, 1152, "generation")] * 2
     for output in g["outputs"]:
         assert client.get(output["url"]).status_code == 200
+
+
+@needs_ffmpeg
+def test_a_video_is_stored_with_a_poster(
+    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+) -> None:
+    queue_video(client, "a fox runs", photos=0)
+    assert run(engine, workflows, settings, FakeComfy(files=1, output=clip(2, size=(320, 576)))) == "done"
+    [output] = client.get("/generations").json()[0]["outputs"]
+    assert (output["media_type"], output["width"], output["height"]) == ("video", 320, 576)
+    assert output["duration_s"] == pytest.approx(2, abs=0.1)
+    assert output["url"].endswith(".mp4") and output["thumbnail_url"].endswith(".jpg")
+    assert client.get(output["thumbnail_url"]).headers["content-type"] == "image/jpeg"
+
+
+def test_a_file_that_is_neither_picture_nor_video_fails_the_run(
+    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+) -> None:
+    generation_id = queue_image(client)
+    assert run(engine, workflows, settings, FakeComfy(output=b"not media")) == "failed"
+    assert (
+        client.get(f"/generations/{generation_id}").json()["error"] == "This made a kind of file the app can't show yet"
+    )
 
 
 def test_the_graph_is_built_from_the_request(

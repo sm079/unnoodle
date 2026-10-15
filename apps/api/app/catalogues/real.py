@@ -1,4 +1,5 @@
-"""The workflows that need models: Krea 2 Turbo makes pictures and FLUX.2 Klein 9B edits photos.
+"""The workflows that need models: Krea 2 Turbo makes pictures, FLUX.2 Klein 9B edits photos, and MiniMax H3 makes
+videos with sound, from a prompt alone or from reference photos and clips.
 
 Each builder follows the graph its model was tested with in ComfyUI, sampler settings included. Only the parts a
 request changes are worked out per request: the prompt, the seed, the size, and one image chain per attached photo.
@@ -10,6 +11,10 @@ from app.models import Capability, InputRole, MediaType, Quality
 from app.workflows import Accepts, Job, Workflow
 
 IMAGE_MEGAPIXELS = {Quality.LOW: 0.5, Quality.MEDIUM: 1.0, Quality.HIGH: 2.0}
+VIDEO_MEGAPIXELS = {Quality.LOW: 0.25, Quality.MEDIUM: 0.4, Quality.HIGH: 0.9}
+
+# MiniMax H3 runs at 24 frames a second on a grid of 17k + 5 frames, and was trained on 124 to 362 of them
+MINIMAX_FRAMES = {5: 124, 10: 243, 15: 362}
 
 # References only show the model what to copy, and every one adds to the work of each step, so they stay at about
 # a megapixel whatever the quality
@@ -91,6 +96,83 @@ def klein(job: Job) -> Graph:
     return g
 
 
+def minimax_h3(job: Job) -> Graph:
+    """A video with sound. Attached photos and clips are references the prompt can name ("the coat in photo 2"); with
+    none it is text to video. Uploaded clips are already at 24 frames a second, which the model expects."""
+    assert job.size is not None and job.frames is not None
+    width, height = job.size
+    g = Graph()
+    model = g.add("UNETLoader", unet_name="minimax_h3_ref2va_pruned_int8_convrot.safetensors", weight_dtype="default")
+    turbo = g.add(
+        "LoraLoaderModelOnly",
+        model=model[0],
+        lora_name="minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+        strength_model=1,
+    )
+    shifted = g.add("MiniMaxH3SigmaShift", model=turbo[0], shift_video=12, shift_audio=4)
+    clip = g.add(
+        "CLIPLoader", clip_name="qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", type="minimax", device="default"
+    )
+    vae = g.add("VAELoader", vae_name="minimax_h3_video_vae_fp16.safetensors")
+    audio_vae = g.add("VAELoader", vae_name="minimax_h3_audio_vae_fp32.safetensors")
+
+    references: dict[str, Link] = {}
+    for n, photo in enumerate(job.files(MediaType.IMAGE)):
+        loaded = g.add("LoadImage", image=photo)
+        # The node scales references down to the video's area; this only saves it work on large photos
+        scaled = g.add(
+            "ImageScaleToTotalPixels",
+            image=loaded[0],
+            upscale_method="lanczos",
+            megapixels=REFERENCE_MEGAPIXELS,
+            resolution_steps=1,
+        )
+        references[f"ref_images.ref_image_{n}"] = scaled[0]
+    for n, clip_file in enumerate(job.files(MediaType.VIDEO)):
+        loaded = g.add("LoadVideo", file=clip_file)
+        frames = g.add("GetVideoComponents", video=loaded[0])
+        references[f"ref_videos.ref_video_{n}"] = frames[0]
+
+    conditioned = g.add(
+        "MiniMaxH3ReferenceToVideo",
+        clip=clip[0],
+        vae=vae[0],
+        audio_vae=audio_vae[0],
+        prompt=job.prompt_with(photo="<Picture {n}>", clip="<Video {n}>"),
+        width=width,
+        height=height,
+        length=job.frames,
+        ref_image_size="match",
+        **references,
+    )
+    noise = g.add("RandomNoise", noise_seed=job.seed)
+    guider = g.add("BasicGuider", model=shifted[0], conditioning=conditioned[0])
+    sampler = g.add("KSamplerSelect", sampler_name="euler")
+    sigmas = g.add("BasicScheduler", model=shifted[0], scheduler="beta", steps=8, denoise=1)
+    samples = g.add(
+        "SamplerCustomAdvanced",
+        noise=noise[0],
+        guider=guider[0],
+        sampler=sampler[0],
+        sigmas=sigmas[0],
+        latent_image=conditioned[1],
+    )
+    frames = g.add("VAEDecode", samples=samples[0], vae=vae[0])
+    sound = g.add("VAEDecodeAudio", samples=samples[0], vae=audio_vae[0])
+    video = g.add("CreateVideo", images=frames[0], audio=sound[0], fps=24)
+    # H.264 in MP4 plays on every phone
+    g.output(
+        g.add(
+            "SaveVideo",
+            video=video[0],
+            filename_prefix=job.filename_prefix,
+            format="mp4",
+            **{"format.codec": "h264"},
+        )
+    )
+    return g
+
+
 WORKFLOWS = [
     Workflow(
         id="krea2-turbo",
@@ -112,5 +194,18 @@ WORKFLOWS = [
         megapixels=IMAGE_MEGAPIXELS,
         aspect_ratios=None,
         accepts=(Accepts(InputRole.EDIT_TARGET, MediaType.IMAGE, 1), Accepts(InputRole.REFERENCE, MediaType.IMAGE, 2)),
+    ),
+    Workflow(
+        id="minimax-h3",
+        capabilities=frozenset({Capability.VIDEO_GENERATE, Capability.VIDEO_REFERENCE}),
+        model="minimax-h3",
+        model_name="MiniMax H3",
+        description="Video with sound, from a description and any photos or clips to follow",
+        build=minimax_h3,
+        megapixels=VIDEO_MEGAPIXELS,
+        multiple=32,
+        accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 9), Accepts(InputRole.REFERENCE, MediaType.VIDEO, 3)),
+        frames=MINIMAX_FRAMES,
+        sound=True,
     ),
 ]
