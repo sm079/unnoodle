@@ -52,6 +52,34 @@ The workflows that run on it are in `dev/workflows`: each is a graph exported fr
 `manifest.toml`. `app/workflows.py` describes the format, and `UNNOODLE_WORKFLOWS_DIR` points the API and the worker
 at another set.
 
+### On a phone
+
+```sh
+pnpm serve                              # everything, with a production build on http://127.0.0.1:18300
+```
+
+`pnpm serve` starts Postgres with docker compose if nothing answers yet, applies the migrations, then runs the API, the
+worker and a production build of the web app (`next build`, then `next start`), each line of output prefixed with the
+process it came from. It uses a ComfyUI that already answers at `UNNOODLE_COMFYUI_URL`; otherwise it starts the dev one
+when `UNNOODLE_DEV_COMFYUI_MAIN` (and, for a portable build, `UNNOODLE_DEV_COMFYUI_PYTHON`) says where it is. If any
+of them stops, it stops the rest, and Ctrl+C stops them all. A phone gets the production build rather than `next dev`,
+which only serves its scripts to `localhost` and is slow over a network.
+
+The web app listens on 127.0.0.1 only, and the phone reaches it through [Tailscale](https://tailscale.com). With this
+machine and the phone signed in to the same tailnet, run once:
+
+```sh
+tailscale serve --bg 18300
+```
+
+Tailscale then forwards `https://<machine>.<tailnet>.ts.net` to the web app, for devices on the tailnet only, and
+`pnpm serve` prints that address once it is up. Tailscale terminates HTTPS with a real certificate, so the phone gets
+a secure context, which browser APIs such as `crypto.randomUUID` need, and no firewall port is opened. The first time,
+`tailscale serve` asks you to enable HTTPS for the tailnet; certificates are public, so the machine and tailnet names
+end up in Certificate Transparency logs.
+
+`pnpm test:e2e` builds into the same `.next` directory, so restart `pnpm serve` after running it.
+
 ## Checks
 
 ```sh

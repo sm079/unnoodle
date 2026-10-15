@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter @unnoodle/web dev",
     "build": "pnpm --filter @unnoodle/web build",
+    "serve": "node scripts/serve.js",
     "lint": "pnpm --filter @unnoodle/web lint && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm --filter @unnoodle/web typecheck",
