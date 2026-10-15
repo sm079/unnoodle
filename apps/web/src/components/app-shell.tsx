@@ -2,23 +2,13 @@
 
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { m } from 'motion/react';
-import {
-  ArchiveIcon,
-  ArrowDownWideNarrowIcon,
-  ChevronRightIcon,
-  HeartIcon,
-  HouseIcon,
-  MenuIcon,
-  PanelLeftIcon,
-  PlusIcon,
-  SearchIcon,
-  SparklesIcon,
-  XIcon
-} from 'lucide-react';
+import { ArchiveIcon, ChevronRightIcon, HeartIcon, HouseIcon, MenuIcon, PanelLeftIcon, PlusIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
+import { NewProjectForm } from '@/components/new-project';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useProjects } from '@/lib/data';
 import { cn } from '@/lib/utils';
-import type { Project } from '@/lib/types';
+import { allProjects, folder, home, sameView, type View } from '@/lib/views';
 
 interface NavItem {
   label: string;
@@ -29,23 +19,18 @@ interface NavItem {
   view?: View;
 }
 
-/** The home screen, or the gallery that takes its place once something is generating. */
-export type View = 'home' | 'gallery';
-
 const navItems: NavItem[] = [
-  { label: 'Home', icon: HouseIcon, tile: 'from-[#d4d4d4] to-[#4d4d4d]', view: 'home' },
-  { label: 'My generations', icon: SparklesIcon, tile: 'from-[#8de7f5] to-[#2687b3]', view: 'gallery' },
+  { label: 'Home', icon: HouseIcon, tile: 'from-[#d4d4d4] to-[#4d4d4d]', view: home },
   { label: 'My favorites', icon: HeartIcon, tile: 'from-[#ffa1cb] to-[#d23c7c]' }
 ];
 
 interface AppShellProps {
-  projects: Project[];
   view: View;
   onView: (view: View) => void;
   children: ReactNode;
 }
 
-export function AppShell({ projects, view, onView, children }: AppShellProps) {
+export function AppShell({ view, onView, children }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -59,7 +44,6 @@ export function AppShell({ projects, view, onView, children }: AppShellProps) {
         className="group/sidebar hidden w-72 shrink-0 flex-col overflow-hidden rounded-r-2xl border-r transition-[width] duration-300 ease-in-out-quart data-[collapsed=true]:w-19 motion-reduce:transition-none lg:flex"
       >
         <SidebarBody
-          projects={projects}
           view={view}
           onView={onView}
           action={
@@ -81,7 +65,6 @@ export function AppShell({ projects, view, onView, children }: AppShellProps) {
           <SheetContent side="left" showCloseButton={false} className="w-72 max-w-[85vw] gap-0 bg-background">
             <SheetTitle className="sr-only">Menu</SheetTitle>
             <SidebarBody
-              projects={projects}
               view={view}
               onView={next => {
                 onView(next);
@@ -109,27 +92,21 @@ export function AppShell({ projects, view, onView, children }: AppShellProps) {
 
 const topButtonClass =
   'flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-panel text-muted-foreground transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-90 lg:size-10 group-data-[collapsed=true]/sidebar:w-full';
+// Rows are taller in the phone menu, where fingers press them, than in the sidebar beside a mouse
 const rowClass =
-  'group/row flex h-11 items-center gap-2.5 rounded-xl px-2 text-base font-semibold transition-[background-color,scale] duration-200 ease-spring active:scale-[0.98] lg:h-10 lg:text-sm';
+  'group/row flex h-11 items-center gap-2.5 rounded-xl px-2 text-base font-semibold transition-[background-color,scale] duration-200 ease-spring hover:bg-sidebar-accent active:scale-[0.98] aria-[current=page]:bg-sidebar-accent lg:h-10 lg:text-sm';
 // Labels and secondary parts fade out when the sidebar collapses to icons. On the way back they wait for the sidebar
 // to widen, so they don't show up squeezed.
 const collapsible =
   'transition-[opacity,display] transition-discrete duration-200 starting:opacity-0 group-data-[collapsed=false]/sidebar:delay-150 group-data-[collapsed=true]/sidebar:hidden group-data-[collapsed=true]/sidebar:opacity-0';
 const label = cn('truncate', collapsible);
 
-const smallButtonClass = 'rounded-md p-1 transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-85';
+const current = (item: View | undefined, view: View) => (item && sameView(item, view) ? 'page' : undefined);
 
-function SidebarBody({
-  projects,
-  view,
-  onView,
-  action
-}: {
-  projects: Project[];
-  view: View;
-  onView: (view: View) => void;
-  action: ReactNode;
-}) {
+function SidebarBody({ view, onView, action }: { view: View; onView: (view: View) => void; action: ReactNode }) {
+  const { data: projects = [] } = useProjects();
+  const [creating, setCreating] = useState(false);
+
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] group-data-[collapsed=true]/sidebar:px-2.5">
       <div className="flex gap-1.5 group-data-[collapsed=true]/sidebar:flex-col">
@@ -146,65 +123,82 @@ function SidebarBody({
       </div>
 
       <nav aria-label="Main" className="mt-5 flex flex-col gap-[3px]">
-        {navItems.map(item => {
-          const content = (
-            <>
-              <IconTile className={cn('bg-linear-to-b', item.tile)}>
-                <item.icon className="size-4.5 fill-white/25 text-white lg:size-4" />
-              </IconTile>
-              <span className={label}>{item.label}</span>
-            </>
-          );
-          const className = cn(rowClass, 'hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent');
-          return (
-            <button
-              key={item.label}
-              type="button"
-              title={item.label}
-              aria-current={item.view === view ? 'page' : undefined}
-              onClick={() => item.view && onView(item.view)}
-              className={className}
-            >
-              {content}
-            </button>
-          );
-        })}
+        {navItems.map(item => (
+          <button
+            key={item.label}
+            type="button"
+            title={item.label}
+            aria-current={current(item.view, view)}
+            onClick={() => item.view && onView(item.view)}
+            className={rowClass}
+          >
+            <IconTile className={cn('bg-linear-to-b', item.tile)}>
+              <item.icon className="size-4.5 fill-white/25 text-white lg:size-4" />
+            </IconTile>
+            <span className={label}>{item.label}</span>
+          </button>
+        ))}
       </nav>
 
-      <section aria-labelledby="sidebar-projects" className={cn(collapsible, 'mt-10 flex min-h-0 flex-1 flex-col')}>
-        <div className="flex items-center justify-between px-2 pb-3">
+      <section aria-labelledby="sidebar-projects" className="mt-8 flex min-h-0 flex-1 flex-col">
+        <div className={cn(collapsible, 'flex items-center justify-between pr-1 pb-2 pl-2')}>
           <h2 id="sidebar-projects" className="text-sm text-[#828282]">
             Projects
           </h2>
-          <div className="flex gap-1 text-[#9a9a9a]">
-            <button type="button" aria-label="Search projects" className={smallButtonClass}>
-              <SearchIcon className="size-4.5 lg:size-4" />
-            </button>
-            <button type="button" aria-label="Sort projects" className={smallButtonClass}>
-              <ArrowDownWideNarrowIcon className="size-4.5 lg:size-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="New project"
+            onClick={() => setCreating(true)}
+            className="group/new flex size-8 items-center justify-center rounded-lg text-[#9a9a9a] transition-[color,background-color,scale] duration-200 ease-spring hover:bg-sidebar-accent hover:text-foreground active:scale-90"
+          >
+            <PlusIcon className="size-4.5 transition-[rotate] duration-500 ease-spring-bouncy group-hover/new:rotate-90 lg:size-4" />
+          </button>
         </div>
-        <ul className="flex min-h-0 flex-col gap-[3px] overflow-y-auto">
-          <li>
-            <button type="button" className={cn(rowClass, 'w-full text-[#828282] hover:bg-sidebar-accent')}>
-              <IconTile className="border border-white/10 bg-[#29292b]">
-                <PlusIcon className="size-4 text-[#b0b0b0] transition-[rotate] duration-500 ease-spring-bouncy group-hover/row:rotate-90" />
+
+        {/* The default folder: every generation, so it stays when the sidebar collapses to icons */}
+        <button
+          type="button"
+          title="My generations"
+          aria-current={current(folder(null), view)}
+          onClick={() => onView(folder(null))}
+          className={rowClass}
+        >
+          <IconTile className="bg-linear-to-b from-[#8de7f5] to-[#2687b3]">
+            <SparklesIcon className="size-4.5 fill-white/25 text-white lg:size-4" />
+          </IconTile>
+          <span className={label}>My generations</span>
+        </button>
+
+        <ul aria-label="Projects" className={cn(collapsible, 'mt-[3px] flex min-h-0 flex-col gap-[3px] overflow-y-auto')}>
+          {creating && (
+            <li className="flex items-start gap-2.5 px-2 py-1">
+              <IconTile className="mt-1 border border-white/10 bg-[#29292b] lg:mt-0.5">
+                <PlusIcon className="size-4 text-[#b0b0b0]" />
               </IconTile>
-              New project
-            </button>
-          </li>
+              <NewProjectForm
+                onCreated={project => {
+                  setCreating(false);
+                  onView(folder(project.id));
+                }}
+                onCancel={() => setCreating(false)}
+                className="flex-1"
+                inputClassName="h-9 lg:h-8 lg:text-sm"
+              />
+            </li>
+          )}
           {projects.map(project => (
             <li key={project.id}>
               <m.button
                 type="button"
+                aria-current={current(folder(project.id), view)}
+                onClick={() => onView(folder(project.id))}
                 initial={false}
                 animate="tangled"
                 whileHover="straight"
-                className={cn(rowClass, 'w-full hover:bg-sidebar-accent')}
+                className={cn(rowClass, 'w-full')}
               >
                 <IconTile className="bg-[#232426]">
-                  <NoodleGlyph className="size-5 text-[#5c5d60] transition-colors duration-200 group-hover/row:text-[#a0a1a3]" />
+                  <NoodleGlyph className="size-5 text-[#5c5d60] transition-colors duration-200 group-hover/row:text-[#a0a1a3] group-aria-[current=page]/row:text-lime" />
                 </IconTile>
                 <span className="truncate">{project.name}</span>
               </m.button>
@@ -213,9 +207,13 @@ function SidebarBody({
         </ul>
       </section>
 
-      <div className="mt-auto hidden flex-1 group-data-[collapsed=true]/sidebar:block" />
-
-      <button type="button" title="All projects" className={cn(rowClass, 'hover:bg-sidebar-accent')}>
+      <button
+        type="button"
+        title="All projects"
+        aria-current={current(allProjects, view)}
+        onClick={() => onView(allProjects)}
+        className={cn(rowClass, 'mt-3')}
+      >
         <IconTile className="border border-white/10 bg-linear-to-b from-[#3a3a3c] to-[#202022]">
           <ArchiveIcon className="size-4.5 text-white lg:size-4" />
         </IconTile>

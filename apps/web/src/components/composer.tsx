@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { api, ApiError } from '@/lib/api';
+import { api, messageOf } from '@/lib/api';
 import { defaultRole, roleLabels } from '@/lib/capabilities';
 import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
@@ -38,6 +38,8 @@ import { cn } from '@/lib/utils';
 import type { AspectRatio, Asset, Generation, InputRole, MediaType, Workflow } from '@/lib/types';
 
 interface ComposerProps {
+  /** The project to file what it generates in, or null for My generations alone. */
+  projectId: string | null;
   /** Called once the API has queued what the composer sent. */
   onGenerated?: (generation: Generation) => void;
 }
@@ -100,7 +102,7 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 let lastInputKey = 0;
 const nextKey = () => `input-${++lastInputKey}`;
 
-export function Composer({ onGenerated }: ComposerProps) {
+export function Composer({ projectId, onGenerated }: ComposerProps) {
   const workflows = useWorkflows();
   const { data: library = [] } = useUploads();
   const addToCache = useAddToCache();
@@ -236,7 +238,8 @@ export function Composer({ onGenerated }: ComposerProps) {
           audio: settings.audio,
           seed: null
         },
-        model: draft.model
+        model: draft.model,
+        project_id: projectId
       });
       addToCache.generation(generation);
       onGenerated?.(generation);
@@ -564,10 +567,6 @@ function previewAsset(file: File): Asset {
     duration_s: null,
     created_at: new Date().toISOString()
   };
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof ApiError ? error.message : 'Something went wrong. Try again.';
 }
 
 function CardText({ label, value }: { label: string; value: string }) {
