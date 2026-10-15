@@ -156,6 +156,14 @@ def test_klein_chains_every_photo_onto_the_prompt(references: int) -> None:
     assert all(node_id in graph for node_id, _ in links(graph))
 
 
+def test_an_edit_puts_the_photo_to_edit_first_whatever_the_order_attached() -> None:
+    j = job((REFERENCE, PHOTO), (EDIT_TARGET, PHOTO), prompt="the hat from photo 1 on the man in photo 2", size=None)
+    graph = real.klein(j).nodes
+    loads = [n["inputs"]["image"] for n in graph.values() if n["class_type"] == "LoadImage"]
+    assert loads == ["unnoodle/1.png", "unnoodle/0.png"]
+    assert node_of(graph, "CLIPTextEncode")["text"] == "the hat from image 2 on the man in image 1"
+
+
 def test_minimax_gives_each_photo_and_clip_its_place_and_tag() -> None:
     attached = [(REFERENCE, CLIP), (REFERENCE, PHOTO), (REFERENCE, PHOTO)]
     prompt = "the man in photo 2 dances like clip 1 next to photo 1"

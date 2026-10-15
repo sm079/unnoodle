@@ -57,13 +57,12 @@ def klein(job: Job) -> Graph:
     model = g.add("UNETLoader", unet_name="flux-2-klein-9b-fp8.safetensors", weight_dtype="default")
     clip = g.add("CLIPLoader", clip_name="qwen_3_8b_fp8mixed.safetensors", type="flux2", device="default")
     vae = g.add("VAELoader", vae_name="flux2-vae.safetensors")
-    positive: Link = g.add("CLIPTextEncode", text=job.prompt_with(photo="image {n}"), clip=clip[0])[0]
+    positive: Link = g.add("CLIPTextEncode", text=job.prompt_with(photo="image {n}", edit=True), clip=clip[0])[0]
     negative: Link = g.add("ConditioningZeroOut", conditioning=positive)[0]
 
-    photos = job.files(MediaType.IMAGE)
     target: Link | None = None
-    for n, photo in enumerate(photos):
-        loaded = g.add("LoadImage", image=photo)
+    for n, photo in enumerate(job.photos(edit=True)):
+        loaded = g.add("LoadImage", image=photo.file)
         scaled = g.add(
             "ImageScaleToTotalPixels",
             image=loaded[0],

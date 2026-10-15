@@ -45,7 +45,7 @@ def image(job: Job) -> Graph:
 def edit(job: Job) -> Graph:
     """The first photo at the quality's size, with the others pasted small in its corner."""
     g = Graph()
-    photos = job.files(MediaType.IMAGE)
+    photos = [p.file for p in job.photos(edit=True)]
     loaded = g.add("LoadImage", image=photos[0])
     scaled = g.add(
         "ImageScaleToTotalPixels",
@@ -58,7 +58,7 @@ def edit(job: Job) -> Graph:
     for n, photo in enumerate(photos[1:]):
         picture = paste_small(g, picture, shrink(g, g.add("LoadImage", image=photo)[0], job.megapixels), n)
     # The prompt as the real edit model reads it, to show the rewriting
-    prompt = job.prompt_with(photo="image {n}")
+    prompt = job.prompt_with(photo="image {n}", edit=True)
     g.output(g.add("SaveImage", images=stamp(g, picture, job, prompt), filename_prefix=job.filename_prefix))
     return g
 

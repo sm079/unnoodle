@@ -80,16 +80,28 @@ class Job:
     def files(self, media_type: MediaType, role: InputRole | None = None) -> list[str]:
         return [i.file for i in self.inputs if i.media_type is media_type and role in (None, i.role)]
 
-    def prompt_with(self, photo: str, clip: str = "clip {n}") -> str:
+    def photos(self, edit: bool = False) -> list[JobInput]:
+        """The attached photos in the order they were attached, or as an edit model numbers them: the photo to edit
+        first, then the references in the order they were attached."""
+        photos = [i for i in self.inputs if i.media_type is MediaType.IMAGE]
+        return sorted(photos, key=lambda i: i.role is not InputRole.EDIT_TARGET) if edit else photos
+
+    def prompt_with(self, photo: str, clip: str = "clip {n}", edit: bool = False) -> str:
         """The prompt with "photo 2" and "clip 1" in the words the model was trained on, e.g. photo="image {n}".
-        Photos and clips are numbered separately, in the order they were attached. A mention of one that isn't
-        attached stays as it was."""
-        counts = {"photo": len(self.files(MediaType.IMAGE)), "clip": len(self.files(MediaType.VIDEO))}
+        People number photos and clips separately, in the order they attached them; the model numbers them in the
+        order it gets them, which for an edit puts the photo to edit first. A mention of one that isn't attached
+        stays as it was."""
+        clips = [i for i in self.inputs if i.media_type is MediaType.VIDEO]
+        attached = {"photo": self.photos(), "clip": clips}
+        model_order = {"photo": self.photos(edit), "clip": clips}
         wording = {"photo": photo, "clip": clip}
 
         def reword(mention: re.Match[str]) -> str:
             kind, number = mention.group(1).lower(), int(mention.group(2))
-            return wording[kind].format(n=number) if 1 <= number <= counts[kind] else mention.group(0)
+            if not 1 <= number <= len(attached[kind]):
+                return mention.group(0)
+            meant = attached[kind][number - 1]
+            return wording[kind].format(n=next(n for n, i in enumerate(model_order[kind], 1) if i is meant))
 
         return MENTION.sub(reword, self.prompt)
 
