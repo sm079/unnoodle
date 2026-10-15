@@ -23,7 +23,11 @@ cd apps/api
 uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload    # API on http://localhost:8000; try GET /health
+uv run python -m app.worker             # runs queued generations on ComfyUI (below)
 ```
+
+The API queues generations in Postgres and the worker, a separate process, runs them on ComfyUI one at a time. Several
+workers can share the queue.
 
 Every setting has a working default. To change one, copy `.env.example` to `.env`; compose and the API both read it.
 
@@ -41,6 +45,10 @@ It then loads only the development node in `dev/comfyui/custom_nodes`, and keeps
 reports progress step by step, tints each image by the seed and writes the prompt on it, and fails like a GPU out of
 memory when the prompt contains `#oom`. Port 8189 keeps it clear of a normal ComfyUI on 8188.
 
+The workflows that run on it are in `dev/workflows`: each is a graph exported from ComfyUI in API format plus a
+`manifest.toml`. `app/workflows.py` describes the format, and `UNNOODLE_WORKFLOWS_DIR` points the API and the worker
+at another set.
+
 ## Checks
 
 ```sh
@@ -54,7 +62,9 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run p
 ```
 
 API tests that need Postgres are skipped unless `UNNOODLE_TEST_DATABASE_URL` is set, which a `.env` copied from
-`.env.example` does. CI runs all of the above on every push and pull request.
+`.env.example` does. They use their own database, which they create and migrate. The few that talk to a real ComfyUI
+also need the dev ComfyUI running and `UNNOODLE_TEST_COMFYUI_URL` set. CI runs all of the above on every push and pull
+request, apart from the ComfyUI tests.
 
 ## Mock data
 

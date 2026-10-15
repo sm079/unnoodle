@@ -12,24 +12,13 @@ from sqlalchemy.orm import Session
 from app.main import create_app
 from app.models import Asset, AssetSource, MediaType
 from app.settings import Settings
-from tests.graphs import IMAGE_MANIFEST, VIDEO_MANIFEST, image_graph, node, video_graph, with_keys, write
+from tests.graphs import write_catalogue
 
 
 @pytest.fixture
 def client(settings: Settings, tmp_path: Path) -> Iterator[TestClient]:
     """An app with three workflows: text to image, video from a frame, and a character swap."""
-    catalogue = tmp_path / "workflows"
-    write(
-        catalogue / "t2i",
-        image_graph() | {"7": node("PrimitiveInt", "in.batch_size", value=1)},
-        with_keys(IMAGE_MANIFEST, "max_count = 4").replace("[sizes.1K]", '[sizes.1K]\n"3:4" = [896, 1152]'),
-    )
-    write(catalogue / "i2v", video_graph(), VIDEO_MANIFEST)
-    swap = video_graph() | {
-        "9": node("LoadVideo", "in.source_video", file="clip.mp4"),
-        "10": node("LoadImage", "in.reference_1", image="face.png"),
-    }
-    write(catalogue / "swap", swap, VIDEO_MANIFEST.replace("video.from_frame", "video.character_swap"))
+    catalogue = write_catalogue(tmp_path / "workflows")
     with TestClient(create_app(settings.model_copy(update={"workflows_dir": catalogue}))) as client:
         yield client
 

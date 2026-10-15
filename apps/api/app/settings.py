@@ -21,3 +21,6 @@ class Settings(BaseSettings):
 
     # Uploads and outputs, served under /media
     media_dir: Path = REPO_ROOT / "apps" / "api" / "media"
+
+    # Where the worker runs workflows. 8189 is the dev ComfyUI (see the README); a regular install listens on 8188.
+    comfyui_url: str = "http://127.0.0.1:8189"

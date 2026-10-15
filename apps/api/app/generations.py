@@ -13,6 +13,7 @@ from app.db import SessionDep
 from app.media import AssetOut
 from app.models import Asset, Capability, Generation, GenerationInput, GenerationStatus, InputRole, MediaType
 from app.routing import RoutingError, route
+from app.worker import queue
 from app.workflows import AspectRatio, Workflow, WorkflowsDep
 
 # Seeds the app picks stay within 32 bits, which every sampler takes. Ones sent in may go up to the largest
@@ -143,6 +144,7 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
         ],
     )
     session.add(generation)
+    queue.notify_queued(session)
     session.commit()
     return GenerationOut.of(generation)
 

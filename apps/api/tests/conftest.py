@@ -21,6 +21,8 @@ class PytestSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="UNNOODLE_TEST_", env_file=ENV_FILE, extra="ignore")
 
     database_url: str | None = None
+    # A running dev ComfyUI, for the tests that talk to a real one
+    comfyui_url: str | None = None
 
 
 @pytest.fixture(scope="session")
@@ -30,6 +32,14 @@ def test_database_url() -> str:
     if url is None:
         pytest.skip("set UNNOODLE_TEST_DATABASE_URL to run against Postgres")
     create_database_if_missing(url)
+    return url
+
+
+@pytest.fixture(scope="session")
+def comfyui_url() -> str:
+    url = PytestSettings().comfyui_url
+    if url is None:
+        pytest.skip("set UNNOODLE_TEST_COMFYUI_URL to run against a dev ComfyUI")
     return url
 
 
