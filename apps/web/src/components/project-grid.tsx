@@ -3,10 +3,14 @@ import { ChevronRightIcon, FolderPlusIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Generation, Project } from '@/lib/types';
 
+// Cards rise in as they scroll into view, lift under the pointer and give a little when pressed
+const cardClass = 'reveal group w-full rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-white/30';
+const pressClass = 'transition-[translate,scale,background-color] duration-300 ease-spring active:scale-[0.98] active:duration-100';
+
 export function ProjectGrid({ projects, generations }: { projects: Project[]; generations: Generation[] }) {
   return (
     <section aria-labelledby="my-projects" className="flex flex-col gap-5">
-      <h2 id="my-projects" className="flex items-center gap-1.5 text-xl font-bold">
+      <h2 id="my-projects" className="reveal flex items-center gap-1.5 text-xl font-bold">
         My projects
         <ChevronRightIcon className="size-5 text-[#8a8b8c]" />
       </h2>
@@ -14,10 +18,14 @@ export function ProjectGrid({ projects, generations }: { projects: Project[]; ge
         <li>
           <button
             type="button"
-            className="group flex aspect-[358/230] w-full items-center justify-center rounded-2xl border border-white/[0.04] bg-[#1f2022] transition-colors hover:bg-[#232426]"
+            className={cn(
+              cardClass,
+              pressClass,
+              'flex aspect-[358/230] items-center justify-center border border-white/[0.04] bg-[#1f2022] hover:bg-[#232426]'
+            )}
           >
-            <span className="flex size-[72px] items-center justify-center rounded-full bg-linear-to-b from-[#3a3b3d] to-[#2a2b2d] shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_6px_16px_rgb(0_0_0/0.45)] ring-1 ring-white/10 transition-transform group-hover:scale-105">
-              <FolderPlusIcon className="size-7 text-white" />
+            <span className="flex size-[72px] items-center justify-center rounded-full bg-linear-to-b from-[#3a3b3d] to-[#2a2b2d] shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_6px_16px_rgb(0_0_0/0.45)] ring-1 ring-white/10 transition-[scale] duration-500 ease-spring-bouncy group-hover:scale-110 group-active:scale-95">
+              <FolderPlusIcon className="size-7 text-white transition-[rotate] duration-500 ease-spring-bouncy group-hover:-rotate-8" />
             </span>
             <span className="sr-only">New project</span>
           </button>
@@ -25,24 +33,45 @@ export function ProjectGrid({ projects, generations }: { projects: Project[]; ge
         {projects.map(project => {
           const covers = generations.filter(g => g.project_id === project.id).flatMap(g => g.outputs);
           return (
-            <li key={project.id} className="flex flex-col gap-2.5">
-              <div className="grid aspect-[358/230] grid-cols-[1fr_96px] grid-rows-2 gap-2.5">
-                {[0, 1, 2].map(slot => (
-                  <div key={slot} className={cn('relative overflow-hidden rounded-2xl bg-[#1f2022]', slot === 0 && 'row-span-2')}>
-                    {covers[slot] ? (
-                      <Image src={covers[slot].thumbnail_url} alt="" fill sizes={slot === 0 ? '260px' : '96px'} className="object-cover" />
-                    ) : (
-                      <Stripes />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-baseline justify-between gap-2 px-0.5">
-                <span className="truncate font-semibold">{project.name}</span>
-                <span className="shrink-0 text-sm text-[#8a8b8c]">
-                  {covers.length} {covers.length === 1 ? 'item' : 'items'}
+            <li key={project.id}>
+              <button type="button" className={cn(cardClass, 'flex flex-col gap-2.5')}>
+                <span
+                  className={cn(
+                    pressClass,
+                    'grid aspect-[358/230] w-full grid-cols-[1fr_96px] grid-rows-2 gap-2.5 group-hover:-translate-y-1'
+                  )}
+                >
+                  {[0, 1, 2].map(slot => (
+                    <span
+                      key={slot}
+                      className={cn(
+                        'relative overflow-hidden rounded-2xl bg-[#1f2022] shadow-[0_0_0_rgb(0_0_0/0)] transition-shadow duration-300 group-hover:shadow-[0_12px_28px_rgb(0_0_0/0.45)]',
+                        slot === 0 && 'row-span-2'
+                      )}
+                    >
+                      {covers[slot] ? (
+                        <Image
+                          src={covers[slot].thumbnail_url}
+                          alt=""
+                          fill
+                          sizes={slot === 0 ? '260px' : '96px'}
+                          // Each cover zooms a moment after the one before, so the card reads as one object
+                          style={{ transitionDelay: `${slot * 50}ms` }}
+                          className="object-cover transition-[scale] duration-700 ease-out-quint group-hover:scale-[1.06]"
+                        />
+                      ) : (
+                        <Stripes />
+                      )}
+                    </span>
+                  ))}
                 </span>
-              </div>
+                <span className="flex items-baseline justify-between gap-2 px-0.5">
+                  <span className="truncate font-semibold">{project.name}</span>
+                  <span className="shrink-0 text-sm text-[#8a8b8c]">
+                    {covers.length} {covers.length === 1 ? 'item' : 'items'}
+                  </span>
+                </span>
+              </button>
             </li>
           );
         })}

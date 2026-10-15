@@ -2,6 +2,7 @@
 
 import { useState, type ComponentType, type ReactNode } from 'react';
 import Link from 'next/link';
+import { m } from 'motion/react';
 import {
   ArchiveIcon,
   ArrowDownWideNarrowIcon,
@@ -53,7 +54,7 @@ export function AppShell({ projects, user, children }: AppShellProps) {
       <aside
         data-collapsed={collapsed}
         aria-label="Sidebar"
-        className="group/sidebar hidden w-[293px] shrink-0 flex-col rounded-r-2xl border-r transition-[width] duration-200 data-[collapsed=true]:w-[76px] lg:flex"
+        className="group/sidebar hidden w-[293px] shrink-0 flex-col overflow-hidden rounded-r-2xl border-r transition-[width] duration-300 ease-in-out-quart data-[collapsed=true]:w-[76px] motion-reduce:transition-none lg:flex"
       >
         <SidebarBody
           projects={projects}
@@ -70,7 +71,7 @@ export function AppShell({ projects, user, children }: AppShellProps) {
         <Sheet>
           <SheetTrigger
             aria-label="Open menu"
-            className="flex size-10 items-center justify-center rounded-xl bg-panel text-muted-foreground hover:text-foreground"
+            className="flex size-10 items-center justify-center rounded-xl bg-panel text-muted-foreground transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-90"
           >
             <MenuIcon className="size-5" />
           </SheetTrigger>
@@ -97,19 +98,30 @@ export function AppShell({ projects, user, children }: AppShellProps) {
 }
 
 const topButtonClass =
-  'flex h-[43px] w-11 shrink-0 items-center justify-center rounded-[14px] bg-panel text-muted-foreground hover:text-foreground group-data-[collapsed=true]/sidebar:w-full';
-const rowClass = 'flex h-[45px] items-center gap-2.5 rounded-xl px-2 text-[17px] font-semibold transition-colors';
-// Labels and secondary parts disappear when the sidebar is collapsed to icons
-const label = 'truncate group-data-[collapsed=true]/sidebar:hidden';
+  'flex h-[43px] w-11 shrink-0 items-center justify-center rounded-[14px] bg-panel text-muted-foreground transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-90 group-data-[collapsed=true]/sidebar:w-full';
+const rowClass =
+  'group/row flex h-[45px] items-center gap-2.5 rounded-xl px-2 text-[17px] font-semibold transition-[background-color,scale] duration-200 ease-spring active:scale-[0.98]';
+// Labels and secondary parts fade out when the sidebar collapses to icons. On the way back they wait for the sidebar
+// to widen, so they don't show up squeezed.
+const collapsible =
+  'transition-[opacity,display] transition-discrete duration-200 starting:opacity-0 group-data-[collapsed=false]/sidebar:delay-150 group-data-[collapsed=true]/sidebar:hidden group-data-[collapsed=true]/sidebar:opacity-0';
+const label = cn('truncate', collapsible);
+
+const smallButtonClass = 'rounded-md p-1 transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-85';
 
 function SidebarBody({ projects, user, action }: { projects: Project[]; user: User; action: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2.5 pb-5 group-data-[collapsed=true]/sidebar:px-2.5">
       <div className="flex gap-1.5 group-data-[collapsed=true]/sidebar:flex-col">
-        <div className="flex h-[43px] min-w-0 flex-1 items-center gap-2.5 rounded-[14px] bg-panel px-2 group-data-[collapsed=true]/sidebar:justify-center">
+        <m.div
+          initial={false}
+          animate="tangled"
+          whileHover="straight"
+          className="flex h-[43px] min-w-0 flex-1 items-center gap-2.5 rounded-[14px] bg-panel px-2 group-data-[collapsed=true]/sidebar:justify-center"
+        >
           <BrandMark />
           <span className={cn(label, 'text-[17px] font-semibold')}>unnoodle</span>
-        </div>
+        </m.div>
         {action}
       </div>
 
@@ -136,16 +148,16 @@ function SidebarBody({ projects, user, action }: { projects: Project[]; user: Us
         })}
       </nav>
 
-      <section aria-labelledby="sidebar-projects" className="mt-10 flex min-h-0 flex-1 flex-col group-data-[collapsed=true]/sidebar:hidden">
+      <section aria-labelledby="sidebar-projects" className={cn(collapsible, 'mt-10 flex min-h-0 flex-1 flex-col')}>
         <div className="flex items-center justify-between px-2 pb-3">
           <h2 id="sidebar-projects" className="text-[15px] text-[#828282]">
             Projects
           </h2>
           <div className="flex gap-1 text-[#9a9a9a]">
-            <button type="button" aria-label="Search projects" className="rounded-md p-1 hover:text-foreground">
+            <button type="button" aria-label="Search projects" className={smallButtonClass}>
               <SearchIcon className="size-[18px]" />
             </button>
-            <button type="button" aria-label="Sort projects" className="rounded-md p-1 hover:text-foreground">
+            <button type="button" aria-label="Sort projects" className={smallButtonClass}>
               <ArrowDownWideNarrowIcon className="size-[18px]" />
             </button>
           </div>
@@ -154,19 +166,25 @@ function SidebarBody({ projects, user, action }: { projects: Project[]; user: Us
           <li>
             <button type="button" className={cn(rowClass, 'w-full text-[#828282] hover:bg-sidebar-accent')}>
               <IconTile className="size-[30px] border border-white/10 bg-[#29292b]">
-                <PlusIcon className="size-4 text-[#b0b0b0]" />
+                <PlusIcon className="size-4 text-[#b0b0b0] transition-[rotate] duration-500 ease-spring-bouncy group-hover/row:rotate-90" />
               </IconTile>
               New project
             </button>
           </li>
           {projects.map(project => (
             <li key={project.id}>
-              <button type="button" className={cn(rowClass, 'w-full hover:bg-sidebar-accent')}>
+              <m.button
+                type="button"
+                initial={false}
+                animate="tangled"
+                whileHover="straight"
+                className={cn(rowClass, 'w-full hover:bg-sidebar-accent')}
+              >
                 <IconTile className="size-[30px] bg-[#232426]">
-                  <NoodleGlyph className="size-5 text-[#5c5d60]" />
+                  <NoodleGlyph className="size-5 text-[#5c5d60] transition-colors duration-200 group-hover/row:text-[#a0a1a3]" />
                 </IconTile>
                 <span className="truncate">{project.name}</span>
-              </button>
+              </m.button>
             </li>
           ))}
         </ul>
@@ -179,13 +197,15 @@ function SidebarBody({ projects, user, action }: { projects: Project[]; user: Us
           <ArchiveIcon className="size-[18px] text-white" />
         </IconTile>
         <span className={cn(label, 'flex-1 text-left')}>All projects</span>
-        <ChevronRightIcon className={cn(label, 'size-5 text-[#8a8a8a]')} />
+        <ChevronRightIcon
+          className={cn(label, 'size-5 text-[#8a8a8a] transition-[translate,opacity,display] group-hover/row:translate-x-0.5')}
+        />
       </button>
 
       <div className="-mx-4 border-t group-data-[collapsed=true]/sidebar:-mx-2.5" />
 
       <button type="button" title="Pricing" className={cn(rowClass, 'mt-3 bg-[#21131a] px-3 hover:bg-[#2a1720]')}>
-        <GemIcon className="size-5 shrink-0 text-[#ff2a6d]" />
+        <GemIcon className="size-5 shrink-0 text-[#ff2a6d] transition-[rotate,scale] duration-500 ease-spring-bouncy group-hover/row:scale-115 group-hover/row:rotate-12" />
         <span className={cn(label, 'flex-1 text-left')}>Pricing</span>
         <span
           className={cn(label, 'rounded-full bg-linear-to-r from-[#ff1f6a] to-[#ff3dba] px-2 py-0.5 text-[13px] leading-tight font-bold')}
@@ -207,10 +227,10 @@ function SidebarBody({ projects, user, action }: { projects: Project[]; user: Us
           aria-label="Notifications"
           className={cn(
             label,
-            'flex size-[30px] items-center justify-center rounded-full bg-sidebar-accent text-[#9a9a9a] hover:text-foreground'
+            'group/bell flex size-[30px] items-center justify-center rounded-full bg-sidebar-accent text-[#9a9a9a] transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-90'
           )}
         >
-          <BellIcon className="size-4" />
+          <BellIcon className="size-4 origin-top motion-safe:group-hover/bell:animate-wiggle" />
         </button>
       </div>
     </div>
@@ -221,7 +241,7 @@ function IconTile({ className, children }: { className?: string; children: React
   return (
     <span
       className={cn(
-        'flex size-8 shrink-0 items-center justify-center rounded-[9px] shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_1px_2px_rgb(0_0_0/0.4)]',
+        'flex size-8 shrink-0 items-center justify-center rounded-[9px] shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_1px_2px_rgb(0_0_0/0.4)] transition-[scale,rotate] duration-500 ease-spring-bouncy group-hover/row:scale-110 group-hover/row:-rotate-6',
         className
       )}
     >

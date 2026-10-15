@@ -363,6 +363,17 @@
       glint 1100ms var(--ease-in-out-quart) backwards;
     animation-delay: calc(260ms + var(--i) * 70ms), calc(950ms + var(--i) * 110ms);
   }
+
+  /* Rises into place as it scrolls into view. Browsers without scroll timelines show it as is. */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      --rise-distance: 28px;
+      --rise-blur: 0px;
+      animation: rise var(--ease-out-quint) both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 70%;
+    }
+  }
 }
 
 /* The cards start stacked behind the front card and fan out. The front card is visible from the first frame and only
@@ -393,6 +404,9 @@
   }
   .hero-word {
     animation-name: fade-in, none;
+  }
+  .reveal {
+    animation: none;
   }
 }
 
