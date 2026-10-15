@@ -1,8 +1,9 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import create_engine, pool
+from sqlalchemy import Connection, create_engine, pool
 
+import app.models  # noqa: F401  (registers the tables on Base.metadata for autogenerate)
 from app.db import Base
 from app.settings import Settings
 
@@ -10,14 +11,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import model modules above this line so autogenerate can see their tables
 target_metadata = Base.metadata
-database_url = Settings().database_url
 
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=database_url,
+        url=Settings().database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -26,12 +25,21 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def run_with(connection: Connection) -> None:
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 def run_migrations_online() -> None:
-    engine = create_engine(database_url, poolclass=pool.NullPool)
+    # Tests pass in a connection to their own database; everything else uses the configured one
+    connection = config.attributes.get("connection")
+    if connection is not None:
+        run_with(connection)
+        return
+    engine = create_engine(Settings().database_url, poolclass=pool.NullPool)
     with engine.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-        with context.begin_transaction():
-            context.run_migrations()
+        run_with(connection)
 
 
 if context.is_offline_mode():
