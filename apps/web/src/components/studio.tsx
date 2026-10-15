@@ -11,20 +11,19 @@ import { ProjectGrid } from '@/components/project-grid';
 import { useGenerations, useProjects } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { allProjects, folder, home, projectOf, type View } from '@/lib/views';
-import type { Asset } from '@/lib/types';
 
-interface StudioProps {
-  /** The outputs the hero shows. */
-  highlights: Asset[];
-}
+// The hero shows this many of the newest outputs
+const HIGHLIGHTS = 8;
 
 /**
  * The one screen the app is: the home screen (hero and composer), All projects, or one folder's gallery. On phones
  * the composer is docked at the bottom everywhere; on wide screens it sits under the hero, then docks under the rest.
  * Generating from a project files the result there; from anywhere else it goes to My generations, which opens.
  */
-export function Studio({ highlights }: StudioProps) {
+export function Studio() {
   const [view, setView] = useState<View>(home);
+  const { data: generations = [] } = useGenerations();
+  const highlights = generations.flatMap(g => g.outputs).slice(0, HIGHLIGHTS);
   const top = useRef<HTMLDivElement>(null);
 
   function show(next: View) {
@@ -51,7 +50,7 @@ export function Studio({ highlights }: StudioProps) {
               exit={{ opacity: 0, y: -24, transition: { duration: 0.25 } }}
               className="flex flex-1 flex-col items-center justify-center py-6 lg:flex-none lg:py-0"
             >
-              <Hero assets={highlights} title="One prompt, any workflow" />
+              <Hero assets={highlights} title="Pictures and videos from one prompt" />
             </m.div>
           ) : (
             <m.div

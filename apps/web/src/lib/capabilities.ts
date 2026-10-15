@@ -1,16 +1,11 @@
-import type { AspectRatio, Asset, Capability, InputRole, MediaType, Quality } from './types';
+import type { AspectRatio, Capability, MediaType, Quality } from './types';
 
 /** What a route does, in the words the route chip shows. */
 export const capabilityLabels: Record<Capability, string> = {
-  'image.generate': 'Create a picture',
-  'image.edit': 'Edit a photo',
+  'image.generate': 'Create an image',
+  'image.edit': 'Edit an image',
   'video.generate': 'Make a video',
-  'video.reference': 'Video from references'
-};
-
-export const roleLabels: Record<InputRole, string> = {
-  edit_target: 'Edit this',
-  reference: 'Reference'
+  'video.reference': 'Make a video from references'
 };
 
 export const qualityLabels: Record<Quality, string> = { low: 'Low', medium: 'Medium', high: 'High' };
@@ -29,13 +24,4 @@ export const shapeLabels: Record<AspectRatio, string> = {
 
 export function outputType(capability: Capability): MediaType {
   return capability.startsWith('video.') ? 'video' : 'image';
-}
-
-/**
- * The role a newly attached input starts with, given the roles already taken: for an image, the first photo is the
- * one to edit and the rest are references; for a video, everything is a reference. The role chip changes it.
- */
-export function defaultRole(mode: MediaType, taken: InputRole[], asset: Asset): InputRole {
-  if (mode === 'image' && asset.media_type === 'image' && !taken.includes('edit_target')) return 'edit_target';
-  return 'reference';
 }

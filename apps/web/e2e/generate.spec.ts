@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi } from './api';
 
 // Queued and running tiles show the prompt as text; a finished one is a link named by it
@@ -8,6 +8,9 @@ const newTile = (page: Page) => {
 };
 
 test.beforeEach(({ page }) => mockApi(page));
+
+/** The line that says where the request goes; its text is there twice, once animated and once for screen readers. */
+const routeLine = (composer: Locator, text: string) => composer.locator('p', { hasText: text });
 
 test('/generate fits a phone screen and its composer routes by the inputs', async ({ page }) => {
   await page.goto('/generate');
@@ -28,28 +31,31 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   const generate = (await composer.getByRole('button', { name: 'Generate' }).boundingBox())!;
   expect(Math.abs(toggle.y + toggle.height / 2 - (generate.y + generate.height / 2)), 'toggle in the Generate row').toBeLessThan(4);
 
-  // Starts on images. With one model per route, the route chip says what happens and names no model.
-  await expect(composer.getByRole('button', { name: 'Route: Create a picture' })).toBeVisible();
+  // Starts on images. With one model per route, a line of text says what happens and names no model.
+  await expect(routeLine(composer, 'Create an image')).toBeVisible();
+  await expect(composer.getByRole('button', { name: /^Route/ })).toHaveCount(0);
   await expect(composer.getByRole('button', { name: 'Shape: Portrait standard' })).toBeVisible();
   await expect(composer.getByRole('button', { name: /^Length/ })).toHaveCount(0);
   await composer.getByRole('button', { name: 'Video', exact: true }).click();
-  await expect(composer.getByRole('button', { name: 'Route: Make a video' })).toBeVisible();
+  await expect(routeLine(composer, 'Make a video')).toBeVisible();
   await expect(composer.getByRole('button', { name: 'Length: 5 sec' })).toBeVisible();
   await composer.getByRole('button', { name: 'Image', exact: true }).click();
-  await expect(composer.getByRole('button', { name: 'Route: Create a picture' })).toBeVisible();
 
-  // An attached photo is the one to edit, which routes elsewhere and takes its shape from the photo
+  // An attached photo routes to an edit, in the photo's shape unless another is picked
   await composer.getByRole('button', { name: 'Add from library' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Attach image ast_room' }).click();
-  await expect(composer.getByRole('button', { name: 'Role: Edit this' })).toBeVisible();
-  await expect(composer.getByRole('button', { name: 'Route: Edit a photo' })).toBeVisible();
-  await expect(composer.getByRole('button', { name: /^Shape/ })).toHaveCount(0);
+  await expect(routeLine(composer, 'Edit an image')).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Shape: Same as @photo1' })).toBeVisible();
+  // Tapping its handle mentions it in the prompt, as the API reads it
+  await composer.getByRole('textbox', { name: 'Prompt' }).fill('make');
+  await composer.getByRole('button', { name: 'Mention @photo1 in the prompt' }).click();
+  await expect(composer.getByRole('textbox', { name: 'Prompt' })).toHaveValue('make @photo1 ');
 
-  // As a reference alone it routes nowhere: an edit needs the photo to edit. The route chip says so, and nothing is
-  // written under the composer, which is for errors.
-  await composer.getByRole('button', { name: 'Role: Edit this' }).click();
-  await page.getByRole('menuitemradio', { name: 'Reference' }).click();
-  await expect(composer.getByRole('button', { name: 'Route: Not available yet' })).toBeDisabled();
+  // A clip can't go into a picture: the route line says why, and nothing is written under the composer, which is
+  // for errors
+  await composer.getByRole('button', { name: 'Add from library' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Attach video ast_dance' }).click();
+  await expect(routeLine(composer, "Editing an image can't use clips")).toBeVisible();
   await expect(composer.getByRole('status')).toHaveCount(0);
   await expect(composer.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'true');
 
@@ -71,7 +77,7 @@ test('Generate sends the inputs with their roles and lets the API pick the workf
     media_type: 'video',
     prompt: 'she turns around',
     inputs: [{ asset_id: 'ast_character', role: 'reference' }],
-    params: { quality: 'medium', aspect_ratio: '9:16', duration_s: 5, count: 1, seed: null },
+    params: { quality: 'medium', aspect_ratio: null, duration_s: 5, count: 1, seed: null },
     model: null,
     project_id: null
   });

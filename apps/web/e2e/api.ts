@@ -21,7 +21,7 @@ export async function mockApi(page: Page) {
 
   // With or without ?project_id=
   await page.route(/\/api\/generations(\?.*)?$/, async route => {
-    if (route.request().method() === 'POST') return route.fulfill({ status: 201, json: queue(route) });
+    if (route.request().method() === 'POST') return route.fulfill({ status: 201, json: [queue(route)] });
     reads += 1;
     for (const g of created) advance(g);
     const project = new URL(route.request().url()).searchParams.get('project_id');
@@ -58,7 +58,6 @@ export async function mockApi(page: Page) {
         quality: body.params.quality ?? 'medium',
         aspect_ratio: body.params.aspect_ratio ?? null,
         duration_s: body.params.duration_s ?? null,
-        count: body.params.count ?? 1,
         seed: body.params.seed ?? 42
       },
       inputs: [],

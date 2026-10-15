@@ -3,19 +3,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ClockIcon,
-  FocusIcon,
-  GemIcon,
-  ImageIcon,
-  LoaderCircleIcon,
-  MinusIcon,
-  PlusIcon,
-  VideoIcon,
-  XIcon
-} from 'lucide-react';
+import { ClockIcon, FocusIcon, GemIcon, ImageIcon, LoaderCircleIcon, MinusIcon, PlusIcon, VideoIcon, XIcon } from 'lucide-react';
 import { RollingValue } from '@/components/rolling-value';
 import { WorkflowMenu } from '@/components/workflow-menu';
 import {
@@ -28,10 +16,10 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { api, messageOf } from '@/lib/api';
-import { defaultRole, qualityLabels, roleLabels, shapeLabels } from '@/lib/capabilities';
+import { qualityLabels, shapeLabels } from '@/lib/capabilities';
 import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
-import { capabilityFor, rolesFor, route, type Attached, type Routed } from '@/lib/routing';
+import { capabilityFor, route, type Attached, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
 import type { AspectRatio, Asset, Generation, InputRole, MediaType, Quality, Workflow } from '@/lib/types';
 
@@ -51,10 +39,13 @@ interface DraftInput {
   role: InputRole;
 }
 
+/** A shape, or the shape of the first attachment. */
+type Shape = AspectRatio | 'first';
+
 /** What the user picked. Each render fits it to the settings the routed workflow offers. */
 interface Settings {
   quality: Quality;
-  aspect_ratio: AspectRatio;
+  aspect_ratio: Shape;
   duration_s: number;
   count: number;
 }
@@ -69,23 +60,30 @@ interface Draft {
 
 const modeLabels: Record<MediaType, string> = { image: 'Image', video: 'Video' };
 
-const placeholders: Record<MediaType, string> = {
-  image: 'Describe the image you want to create...',
-  video: 'Describe the video you want to create...'
+// With something attached, the hint shows how to mention it
+const placeholders: Record<MediaType, [alone: string, attached: string]> = {
+  image: ['Describe the picture you want...', 'Tap @photo1 to use it, like “@photo1 wearing the coat from @photo2”'],
+  video: ['Describe the video you want...', 'Tap @photo1 to use it, like “@photo1 dances like @clip1”']
 };
+
+// The API's limit on how many one request queues. Each is its own run with one output.
+const MAX_QUEUED = 4;
+
+// The shape with nothing attached, until another is picked
+const defaultShapes: Record<MediaType, AspectRatio> = { image: '3:4', video: '9:16' };
 
 const initialDrafts: Record<MediaType, Draft> = {
   image: {
     prompt: '',
     inputs: [],
     model: null,
-    settings: { quality: 'medium', aspect_ratio: '3:4', duration_s: 5, count: 1 }
+    settings: { quality: 'medium', aspect_ratio: defaultShapes.image, duration_s: 5, count: 1 }
   },
   video: {
     prompt: '',
     inputs: [],
     model: null,
-    settings: { quality: 'medium', aspect_ratio: '9:16', duration_s: 5, count: 1 }
+    settings: { quality: 'medium', aspect_ratio: defaultShapes.video, duration_s: 5, count: 1 }
   }
 };
 
@@ -114,10 +112,13 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
   const routed: Routed<Workflow> | null = workflows.data ? route(workflows.data, mode, attached, draft.model) : null;
   const workflow = routed?.ok ? routed.value : null;
   const capability = workflow ? capabilityFor(mode, attached) : null;
-  const settings = workflow ? fitSettings(draft.settings, workflow) : draft.settings;
+  const settings = workflow ? fitSettings(draft.settings, workflow, mode, draft.inputs.length > 0) : draft.settings;
+  const first = draft.inputs[0];
+  // Until an upload is stored its size isn't known
+  const firstShape = first && first.asset.width > 0 ? `${first.asset.width}:${first.asset.height}` : '1:1';
   const full = draft.inputs.length >= MAX_INPUTS;
   const uploading = draft.inputs.some(i => i.uploading);
-  // Inputs that route nowhere show as such on the route chip, with Generate disabled. The line under the composer is
+  // Inputs that route nowhere say why on the route line, with Generate disabled. The line under the composer is
   // only for what went wrong: an upload or a request the API refused, or the workflows not loading.
   const status = problem ?? (workflows.error ? workflows.error.message : null);
 
@@ -139,21 +140,18 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     update({ settings: { ...settings, [key]: value } });
   }
 
-  /** Adds inputs with their default roles and returns their keys. */
+  /** Adds inputs and returns their keys. */
   function attach(assets: Asset[], uploading = false): string[] {
     const inputs = [...draft.inputs];
     const added = assets.slice(0, MAX_INPUTS - inputs.length).map(asset => {
-      const role = defaultRole(
-        mode,
-        inputs.map(i => i.role),
-        asset
-      );
-      const input = { key: nextKey(), asset, uploading, role };
+      const input: DraftInput = { key: nextKey(), asset, uploading, role: 'reference' };
       inputs.push(input);
       return input.key;
     });
-    // The model menu only lists models for the new route, so a model picked for the old one no longer applies
-    update({ inputs, model: null });
+    // The model menu only lists models for the new route, so a model picked for the old one no longer applies. The
+    // first attachment makes its shape the default.
+    const settings = draft.inputs.length === 0 ? { ...draft.settings, aspect_ratio: 'first' as const } : draft.settings;
+    update({ inputs, model: null, settings });
     return added;
   }
 
@@ -195,8 +193,20 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     }
   }
 
-  function setRole(index: number, role: InputRole) {
-    update({ inputs: draft.inputs.map((input, i) => (i === index ? { ...input, role } : input)), model: null });
+  /** Puts "@photo2" or "@clip1" into the prompt where the cursor was, so nobody has to type it. */
+  function mention(handle: string) {
+    const textarea = promptRef.current;
+    const { prompt } = draft;
+    const start = textarea?.selectionStart ?? prompt.length;
+    const before = prompt.slice(0, start);
+    const after = prompt.slice(textarea?.selectionEnd ?? start);
+    const words = `${before === '' || /\s$/.test(before) ? '' : ' '}${handle}${/^\s/.test(after) ? '' : ' '}`;
+    update({ prompt: before + words + after });
+    const caret = before.length + words.length;
+    requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(caret, caret);
+    });
   }
 
   async function submit(event: FormEvent) {
@@ -210,14 +220,14 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     setSending(true);
     setProblem(null);
     try {
-      const generation = await api.createGeneration({
+      const generations = await api.createGeneration({
         media_type: mode,
         prompt: draft.prompt,
         inputs: draft.inputs.map(i => ({ asset_id: i.asset.id, role: i.role })),
         params: {
           quality: settings.quality,
-          // An edit takes its shape from the photo
-          aspect_ratio: workflow.aspect_ratios.length > 0 ? settings.aspect_ratio : null,
+          // Left out, the API takes the first attachment's shape
+          aspect_ratio: settings.aspect_ratio === 'first' ? null : settings.aspect_ratio,
           duration_s: mode === 'video' ? settings.duration_s : null,
           count: settings.count,
           seed: null
@@ -225,8 +235,8 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
         model: draft.model,
         project_id: projectId
       });
-      addToCache.generation(generation);
-      onGenerated?.(generation);
+      generations.forEach(addToCache.generation);
+      onGenerated?.(generations[0]);
     } catch (error) {
       setProblem(messageOf(error));
     } finally {
@@ -239,34 +249,6 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
       <ModeToggle mode={mode} onChange={setMode} layout="column" className="hidden lg:flex" />
 
       <div className="min-w-0 flex-1 rounded-[22px] bg-panel p-1 transition-shadow duration-300 has-[textarea:focus-visible]:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.07)] lg:rounded-[30px] lg:p-[5px]">
-        <AnimatePresence initial={false}>
-          {mode === 'video' && (
-            <m.div
-              key="frames"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0, transition: { duration: 0.22, ease: easeOutQuint } }}
-              transition={{ type: 'spring', bounce: 0, visualDuration: 0.4 }}
-              className="overflow-hidden max-lg:hidden"
-            >
-              <div className="no-scrollbar flex gap-1.5 overflow-x-auto p-[5px] pb-2.5">
-                <div className={cn(cardClass, enterClass, 'w-40 shrink-0')}>
-                  <button
-                    type="button"
-                    aria-label="Add references"
-                    disabled={full}
-                    onClick={() => fileRef.current?.click()}
-                    className="group/add flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#19191b] text-[#b5b5b5] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] ring-1 ring-white/10 transition-[color,scale] duration-150 hover:text-white active:scale-90 disabled:opacity-40"
-                  >
-                    <PlusIcon className="size-5 transition-[rotate] duration-500 ease-spring-bouncy group-hover/add:rotate-90 group-disabled/add:rotate-0" />
-                  </button>
-                  <CardText label="References" value={String(draft.inputs.length)} />
-                </div>
-              </div>
-            </m.div>
-          )}
-        </AnimatePresence>
-
         <div className="flex flex-col gap-2.5 rounded-[18px] bg-panel-raised p-2.5 lg:flex-row lg:items-end lg:gap-2 lg:rounded-[24px] lg:py-3.5 lg:pr-3 lg:pl-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2.5 lg:self-stretch">
             <AnimatePresence initial={false}>
@@ -281,29 +263,40 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                 >
                   <ul aria-label="Inputs" className="no-scrollbar flex overflow-x-auto">
                     <AnimatePresence initial={false}>
-                      {draft.inputs.map((input, index) => (
-                        <m.li
-                          key={input.key}
-                          initial={{ width: 0, opacity: 0, scale: 0.6 }}
-                          animate={{ width: 'auto', opacity: 1, scale: 1 }}
-                          exit={{ width: 0, opacity: 0, scale: 0.6 }}
-                          // Clips the chip while the slot opens and closes around it
-                          className="shrink-0 origin-left overflow-hidden pr-2"
-                        >
-                          <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
-                            <Thumbnail asset={input.asset} uploading={input.uploading} />
-                            <RoleMenu roles={rolesFor[mode]} value={input.role} onChange={role => setRole(index, role)} />
-                            <button
-                              type="button"
-                              aria-label={`Remove ${roleLabels[input.role].toLowerCase()}`}
-                              onClick={() => detach(index)}
-                              className="flex size-6 items-center justify-center rounded-md text-[#8a8b8c] transition-[color,background-color,scale] duration-150 hover:bg-white/10 hover:text-white active:scale-85"
-                            >
-                              <XIcon className="size-3.5" />
-                            </button>
-                          </div>
-                        </m.li>
-                      ))}
+                      {draft.inputs.map((input, index) => {
+                        const handle = handleOf(draft.inputs, index);
+                        return (
+                          <m.li
+                            key={input.key}
+                            initial={{ width: 0, opacity: 0, scale: 0.6 }}
+                            animate={{ width: 'auto', opacity: 1, scale: 1 }}
+                            exit={{ width: 0, opacity: 0, scale: 0.6 }}
+                            // Clips the chip while the slot opens and closes around it
+                            className="shrink-0 origin-left overflow-hidden pr-2"
+                          >
+                            <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
+                              <Thumbnail asset={input.asset} uploading={input.uploading} />
+                              {/* Looks like the mention it inserts, so it reads as something to tap */}
+                              <button
+                                type="button"
+                                aria-label={`Mention ${handle} in the prompt`}
+                                onClick={() => mention(handle)}
+                                className="rounded-md bg-lime/12 px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap text-lime transition-[background-color,scale] duration-150 ease-spring outline-none hover:bg-lime/20 focus-visible:ring-2 focus-visible:ring-lime/40 active:scale-90"
+                              >
+                                {handle}
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Remove ${handle}`}
+                                onClick={() => detach(index)}
+                                className="flex size-6 items-center justify-center rounded-md text-[#8a8b8c] transition-[color,background-color,scale] duration-150 hover:bg-white/10 hover:text-white active:scale-85"
+                              >
+                                <XIcon className="size-3.5" />
+                              </button>
+                            </div>
+                          </m.li>
+                        );
+                      })}
                     </AnimatePresence>
                   </ul>
                 </m.div>
@@ -314,7 +307,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
               ref={promptRef}
               value={draft.prompt}
               onChange={event => update({ prompt: event.target.value })}
-              placeholder={placeholders[mode]}
+              placeholder={placeholders[mode][draft.inputs.length > 0 ? 1 : 0]}
               aria-label="Prompt"
               className="max-h-32 min-h-7 flex-1 resize-none rounded-none border-0 bg-transparent px-1 py-0.5 text-base leading-snug placeholder:text-[#7c7d7f] focus-visible:ring-0 md:text-base lg:max-h-48 lg:min-h-14 dark:bg-transparent"
             />
@@ -334,7 +327,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                 capability={capability?.ok ? capability.value : null}
                 models={capability?.ok ? (workflows.data ?? []).filter(w => w.capabilities.includes(capability.value)) : []}
                 value={workflow}
-                emptyLabel={workflows.data ? 'Not available yet' : 'Loading models…'}
+                note={routed?.ok === false ? routed.error : workflows.data ? null : 'Loading…'}
                 onChange={next => update({ model: next.model })}
                 className={cn(chipClass, 'px-3')}
               />
@@ -348,16 +341,14 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                     labels={qualityLabels}
                     onChange={value => setSetting('quality', value as Quality)}
                   />
-                  {workflow.aspect_ratios.length > 0 && (
-                    <OptionChip
-                      label="Shape"
-                      icon={<AspectIcon ratio={settings.aspect_ratio} />}
-                      value={settings.aspect_ratio}
-                      options={workflow.aspect_ratios}
-                      labels={shapeLabels}
-                      onChange={value => setSetting('aspect_ratio', value as AspectRatio)}
-                    />
-                  )}
+                  <OptionChip
+                    label="Shape"
+                    icon={<AspectIcon ratio={settings.aspect_ratio === 'first' ? firstShape : settings.aspect_ratio} />}
+                    value={settings.aspect_ratio}
+                    options={[...(first ? ['first'] : []), ...workflow.aspect_ratios]}
+                    labels={{ ...shapeLabels, first: first ? `Same as ${handleOf(draft.inputs, 0)}` : '' }}
+                    onChange={value => setSetting('aspect_ratio', value as Shape)}
+                  />
                   {workflow.durations_s.length > 0 && (
                     <OptionChip
                       label="Length"
@@ -369,33 +360,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                       className={enterClass}
                     />
                   )}
-                  {workflow.max_count > 1 &&
-                    (mode === 'video' ? (
-                      <CountStepper
-                        count={settings.count}
-                        max={workflow.max_count}
-                        onChange={count => setSetting('count', count)}
-                        className={enterClass}
-                      />
-                    ) : (
-                      <Popover>
-                        <PopoverTrigger
-                          aria-label="More settings"
-                          className={cn(chipClass, enterClass, 'group/more w-9 justify-center px-0')}
-                        >
-                          <ChevronRightIcon className="transition-[rotate] duration-300 ease-spring group-data-[popup-open]/more:-rotate-90" />
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="top"
-                          align="start"
-                          sideOffset={8}
-                          className={cn(menuClass, 'w-auto flex-row items-center gap-3 p-2 pl-3.5')}
-                        >
-                          <span className="text-sm text-[#8a8b8c]">Outputs</span>
-                          <CountStepper count={settings.count} max={workflow.max_count} onChange={count => setSetting('count', count)} />
-                        </PopoverContent>
-                      </Popover>
-                    ))}
+                  <CountStepper count={settings.count} max={MAX_QUEUED} onChange={count => setSetting('count', count)} />
                 </>
               )}
             </div>
@@ -499,24 +464,31 @@ function GenerateButton({ disabled, busy }: { disabled: boolean; busy: boolean }
 // Controls dip slightly while pressed and spring back on release
 const chipClass =
   "flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-2.5 text-sm font-semibold whitespace-nowrap text-white transition-[color,background-color,scale] duration-200 ease-spring outline-none hover:bg-[#3b3c3e] focus-visible:ring-2 focus-visible:ring-white/30 active:scale-[0.95] active:duration-100 disabled:opacity-40 data-[popup-open]:bg-[#3b3c3e] [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0";
-const cardClass =
-  'flex h-15 items-center gap-2.5 rounded-[18px] bg-panel-raised px-2.5 transition-[background-color,scale] duration-200 ease-spring outline-none focus-visible:ring-2 focus-visible:ring-white/30';
 // Controls that come and go with the output type rise into place, one after another
 const enterClass = 'motion-safe:animate-rise [--rise-blur:3px] [--rise-distance:8px] [animation-duration:450ms]';
-const easeOutQuint = [0.23, 1, 0.32, 1] as const;
 const menuClass =
   'rounded-2xl border border-white/[0.07] bg-[#25282c]/90 p-1.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-0 backdrop-blur-xl';
 
 /** The picked settings, moved to the nearest ones the workflow offers. */
-export function fitSettings(settings: Settings, workflow: Workflow): Settings {
+export function fitSettings(settings: Settings, workflow: Workflow, mode: MediaType, attached: boolean): Settings {
   // Nothing offered keeps the value, so it's still there for the next workflow that does offer it
   const pick = <T,>(value: T, allowed: T[]) => (allowed.length === 0 || allowed.includes(value) ? value : allowed[0]);
+  // With nothing attached there's no first attachment to take the shape of
+  const shape = settings.aspect_ratio === 'first' && !attached ? defaultShapes[mode] : settings.aspect_ratio;
   return {
     quality: settings.quality,
-    aspect_ratio: pick(settings.aspect_ratio, workflow.aspect_ratios),
+    aspect_ratio: shape === 'first' ? shape : pick(shape, workflow.aspect_ratios),
     duration_s: pick(settings.duration_s, workflow.durations_s),
-    count: Math.min(settings.count, workflow.max_count)
+    count: settings.count
   };
+}
+
+/** "@photo2" or "@clip1": what the prompt calls an attachment. Photos and clips are numbered separately, in the order
+ * they were attached, as the API reads them. */
+function handleOf(inputs: DraftInput[], index: number): string {
+  const kind = inputs[index].asset.media_type;
+  const number = inputs.slice(0, index + 1).filter(i => i.asset.media_type === kind).length;
+  return `@${kind === 'image' ? 'photo' : 'clip'}${number}`;
 }
 
 /** A short head shake: the prompt is needed before anything can be generated. */
@@ -539,31 +511,6 @@ function previewAsset(file: File): Asset {
     duration_s: null,
     created_at: new Date().toISOString()
   };
-}
-
-function CardText({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="flex min-w-0 flex-col">
-      <span className="truncate font-mono text-[0.6875rem] text-[#6d6e70]">{label}</span>
-      <RollingValue value={value} className="text-base leading-tight font-bold" />
-    </span>
-  );
-}
-
-/** The role an input plays, as a chip that opens the roles it could play instead. */
-function RoleMenu({ roles, value, onChange }: { roles: InputRole[]; value: InputRole; onChange: (role: InputRole) => void }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`Role: ${roleLabels[value]}`}
-        className="group/role flex items-center gap-0.5 rounded-md py-0.5 pr-0.5 pl-1.5 text-[0.8125rem] font-semibold whitespace-nowrap transition-colors duration-150 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/30 data-[popup-open]:bg-white/10"
-      >
-        <RollingValue value={roleLabels[value]} />
-        <ChevronDownIcon className="size-3.5 text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]/role:rotate-180" />
-      </DropdownMenuTrigger>
-      <OptionList label="Role" value={value} options={roles} labels={roleLabels} onChange={role => onChange(role as InputRole)} />
-    </DropdownMenu>
-  );
 }
 
 function OptionChip({
@@ -630,7 +577,7 @@ function OptionList({
 }
 
 /** A frame drawn at the exact ratio; it reshapes itself when the ratio changes. */
-function AspectIcon({ ratio }: { ratio: AspectRatio }) {
+function AspectIcon({ ratio }: { ratio: string }) {
   const [width, height] = ratio.split(':').map(Number);
   const fit = 0.8125 / Math.max(width, height);
   return (
@@ -657,15 +604,15 @@ function CountStepper({
   const step =
     'flex size-8 items-center justify-center rounded-lg text-[#8a8b8c] transition-[color,scale] duration-200 ease-spring hover:text-white active:scale-85 disabled:opacity-40 disabled:hover:text-[#8a8b8c]';
   return (
-    <div role="group" aria-label="Outputs" className={cn(chipClass, 'gap-0 px-1 hover:bg-chip active:scale-100', className)}>
-      <button type="button" aria-label="Fewer outputs" disabled={count <= 1} onClick={() => onChange(count - 1)} className={step}>
+    <div role="group" aria-label="How many" className={cn(chipClass, 'gap-0 px-1 hover:bg-chip active:scale-100', className)}>
+      <button type="button" aria-label="Fewer" disabled={count <= 1} onClick={() => onChange(count - 1)} className={step}>
         <MinusIcon />
       </button>
       <span className="flex min-w-12 justify-center tabular-nums">
         <RollingValue value={count} />
         <span className="text-[#8a8b8c]">/{max}</span>
       </span>
-      <button type="button" aria-label="More outputs" disabled={count >= max} onClick={() => onChange(count + 1)} className={step}>
+      <button type="button" aria-label="More" disabled={count >= max} onClick={() => onChange(count + 1)} className={step}>
         <PlusIcon />
       </button>
     </div>

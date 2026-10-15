@@ -39,7 +39,6 @@ def generation(**changes: object) -> Generation:
         "quality": Quality.MEDIUM,
         "aspect_ratio": "16:9",
         "duration_s": 5.0,
-        "count": 1,
         "seed": 42,
     }
     return Generation(**(fields | changes))
@@ -51,7 +50,7 @@ def test_a_generation_keeps_its_inputs_in_order_and_its_outputs(engine: Engine) 
         g = generation(capability=Capability.IMAGE_EDIT, aspect_ratio=None, duration_s=None)
         g.inputs = [
             GenerationInput(position=1, role=InputRole.REFERENCE, asset=second),
-            GenerationInput(position=0, role=InputRole.EDIT_TARGET, asset=first),
+            GenerationInput(position=0, role=InputRole.REFERENCE, asset=first),
         ]
         session.add(g)
         session.flush()
@@ -75,7 +74,6 @@ def test_a_generation_keeps_its_inputs_in_order_and_its_outputs(engine: Engine) 
     with Session(engine) as session:
         loaded = session.get_one(Generation, generation_id)
         assert loaded.status is GenerationStatus.QUEUED
-        assert [i.role for i in loaded.inputs] == [InputRole.EDIT_TARGET, InputRole.REFERENCE]
         assert [i.asset.storage_key for i in loaded.inputs] == ["uploads/1.png", "uploads/2.png"]
         assert [o.media_type for o in loaded.outputs] == [MediaType.VIDEO]
 

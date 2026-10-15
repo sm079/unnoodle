@@ -4,30 +4,20 @@ import type { Capability, MediaType, Workflow } from './types';
 
 // The same cases as the API's tests/test_routing.py, which decides for real
 
-const target: Attached = ['edit_target', 'image'];
 const refPhoto: Attached = ['reference', 'image'];
 const refClip: Attached = ['reference', 'video'];
 
 describe('capabilityFor', () => {
   test.each<[MediaType, Attached[], Capability]>([
     ['image', [], 'image.generate'],
-    ['image', [target], 'image.edit'],
-    ['image', [target, refPhoto, refPhoto], 'image.edit'],
-    ['image', [refPhoto, target], 'image.edit'],
+    ['image', [refPhoto], 'image.edit'],
+    ['image', [refPhoto, refPhoto, refPhoto], 'image.edit'],
+    ['image', [refClip], 'image.edit'],
     ['video', [], 'video.generate'],
     ['video', [refPhoto], 'video.reference'],
     ['video', [refClip, refPhoto], 'video.reference']
   ])('%s from %j is %s', (mediaType, inputs, capability) => {
     expect(capabilityFor(mediaType, inputs)).toEqual({ ok: true, value: capability });
-  });
-
-  test.each<[MediaType, Attached[], string]>([
-    ['image', [refPhoto], 'Pick the photo to edit'],
-    ['image', [target, target], 'Only one photo can be the one to edit'],
-    ['image', [['edit_target', 'video']], 'Only a photo can be edited'],
-    ['video', [target], "A video can't edit a photo, but it can use one as a reference"]
-  ])('%s from %j is refused', (mediaType, inputs, message) => {
-    expect(capabilityFor(mediaType, inputs)).toEqual({ ok: false, error: message });
   });
 });
 
@@ -40,7 +30,6 @@ function workflow(id: string, capabilities: Capability[], fields: Partial<Workfl
     description: '',
     default_for: capabilities,
     aspect_ratios: ['1:1'],
-    max_count: 1,
     durations_s: [],
     sound: false,
     accepts: [],
@@ -51,13 +40,7 @@ function workflow(id: string, capabilities: Capability[], fields: Partial<Workfl
 const catalogue = [
   workflow('t2i', ['image.generate']),
   workflow('other', ['image.generate'], { model: 'other', default_for: [] }),
-  workflow('edit', ['image.edit'], {
-    aspect_ratios: [],
-    accepts: [
-      { role: 'edit_target', media_type: 'image', most: 1 },
-      { role: 'reference', media_type: 'image', most: 2 }
-    ]
-  }),
+  workflow('edit', ['image.edit'], { accepts: [{ role: 'reference', media_type: 'image', most: 3 }] }),
   workflow('video', ['video.generate', 'video.reference'], {
     durations_s: [5, 10],
     accepts: [
@@ -80,7 +63,7 @@ describe('chooseWorkflow', () => {
   test('a model that cannot do the capability is refused', () => {
     expect(chooseWorkflow(catalogue, 'image.edit', 'other')).toEqual({
       ok: false,
-      error: "Editing a photo isn't available with that model"
+      error: "Editing an image isn't available with that model"
     });
   });
 
@@ -93,14 +76,14 @@ describe('chooseWorkflow', () => {
 });
 
 test('route checks the inputs fit the workflow', () => {
-  expect(route(catalogue, 'image', [target, refPhoto, refPhoto], null)).toMatchObject({ value: { id: 'edit' } });
-  expect(route(catalogue, 'image', [target, refPhoto, refPhoto, refPhoto], null)).toEqual({
+  expect(route(catalogue, 'image', [refPhoto, refPhoto, refPhoto], null)).toMatchObject({ value: { id: 'edit' } });
+  expect(route(catalogue, 'image', [refPhoto, refPhoto, refPhoto, refPhoto], null)).toEqual({
     ok: false,
-    error: 'Editing a photo takes at most 2 reference photos'
+    error: 'Editing an image takes at most 3 photos'
   });
-  expect(route(catalogue, 'image', [target, refClip], null)).toEqual({ ok: false, error: "Editing a photo can't use reference clips" });
-  expect(route(catalogue, 'video', [refClip, refClip], null)).toEqual({
+  expect(route(catalogue, 'image', [refPhoto, refClip], null)).toEqual({
     ok: false,
-    error: 'Making a video takes at most 1 reference clip'
+    error: "Editing an image can't use clips"
   });
+  expect(route(catalogue, 'video', [refClip, refClip], null)).toEqual({ ok: false, error: 'Making a video takes at most 1 clip' });
 });

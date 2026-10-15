@@ -4,7 +4,7 @@ import logging
 import time
 import uuid
 from pathlib import PurePath
-from typing import Literal, cast
+from typing import Literal
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -14,7 +14,7 @@ from app.models import Asset, AssetSource, Generation, GenerationStatus, InputRo
 from app.video import VideoError
 from app.worker import queue
 from app.worker.comfy import Comfy, ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
-from app.workflows import AspectRatio, Job, JobInput, Workflow
+from app.workflows import Job, JobInput, Workflow, ratio_of
 
 logger = logging.getLogger(__name__)
 
@@ -71,14 +71,18 @@ def upload(store: MediaStore, comfy: Comfy, role: InputRole, asset: Asset) -> Jo
 
 
 def job_for(generation: Generation, workflow: Workflow, inputs: tuple[JobInput, ...]) -> Job:
-    aspect_ratio = cast(AspectRatio | None, generation.aspect_ratio)
+    if generation.aspect_ratio is not None:
+        ratio = ratio_of(generation.aspect_ratio)
+    else:
+        # The shape of the first attachment; a request without any had to name a shape
+        first = generation.inputs[0].asset
+        ratio = (first.width, first.height)
     duration_s = generation.duration_s
     return Job(
         prompt=generation.prompt,
         seed=generation.seed,
         megapixels=workflow.megapixels[generation.quality],
-        size=None if aspect_ratio is None else workflow.size(generation.quality, aspect_ratio),
-        count=generation.count,
+        size=workflow.size(generation.quality, ratio),
         frames=None if duration_s is None else workflow.frames[round(duration_s)],
         inputs=inputs,
         filename_prefix=f"unnoodle/{generation.id}",

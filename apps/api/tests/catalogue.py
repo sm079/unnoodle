@@ -18,7 +18,7 @@ def build(job: Job) -> Graph:
         else:
             g.add("LoadVideo", file=i.file)
     width, height = job.size or (0, 0)
-    canvas = g.add("EmptyImage", width=width, height=height, batch_size=job.count, color=0)
+    canvas = g.add("EmptyImage", width=width, height=height, batch_size=1, color=0)
     g.add("Job", prompt=job.prompt_with(photo="image {n}", clip="<Video {n}>"), seed=job.seed, frames=job.frames)
     g.output(g.add("SaveImage", images=canvas[0], filename_prefix=job.filename_prefix))
     return g
@@ -35,12 +35,11 @@ def workflow(id: str, *capabilities: Capability, **fields: Any) -> Workflow:
     return Workflow(id=id, capabilities=frozenset(capabilities), **(defaults | fields))
 
 
-IMAGE = workflow("t2i", Capability.IMAGE_GENERATE, max_count=4, aspect_ratios=("1:1", "3:4"))
+IMAGE = workflow("t2i", Capability.IMAGE_GENERATE, aspect_ratios=("1:1", "3:4"))
 EDIT = workflow(
     "edit",
     Capability.IMAGE_EDIT,
-    aspect_ratios=None,
-    accepts=(Accepts(InputRole.EDIT_TARGET, MediaType.IMAGE, 1), Accepts(InputRole.REFERENCE, MediaType.IMAGE, 2)),
+    accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
 )
 VIDEO = workflow(
     "video",

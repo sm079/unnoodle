@@ -1,6 +1,5 @@
-// Mock data in the API's shapes (see types.ts): what the end-to-end tests serve in place of the API, and what the hero
-// shows until there are real outputs worth showing. There are no mock video files, so video assets point at their
-// poster image.
+// Mock data in the API's shapes (see types.ts), which the end-to-end tests serve in place of the API. There are no mock
+// video files, so video assets point at their poster image.
 
 import type { AspectRatio, Asset, Generation, Project, Workflow } from './types';
 
@@ -37,7 +36,6 @@ export const workflows: Workflow[] = [
     description: 'Pictures from a description',
     default_for: ['image.generate'],
     aspect_ratios: allShapes,
-    max_count: 4,
     durations_s: [],
     sound: false,
     accepts: []
@@ -47,16 +45,12 @@ export const workflows: Workflow[] = [
     capabilities: ['image.edit'],
     model: 'flux-2-klein',
     model_name: 'FLUX.2 Klein',
-    description: 'Changes a photo, optionally using up to two more',
+    description: 'Changes or combines up to three photos',
     default_for: ['image.edit'],
-    aspect_ratios: [],
-    max_count: 1,
+    aspect_ratios: allShapes,
     durations_s: [],
     sound: false,
-    accepts: [
-      { role: 'edit_target', media_type: 'image', most: 1 },
-      { role: 'reference', media_type: 'image', most: 2 }
-    ]
+    accepts: [{ role: 'reference', media_type: 'image', most: 3 }]
   },
   {
     id: 'minimax-h3',
@@ -66,7 +60,6 @@ export const workflows: Workflow[] = [
     description: 'Video with sound, from a description and any photos or clips to follow',
     default_for: ['video.generate', 'video.reference'],
     aspect_ratios: allShapes,
-    max_count: 1,
     durations_s: [5, 10, 15],
     sound: true,
     accepts: [
@@ -91,9 +84,9 @@ const greenhouse = [
   image('ast_greenhouse_2', 'garden-square', 'generation', '2026-10-11T15:00:20Z')
 ];
 
-const imageParams = { quality: 'medium', aspect_ratio: '3:4', duration_s: null, count: 1, seed: 12 } as const;
+const imageParams = { quality: 'medium', aspect_ratio: '3:4', duration_s: null, seed: 12 } as const;
 const editParams = { ...imageParams, aspect_ratio: null } as const;
-const videoParams = { quality: 'medium', aspect_ratio: '16:9', duration_s: 5, count: 1, seed: 901 } as const;
+const videoParams = { quality: 'medium', aspect_ratio: '16:9', duration_s: 5, seed: 901 } as const;
 
 const ended = { progress: null, started_at: null };
 
@@ -121,7 +114,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: 'prj_film',
-    prompt: 'the woman in photo 1 turns towards the camera as the light fades',
+    prompt: '@photo1 turns towards the camera as the light fades',
     params: { ...videoParams, aspect_ratio: '3:4' },
     inputs: [{ role: 'reference', asset: portrait }],
     outputs: [],
@@ -137,7 +130,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: null,
-    prompt: 'the room in photo 1 fills with the plants from photo 2 over a year',
+    prompt: 'the room in @photo1 fills with the plants from @photo2 over a year',
     params: { ...videoParams, quality: 'high', duration_s: 15 },
     inputs: [
       { role: 'reference', asset: room },
@@ -155,7 +148,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: null,
-    prompt: 'the character in photo 1 dances like the dancer in clip 1',
+    prompt: 'the character in @photo1 dances like the dancer in @clip1',
     params: { ...videoParams, aspect_ratio: '9:16', seed: 5521 },
     inputs: [
       { role: 'reference', asset: danceClip },
@@ -173,7 +166,7 @@ export const generations: Generation[] = [
     capability: 'video.reference',
     workflow_id: 'minimax-h3',
     project_id: 'prj_film',
-    prompt: 'slow morph from the woman in photo 1 to the character in photo 2',
+    prompt: 'slow morph from the woman in @photo1 to the character in @photo2',
     params: { ...videoParams, aspect_ratio: '3:4', duration_s: 10, seed: 77 },
     inputs: [
       { role: 'reference', asset: portrait },
@@ -193,7 +186,7 @@ export const generations: Generation[] = [
     project_id: 'prj_mood',
     prompt: 'replace the sofa with a green velvet armchair',
     params: { ...editParams, seed: 3130 },
-    inputs: [{ role: 'edit_target', asset: room }],
+    inputs: [{ role: 'reference', asset: room }],
     outputs: [roomEdit],
     ...ended,
     error: null,
@@ -222,7 +215,7 @@ export const generations: Generation[] = [
     workflow_id: 'krea2-turbo',
     project_id: 'prj_mood',
     prompt: 'overgrown greenhouse, morning light, film photo',
-    params: { ...imageParams, aspect_ratio: '1:1', count: 2, seed: 4410 },
+    params: { ...imageParams, aspect_ratio: '1:1', seed: 4410 },
     inputs: [],
     outputs: greenhouse,
     ...ended,

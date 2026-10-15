@@ -49,7 +49,7 @@ def clip(engine: Engine) -> str:
 
 
 def image_request(**changes: Any) -> dict[str, Any]:
-    params = {"aspect_ratio": "3:4", "quality": "high", "count": 2} | changes.pop("params", {})
+    params = {"aspect_ratio": "3:4", "quality": "high"} | changes.pop("params", {})
     return {"media_type": "image", "prompt": "a greenhouse at dawn", "params": params} | changes
 
 
@@ -62,49 +62,61 @@ def video_request(inputs: list[dict[str, Any]], **params: Any) -> dict[str, Any]
     return {"media_type": "video", "prompt": "she turns around", "inputs": inputs, "params": defaults | params}
 
 
+def queue(client: TestClient, body: dict[str, Any]) -> dict[str, Any]:
+    """Sends a request for one generation and returns it."""
+    response = client.post("/generations", json=body)
+    assert response.status_code == 201, response.json()
+    [generation] = response.json()
+    return generation  # type: ignore[no-any-return]
+
+
 def test_a_prompt_alone_queues_text_to_image(client: TestClient) -> None:
-    response = client.post("/generations", json=image_request())
-    assert response.status_code == 201
-    g = response.json()
+    g = queue(client, image_request())
     assert (g["status"], g["capability"], g["workflow_id"]) == ("queued", "image.generate", "t2i")
-    assert {k: g["params"][k] for k in ("quality", "aspect_ratio", "count")} == {
-        "quality": "high",
-        "aspect_ratio": "3:4",
-        "count": 2,
-    }
+    assert (g["params"]["quality"], g["params"]["aspect_ratio"]) == ("high", "3:4")
     assert 0 <= g["params"]["seed"] < 2**32
     assert (g["inputs"], g["outputs"], g["progress"], g["error"]) == ([], [], None, None)
     assert client.get(f"/generations/{g['id']}").json() == g
 
 
 def test_a_seed_sent_in_is_kept(client: TestClient) -> None:
-    g = client.post("/generations", json=image_request(params={"seed": 2**40})).json()
+    g = queue(client, image_request(params={"seed": 2**40}))
     assert g["params"]["seed"] == 2**40
 
 
-def test_a_photo_to_edit_queues_an_edit_with_no_shape(client: TestClient) -> None:
-    photo, reference = upload(client), upload(client)
-    inputs = [{"asset_id": photo, "role": "edit_target"}, {"asset_id": reference, "role": "reference"}]
-    response = client.post("/generations", json=edit_request(inputs))
-    assert response.status_code == 201
-    g = response.json()
+def test_several_queue_as_separate_generations_with_the_next_seeds(client: TestClient) -> None:
+    response = client.post("/generations", json=image_request(params={"count": 3, "seed": 10}))
+    queued = response.json()
+    assert [g["params"]["seed"] for g in queued] == [10, 11, 12]
+    assert [g["id"] for g in client.get("/generations").json()] == [g["id"] for g in reversed(queued)]
+
+
+def test_photos_queue_an_edit_in_the_first_ones_shape(client: TestClient) -> None:
+    photo, other = upload(client), upload(client)
+    inputs = [{"asset_id": photo, "role": "reference"}, {"asset_id": other, "role": "reference"}]
+    g = queue(client, edit_request(inputs))
     assert (g["capability"], g["workflow_id"], g["params"]["aspect_ratio"]) == ("image.edit", "edit", None)
-    assert [(i["role"], i["asset"]["id"]) for i in g["inputs"]] == [("edit_target", photo), ("reference", reference)]
+    assert [i["asset"]["id"] for i in g["inputs"]] == [photo, other]
+
+
+def test_an_edit_can_take_another_shape(client: TestClient) -> None:
+    g = queue(client, edit_request(photos(client), aspect_ratio="1:1"))
+    assert g["params"]["aspect_ratio"] == "1:1"
 
 
 def test_references_queue_video_from_references(client: TestClient, engine: Engine) -> None:
     inputs = [{"asset_id": upload(client), "role": "reference"}, {"asset_id": clip(engine), "role": "reference"}]
-    g = client.post("/generations", json=video_request(inputs, duration_s=10)).json()
+    g = queue(client, video_request(inputs, duration_s=10))
     assert (g["capability"], g["workflow_id"], g["params"]["duration_s"]) == ("video.reference", "video", 10)
 
 
 def test_a_prompt_alone_queues_text_to_video(client: TestClient) -> None:
-    g = client.post("/generations", json=video_request([])).json()
+    g = queue(client, video_request([]))
     assert (g["capability"], g["workflow_id"]) == ("video.generate", "video")
 
 
 def test_generations_are_listed_newest_first_a_page_at_a_time(client: TestClient) -> None:
-    ids = [client.post("/generations", json=image_request(prompt=str(n))).json()["id"] for n in range(5)]
+    ids = [queue(client, image_request(prompt=str(n)))["id"] for n in range(5)]
     first = client.get("/generations", params={"limit": 2}).json()
     second = client.get("/generations", params={"limit": 2, "before": first[-1]["id"]}).json()
     assert [g["id"] for g in first + second] == ids[::-1][:4]
@@ -115,31 +127,22 @@ def test_an_unknown_generation_is_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def photo_to_edit(client: TestClient) -> list[dict[str, Any]]:
-    return [{"asset_id": upload(client), "role": "edit_target"}]
+def photos(client: TestClient, count: int = 1) -> list[dict[str, Any]]:
+    return [{"asset_id": upload(client), "role": "reference"} for _ in range(count)]
 
 
 REFUSED: list[tuple[str, Any, str]] = [
     ("no shape", lambda c: image_request(params={"aspect_ratio": None}), "Pick a shape"),
     ("shape not offered", lambda c: image_request(params={"aspect_ratio": "16:9"}), "That shape isn't offered here"),
-    (
-        "shape for an edit",
-        lambda c: edit_request(photo_to_edit(c), aspect_ratio="1:1"),
-        "An edit keeps the shape of the photo being edited",
-    ),
-    ("too many outputs", lambda c: image_request(params={"count": 5}), "This makes at most 4 at a time"),
+    ("too many at once", lambda c: image_request(params={"count": 5}), "You can make up to 4 at a time"),
     ("image with a length", lambda c: image_request(params={"duration_s": 5}), "Only videos have a length"),
     ("length not offered", lambda c: video_request([], duration_s=8), "Videos can be 5 or 10 seconds long"),
-    (
-        "no photo to edit",
-        lambda c: edit_request([{"asset_id": upload(c), "role": "reference"}]),
-        "Pick the photo to edit",
-    ),
-    ("unknown model", lambda c: image_request(model="flux"), "Making a picture isn't available with that model"),
+    ("too many photos", lambda c: edit_request(photos(c, 4)), "Editing an image takes at most 3 photos"),
+    ("unknown model", lambda c: image_request(model="flux"), "Creating an image isn't available with that model"),
     (
         "too many references",
         lambda c: video_request([{"asset_id": upload(c), "role": "reference"} for _ in range(3)]),
-        "Making a video takes at most 2 reference photos",
+        "Making a video takes at most 2 photos",
     ),
     (
         "missing file",

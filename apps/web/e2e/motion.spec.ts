@@ -51,14 +51,11 @@ test('composer chips animate in and out, and Generate with no prompt goes back t
     .click();
   await expect(inputs.getByRole('listitem')).toHaveCount(1);
 
-  await composer.getByRole('button', { name: 'Remove reference' }).click();
+  await composer.getByRole('button', { name: 'Remove @photo1' }).click();
   await expect(inputs).toHaveCount(0);
 
-  await composer.getByRole('button', { name: 'Image', exact: true }).click();
-  await composer.getByRole('button', { name: 'More settings' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'More outputs' }).click();
-  await expect(page.getByRole('dialog').getByRole('group', { name: 'Outputs' })).toContainText('2');
-  await page.keyboard.press('Escape');
+  await composer.getByRole('button', { name: 'More', exact: true }).click();
+  await expect(composer.getByRole('group', { name: 'How many' })).toContainText('2');
   await expect(composer.getByRole('button', { name: 'Generate' })).toBeVisible();
 
   const prompt = composer.getByRole('textbox', { name: 'Prompt' });

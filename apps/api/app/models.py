@@ -37,11 +37,12 @@ class Capability(StrEnum):
 
 
 class InputRole(StrEnum):
-    """What an attached asset is for. The output type plus the roles of the inputs decide the capability."""
+    """What an attached asset is for. The output type plus the roles of the inputs decide the capability.
 
-    # The photo an edit changes
-    EDIT_TARGET = "edit_target"
-    # A photo or clip to take a person, an outfit, a style or a motion from
+    There is one role while every workflow treats its inputs alike; start and end frames would be others."""
+
+    # A photo or clip to work from: one to change, several to combine, or a person, an outfit, a style or a motion
+    # to take from it
     REFERENCE = "reference"
 
 
@@ -130,10 +131,9 @@ class Generation(Base):
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"))
 
     quality: Mapped[Quality] = mapped_column(string_enum(Quality, "quality"))
-    # Width to height, e.g. "3:4". None when the output takes its shape from an input, as an edit does.
+    # Width to height, e.g. "3:4". None: the shape of the first attachment.
     aspect_ratio: Mapped[str | None] = mapped_column(String(8))
     duration_s: Mapped[float | None]
-    count: Mapped[int]
     # Chosen when the request is accepted, so running the job again gives the same result
     seed: Mapped[int] = mapped_column(BigInteger)
 
@@ -156,7 +156,6 @@ class Generation(Base):
     outputs: Mapped[list[Asset]] = relationship(order_by=Asset.id, lazy="selectin")
 
     __table_args__ = (
-        CheckConstraint("count >= 1", name="count_positive"),
         CheckConstraint("progress BETWEEN 0 AND 1", name="progress_fraction"),
         CheckConstraint("(status = 'failed') = (error IS NOT NULL)", name="error_when_failed"),
         CheckConstraint("(status IN ('done', 'failed')) = (finished_at IS NOT NULL)", name="finished_when_ended"),
@@ -173,7 +172,7 @@ class GenerationInput(Base):
     __tablename__ = "generation_inputs"
 
     generation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("generations.id", ondelete="CASCADE"), primary_key=True)
-    # Order within the request, which is how the prompt numbers them: photo 1, photo 2, clip 1
+    # Order within the request, which is how the prompt names them: @photo1, @photo2, @clip1
     position: Mapped[int] = mapped_column(primary_key=True)
     role: Mapped[InputRole] = mapped_column(string_enum(InputRole, "role"))
     # An asset that is in use can't be deleted
