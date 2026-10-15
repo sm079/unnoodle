@@ -43,6 +43,9 @@ playwright-report/
 *.log
 tmp/
 
+# Uploads and generation outputs stored by the API
+/apps/api/media/
+
 # What ComfyUI writes when dev/comfyui is its base directory (inputs, outputs, settings)
 /dev/comfyui/*
 !/dev/comfyui/custom_nodes/
