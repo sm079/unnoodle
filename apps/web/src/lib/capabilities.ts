@@ -1,4 +1,4 @@
-import type { Capability, InputRole, MediaType } from './types';
+import type { Asset, Capability, InputRole, MediaType } from './types';
 
 export const capabilityLabels: Record<Capability, string> = {
   'image.generate': 'Text to image',
@@ -27,21 +27,15 @@ export function outputType(capability: Capability): MediaType {
   return capability.startsWith('video.') ? 'video' : 'image';
 }
 
-// The roles attached inputs take, in the order they are added; the last one repeats
-const inputRoles: Record<Capability, InputRole[]> = {
-  'image.generate': ['reference'],
-  'image.edit': ['edit_target', 'reference'],
-  'image.restyle': ['restyle', 'reference'],
-  'image.multi_ref': ['reference'],
-  'video.generate': ['reference'],
-  'video.from_frame': ['start_frame', 'reference'],
-  'video.first_last': ['start_frame', 'end_frame'],
-  'video.keyframes': ['keyframe'],
-  'video.reference': ['reference'],
-  'video.character_swap': ['source_video', 'reference']
-};
-
-export function roleFor(capability: Capability, index: number): InputRole {
-  const roles = inputRoles[capability];
-  return roles[Math.min(index, roles.length - 1)];
+/**
+ * The role a newly attached input starts with, given the roles already taken. It covers the common case, a start
+ * then an end frame for video, or an image to edit then references, and the role chip changes it.
+ */
+export function defaultRole(mode: MediaType, taken: InputRole[], asset: Asset): InputRole {
+  if (mode === 'image') return taken.includes('edit_target') ? 'reference' : 'edit_target';
+  if (asset.media_type === 'video') return 'source_video';
+  if (taken.includes('source_video')) return 'reference';
+  if (!taken.includes('start_frame')) return 'start_frame';
+  if (!taken.includes('end_frame')) return 'end_frame';
+  return 'reference';
 }

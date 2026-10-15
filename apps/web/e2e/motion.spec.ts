@@ -52,7 +52,7 @@ test('composer chips animate in and out, and Generate with no prompt goes back t
 
   await composer.getByRole('button', { name: 'More outputs' }).click();
   await expect(composer.getByRole('group', { name: 'Outputs' })).toContainText('2');
-  await expect(composer.getByRole('button', { name: 'Generate, 40 credits' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Generate' })).toBeVisible();
 
   const prompt = composer.getByRole('textbox', { name: 'Prompt' });
   await prompt.fill('');

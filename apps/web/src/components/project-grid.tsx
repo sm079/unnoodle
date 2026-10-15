@@ -1,13 +1,13 @@
 import Image from 'next/image';
 import { ChevronRightIcon, FolderPlusIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Generation, Project } from '@/lib/types';
+import type { Project } from '@/lib/types';
 
 // Cards rise in as they scroll into view, lift under the pointer and give a little when pressed
 const cardClass = 'reveal group w-full rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-white/30';
 const pressClass = 'transition-[translate,scale,background-color] duration-300 ease-spring active:scale-[0.98] active:duration-100';
 
-export function ProjectGrid({ projects, generations }: { projects: Project[]; generations: Generation[] }) {
+export function ProjectGrid({ projects }: { projects: Project[] }) {
   return (
     <section aria-labelledby="my-projects" className="flex flex-col gap-5">
       <h2 id="my-projects" className="reveal flex items-center gap-1.5 text-xl font-bold">
@@ -31,7 +31,7 @@ export function ProjectGrid({ projects, generations }: { projects: Project[]; ge
           </button>
         </li>
         {projects.map(project => {
-          const covers = generations.filter(g => g.project_id === project.id).flatMap(g => g.outputs);
+          const { covers } = project;
           return (
             <li key={project.id}>
               <button type="button" className={cn(cardClass, 'flex flex-col gap-2.5')}>

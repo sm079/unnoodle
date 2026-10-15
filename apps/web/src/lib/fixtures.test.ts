@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { outputType } from './capabilities';
-import { composerDrafts, generations, projects, tags, workflows } from './fixtures';
-import type { GenerationStatus, MediaType } from './types';
+import { generations, workflows } from './fixtures';
+import { route } from './routing';
+import type { Capability, GenerationStatus, MediaType } from './types';
 
-// The UI is tuned against these fixtures, so they have to keep the rules the API will enforce.
+// The UI is tuned against these fixtures and the end-to-end tests serve them, so they keep the rules the API enforces
 
 const workflowById = new Map(workflows.map(w => [w.id, w]));
 
@@ -23,8 +24,11 @@ describe('generations', () => {
     expect(g.finished_at !== null).toBe(g.status === 'done' || g.status === 'failed');
   });
 
-  test.each(generations)('$id runs a workflow for its capability and outputs its media type', g => {
-    expect(workflowById.get(g.workflow_id)?.capability).toBe(g.capability);
+  test.each(generations)('$id routes to its workflow and outputs its media type', g => {
+    const workflow = workflowById.get(g.workflow_id)!;
+    expect(workflow.capability).toBe(g.capability);
+    const roles = g.inputs.map(i => i.role);
+    expect(route(workflows, outputType(g.capability), roles, workflow.model)).toEqual({ ok: true, value: workflow });
     for (const output of g.outputs) {
       expect(output.media_type).toBe(outputType(g.capability));
       expect(output.source).toBe('generation');
@@ -37,13 +41,13 @@ describe('generations', () => {
     }
   });
 
-  test('reference projects and tags that exist', () => {
-    const projectIds = new Set(projects.map(p => p.id));
-    const tagIds = new Set(tags.map(t => t.id));
-    for (const g of generations) {
-      if (g.project_id !== null) expect(projectIds).toContain(g.project_id);
-      for (const id of g.tag_ids) expect(tagIds).toContain(id);
-    }
+  test.each(generations)('$id only uses settings its workflow offers', g => {
+    const workflow = workflowById.get(g.workflow_id)!;
+    expect(workflow.resolutions[g.params.resolution]).toContain(g.params.aspect_ratio);
+    if (g.params.duration_s === null) expect(workflow.durations_s).toEqual([]);
+    else expect(workflow.durations_s).toContain(g.params.duration_s);
+    expect(g.params.count).toBeLessThanOrEqual(workflow.max_count);
+    if (g.params.audio) expect(workflow.audio).toBe(true);
   });
 
   test('are newest first', () => {
@@ -52,27 +56,17 @@ describe('generations', () => {
   });
 });
 
-test.each(Object.entries(composerDrafts))('the %s draft routes to a workflow for that output type', (mode, draft) => {
-  const workflow = workflowById.get(draft.workflow_id);
-  expect(workflow).toBeDefined();
-  expect(outputType(workflow!.capability)).toBe(mode);
-});
+describe('workflows', () => {
+  test.each(workflows)('$id offers settings for its output type', ({ capability, durations_s, audio }) => {
+    const video = outputType(capability) === 'video';
+    expect(durations_s.length > 0).toBe(video);
+    if (!video) expect(audio).toBe(false);
+  });
 
-test.each([...generations, ...Object.values(composerDrafts)].map(g => ({ id: 'id' in g ? g.id : `${g.workflow_id} draft`, g })))(
-  '$id only uses settings its workflow offers',
-  ({ g }) => {
-    const { options } = workflowById.get(g.workflow_id)!;
-    expect(options.aspect_ratios).toContain(g.params.aspect_ratio);
-    expect(options.resolutions).toContain(g.params.resolution);
-    if (g.params.duration_s === null) expect(options.durations_s).toEqual([]);
-    else expect(options.durations_s).toContain(g.params.duration_s);
-    expect(g.params.count).toBeLessThanOrEqual(options.max_count);
-    expect(g.inputs.length).toBeLessThanOrEqual(options.max_inputs);
-  }
-);
-
-test.each(workflows)('$id offers settings for its output type', ({ capability, options }) => {
-  const video = outputType(capability) === 'video';
-  expect(options.durations_s.length > 0).toBe(video);
-  if (!video) expect(options.audio).toBe(false);
+  test('each capability has one default', () => {
+    const capabilities = new Set<Capability>(workflows.map(w => w.capability));
+    for (const capability of capabilities) {
+      expect(workflows.filter(w => w.capability === capability && w.default)).toHaveLength(1);
+    }
+  });
 });

@@ -1,7 +1,8 @@
-// Mock data for building the UI before the API exists, in the same shapes the API will return (see types.ts).
-// There are no mock video files yet, so video assets point at their poster image.
+// Mock data in the API's shapes (see types.ts): what the end-to-end tests serve in place of the API, and what the UI
+// shows where the API has nothing yet, such as projects. There are no mock video files, so video assets point at
+// their poster image.
 
-import type { Asset, ComposerDraft, Generation, GenerationParams, MediaType, Project, Tag, Workflow, WorkflowOptions } from './types';
+import type { AspectRatio, Asset, Generation, Project, Workflow } from './types';
 
 const mockFiles = {
   'road-dusk': [1280, 720],
@@ -24,122 +25,118 @@ function video(id: string, poster: MockFile, duration_s: number, source: Asset['
   return { ...image(id, poster, source, created_at), media_type: 'video', duration_s };
 }
 
-const imageOptions: WorkflowOptions = {
-  aspect_ratios: ['1:1', '3:4', '4:3', '9:16', '16:9'],
-  resolutions: ['1K', '2K'],
+const allRatios: AspectRatio[] = ['1:1', '3:4', '4:3', '9:16', '16:9'];
+const videoRatios: AspectRatio[] = ['16:9', '9:16', '3:4', '1:1'];
+
+const imageWorkflow = {
+  resolutions: { '1K': allRatios, '2K': allRatios },
+  max_count: 4,
   durations_s: [],
   audio: false,
-  max_count: 4,
-  max_inputs: 0
-};
+  roles: {},
+  default: false
+} satisfies Partial<Workflow>;
 
-const videoOptions: WorkflowOptions = {
-  aspect_ratios: ['16:9', '9:16', '3:4', '1:1'],
-  resolutions: ['540p', '720p', '1080p'],
+const videoWorkflow = {
+  resolutions: { '540p': videoRatios, '720p': videoRatios, '1080p': videoRatios },
+  max_count: 4,
   durations_s: [5, 8, 10],
   audio: true,
-  max_count: 4,
-  max_inputs: 0
-};
+  roles: {},
+  default: true
+} satisfies Partial<Workflow>;
 
 export const workflows: Workflow[] = [
   {
+    ...imageWorkflow,
     id: 'illustrious-t2i',
-    name: 'Illustrious',
     capability: 'image.generate',
-    description: 'Anime and illustration styles',
-    credits: 2,
-    options: imageOptions
+    model: 'illustrious',
+    model_name: 'Illustrious',
+    description: 'Anime and illustration styles'
   },
   {
+    ...imageWorkflow,
     id: 'anima-t2i',
-    name: 'Anima',
     capability: 'image.generate',
-    description: 'Stylised characters with clean line art',
-    credits: 2,
-    options: imageOptions
+    model: 'anima',
+    model_name: 'Anima',
+    description: 'Stylised characters with clean line art'
   },
   {
+    ...imageWorkflow,
     id: 'flux-klein-9b-t2i',
-    name: 'Flux Klein 9B',
     capability: 'image.generate',
+    model: 'flux-klein-9b',
+    model_name: 'Flux Klein 9B',
     description: 'Photoreal images from a prompt',
-    credits: 3,
-    options: { ...imageOptions, resolutions: ['1K', '2K', '4K'] }
+    default: true,
+    resolutions: { '1K': allRatios, '2K': allRatios, '4K': allRatios }
   },
   {
+    ...imageWorkflow,
     id: 'flux-klein-9b-edit',
-    name: 'Flux Klein 9B',
     capability: 'image.edit',
+    model: 'flux-klein-9b',
+    model_name: 'Flux Klein 9B',
     description: 'Change part of an image and keep the rest',
-    credits: 3,
-    options: { ...imageOptions, max_inputs: 1 }
+    default: true,
+    roles: { edit_target: 1, reference: 2 }
   },
   {
+    ...videoWorkflow,
     id: 'ltx-2.5-t2v',
-    name: 'LTX 2.5',
     capability: 'video.generate',
-    description: 'Fast video from a prompt',
-    credits: 20,
-    options: videoOptions
+    model: 'ltx-2.5',
+    model_name: 'LTX 2.5',
+    description: 'Fast video from a prompt'
   },
   {
+    ...videoWorkflow,
     id: 'ltx-2.5-i2v',
-    name: 'LTX 2.5',
     capability: 'video.from_frame',
+    model: 'ltx-2.5',
+    model_name: 'LTX 2.5',
     description: 'Animate a start frame',
-    credits: 20,
-    options: { ...videoOptions, resolutions: ['720p', '1080p'], max_inputs: 1 }
+    resolutions: { '720p': videoRatios, '1080p': videoRatios },
+    roles: { start_frame: 1 }
   },
   {
+    ...videoWorkflow,
     id: 'ltx-2.5-keyframes',
-    name: 'LTX 2.5',
     capability: 'video.keyframes',
+    model: 'ltx-2.5',
+    model_name: 'LTX 2.5',
     description: 'Move between keyframes placed on a timeline',
-    credits: 30,
-    options: { ...videoOptions, resolutions: ['720p'], max_inputs: 8 }
+    resolutions: { '720p': videoRatios },
+    roles: { keyframe: 8 }
   },
   {
+    ...videoWorkflow,
     id: 'minimax-h3-first-last',
-    name: 'MiniMax H3',
     capability: 'video.first_last',
+    model: 'minimax-h3',
+    model_name: 'MiniMax H3',
     description: 'Fill in the motion between two frames',
-    credits: 40,
-    options: {
-      ...videoOptions,
-      resolutions: ['768p', '1080p'],
-      durations_s: [6, 10],
-      audio: false,
-      max_count: 2,
-      max_inputs: 2
-    }
+    resolutions: { '768p': videoRatios, '1080p': videoRatios },
+    durations_s: [6, 10],
+    audio: false,
+    max_count: 2,
+    roles: { start_frame: 1, end_frame: 1 }
   },
   {
+    ...videoWorkflow,
     id: 'scail-swap',
-    name: 'SCAIL',
     capability: 'video.character_swap',
+    model: 'scail',
+    model_name: 'SCAIL',
     description: 'Replace the person in a clip with a character',
-    credits: 50,
-    options: {
-      ...videoOptions,
-      aspect_ratios: ['9:16', '16:9', '1:1'],
-      resolutions: ['720p'],
-      durations_s: [6],
-      audio: false,
-      max_count: 1,
-      max_inputs: 2
-    }
+    resolutions: { '720p': ['9:16', '16:9', '1:1'] },
+    durations_s: [6],
+    audio: false,
+    max_count: 1,
+    roles: { source_video: 1, reference: 1 }
   }
-];
-
-export const projects: Project[] = [
-  { id: 'prj_film', name: 'Short film', created_at: '2026-10-08T10:00:00Z' },
-  { id: 'prj_mood', name: 'Moodboard', created_at: '2026-10-09T10:00:00Z' }
-];
-
-export const tags: Tag[] = [
-  { id: 'tag_portrait', name: 'portrait' },
-  { id: 'tag_keep', name: 'keep' }
 ];
 
 const room = image('ast_room', 'room-photo', 'upload', '2026-10-10T08:00:00Z');
@@ -150,11 +147,19 @@ export const uploads: Asset[] = [danceClip, character, room];
 
 const portrait = image('ast_portrait', 'portrait-warm', 'generation', '2026-10-11T09:01:00Z');
 const roadClip = video('ast_road', 'road-dusk', 5, 'generation', '2026-10-12T09:03:00Z');
+const morph = video('ast_morph', 'portrait-warm', 8, 'generation', '2026-10-13T16:05:00Z');
+const roomEdit = image('ast_room_edit', 'room-photo', 'generation', '2026-10-13T11:00:30Z');
+const greenhouse = [
+  image('ast_greenhouse_1', 'garden-square', 'generation', '2026-10-11T15:00:20Z'),
+  image('ast_greenhouse_2', 'garden-square', 'generation', '2026-10-11T15:00:20Z')
+];
 
-const imageParams: GenerationParams = { aspect_ratio: '3:4', resolution: '1K', duration_s: null, count: 1, seed: null };
-const videoParams: GenerationParams = { aspect_ratio: '16:9', resolution: '720p', duration_s: 5, count: 1, seed: null };
+const imageParams = { aspect_ratio: '3:4', resolution: '1K', duration_s: null, count: 1, seed: 12, audio: false } as const;
+const videoParams = { aspect_ratio: '16:9', resolution: '720p', duration_s: 5, count: 1, seed: 901, audio: false } as const;
 
-/** Newest first, the order the API will return them in. Covers every status, for both images and videos. */
+const ended = { progress: null, started_at: null };
+
+/** Newest first, the order the API returns them in. Covers every status, for both images and videos. */
 export const generations: Generation[] = [
   {
     id: 'gen_queued',
@@ -162,14 +167,13 @@ export const generations: Generation[] = [
     capability: 'image.generate',
     workflow_id: 'anima-t2i',
     prompt: 'girl with silver hair on a rain-soaked neon street, looking back over her shoulder',
-    params: imageParams,
+    params: { ...imageParams, seed: 7 },
     inputs: [],
     outputs: [],
     progress: null,
     error: null,
-    project_id: null,
-    tag_ids: [],
     created_at: '2026-10-15T09:20:00Z',
+    started_at: null,
     finished_at: null
   },
   {
@@ -183,9 +187,8 @@ export const generations: Generation[] = [
     outputs: [],
     progress: 0.42,
     error: null,
-    project_id: 'prj_film',
-    tag_ids: [],
     created_at: '2026-10-15T09:18:00Z',
+    started_at: '2026-10-15T09:18:05Z',
     finished_at: null
   },
   {
@@ -197,13 +200,11 @@ export const generations: Generation[] = [
     params: { ...videoParams, resolution: '1080p', duration_s: 6 },
     inputs: [
       { role: 'start_frame', asset: room, position_s: null },
-      { role: 'end_frame', asset: image('ast_greenhouse_end', 'garden-square', 'generation', '2026-10-13T09:00:00Z'), position_s: null }
+      { role: 'end_frame', asset: greenhouse[0], position_s: null }
     ],
     outputs: [],
-    progress: null,
-    error: 'The worker ran out of GPU memory.',
-    project_id: null,
-    tag_ids: [],
+    ...ended,
+    error: 'The GPU ran out of memory. Try a smaller size or fewer outputs.',
     created_at: '2026-10-14T18:30:00Z',
     finished_at: '2026-10-14T18:31:10Z'
   },
@@ -219,10 +220,8 @@ export const generations: Generation[] = [
       { role: 'reference', asset: character, position_s: null }
     ],
     outputs: [video('ast_swap', 'city-vertical', 6, 'generation', '2026-10-14T12:04:00Z')],
-    progress: null,
+    ...ended,
     error: null,
-    project_id: null,
-    tag_ids: [],
     created_at: '2026-10-14T12:00:00Z',
     finished_at: '2026-10-14T12:04:00Z'
   },
@@ -237,11 +236,9 @@ export const generations: Generation[] = [
       { role: 'keyframe', asset: portrait, position_s: 0 },
       { role: 'keyframe', asset: character, position_s: 6 }
     ],
-    outputs: [video('ast_morph', 'portrait-warm', 8, 'generation', '2026-10-13T16:05:00Z')],
-    progress: null,
+    outputs: [morph],
+    ...ended,
     error: null,
-    project_id: 'prj_film',
-    tag_ids: ['tag_keep'],
     created_at: '2026-10-13T16:00:00Z',
     finished_at: '2026-10-13T16:05:00Z'
   },
@@ -253,11 +250,9 @@ export const generations: Generation[] = [
     prompt: 'replace the sofa with a green velvet armchair',
     params: { ...imageParams, aspect_ratio: '4:3', seed: 3130 },
     inputs: [{ role: 'edit_target', asset: room, position_s: null }],
-    outputs: [image('ast_room_edit', 'room-photo', 'generation', '2026-10-13T11:00:30Z')],
-    progress: null,
+    outputs: [roomEdit],
+    ...ended,
     error: null,
-    project_id: 'prj_mood',
-    tag_ids: [],
     created_at: '2026-10-13T11:00:00Z',
     finished_at: '2026-10-13T11:00:30Z'
   },
@@ -267,13 +262,11 @@ export const generations: Generation[] = [
     capability: 'video.generate',
     workflow_id: 'ltx-2.5-t2v',
     prompt: 'an old jeep on an empty road at dusk, low angle, film grain',
-    params: { ...videoParams, seed: 901 },
+    params: videoParams,
     inputs: [],
     outputs: [roadClip],
-    progress: null,
+    ...ended,
     error: null,
-    project_id: 'prj_film',
-    tag_ids: ['tag_keep'],
     created_at: '2026-10-12T09:00:00Z',
     finished_at: '2026-10-12T09:03:00Z'
   },
@@ -285,14 +278,9 @@ export const generations: Generation[] = [
     prompt: 'overgrown greenhouse, morning light, film photo',
     params: { ...imageParams, aspect_ratio: '1:1', count: 2, seed: 4410 },
     inputs: [],
-    outputs: [
-      image('ast_greenhouse_1', 'garden-square', 'generation', '2026-10-11T15:00:20Z'),
-      image('ast_greenhouse_2', 'garden-square', 'generation', '2026-10-11T15:00:20Z')
-    ],
-    progress: null,
+    outputs: greenhouse,
+    ...ended,
     error: null,
-    project_id: 'prj_mood',
-    tag_ids: [],
     created_at: '2026-10-11T15:00:00Z',
     finished_at: '2026-10-11T15:00:20Z'
   },
@@ -302,30 +290,17 @@ export const generations: Generation[] = [
     capability: 'image.generate',
     workflow_id: 'illustrious-t2i',
     prompt: 'portrait of a woman in a red coat, warm backlight',
-    params: { ...imageParams, seed: 12 },
+    params: imageParams,
     inputs: [],
     outputs: [portrait],
-    progress: null,
+    ...ended,
     error: null,
-    project_id: 'prj_film',
-    tag_ids: ['tag_portrait'],
     created_at: '2026-10-11T09:00:00Z',
     finished_at: '2026-10-11T09:01:00Z'
   }
 ];
 
-/** One draft per output type, so both composer modes show realistic attachments and a route. */
-export const composerDrafts: Record<MediaType, ComposerDraft> = {
-  image: {
-    prompt: '',
-    inputs: [],
-    params: { ...imageParams, aspect_ratio: '4:3' },
-    workflow_id: 'flux-klein-9b-edit'
-  },
-  video: {
-    prompt: 'she smiles as the wind catches her hair',
-    inputs: [],
-    params: { ...videoParams, aspect_ratio: '3:4' },
-    workflow_id: 'ltx-2.5-i2v'
-  }
-};
+export const projects: Project[] = [
+  { id: 'prj_film', name: 'Short film', created_at: '2026-10-08T10:00:00Z', covers: [roadClip, morph, portrait] },
+  { id: 'prj_mood', name: 'Moodboard', created_at: '2026-10-09T10:00:00Z', covers: [roomEdit, ...greenhouse] }
+];
