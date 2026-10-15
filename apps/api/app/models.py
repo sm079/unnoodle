@@ -99,6 +99,18 @@ class Asset(Base):
     )
 
 
+class Project(Base):
+    """A folder for generations. My generations isn't one: it is every generation, in a project or not."""
+
+    __tablename__ = "projects"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (CheckConstraint("btrim(name) <> ''", name="name_not_blank"),)
+
+
 class Generation(Base):
     """One request to run a workflow. The table is also the job queue: workers claim queued rows."""
 
@@ -112,6 +124,8 @@ class Generation(Base):
     # The manifest the request resolved to
     workflow_id: Mapped[str] = mapped_column(String(64))
     prompt: Mapped[str] = mapped_column(Text)
+    # The project it was made in, if any. Deleting a project leaves its generations in My generations.
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"))
 
     aspect_ratio: Mapped[str] = mapped_column(String(8))
     resolution: Mapped[str] = mapped_column(String(16))
@@ -146,6 +160,8 @@ class Generation(Base):
         CheckConstraint("(status IN ('done', 'failed')) = (finished_at IS NOT NULL)", name="finished_when_ended"),
         # The worker's claim query scans only what is waiting
         Index("ix_generations_queued", "created_at", postgresql_where=text("status = 'queued'")),
+        # A project's generations, newest first
+        Index("ix_generations_project_id", "project_id", "id"),
     )
 
 

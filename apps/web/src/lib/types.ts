@@ -19,12 +19,8 @@ export type GenerationInput = Schemas['GenerationInputOut'];
 export type GenerationRequest = Schemas['GenerationIn'];
 /** A workflow as the composer sees it: its capability, its model and the settings it offers. */
 export type Workflow = Schemas['WorkflowOut'];
-
-/** Not in the API yet; the mock data stands in for projects until it has them. */
-export interface Project {
-  id: string;
-  name: string;
-  created_at: string;
-  /** Outputs shown on the project's card. */
-  covers: Asset[];
-}
+/**
+ * A folder the user made, with its newest outputs as covers. My generations isn't one: it holds every generation,
+ * and one made in a project is in both.
+ */
+export type Project = Schemas['ProjectOut'];

@@ -1,6 +1,6 @@
 // Calls to the API, which the web app passes through under /api (see next.config.ts).
 
-import type { Asset, Generation, GenerationRequest } from './types';
+import type { Asset, Generation, GenerationRequest, Project } from './types';
 
 /** A failed call. The message is fit to show: the API's own reason when it gave one. */
 export class ApiError extends Error {
@@ -33,6 +33,11 @@ async function reason(response: Response): Promise<string> {
   return response.status >= 500 ? "The server isn't answering. Try again in a moment." : `Request failed (${response.status})`;
 }
 
+/** What to tell the user when a call failed. */
+export function messageOf(error: unknown): string {
+  return error instanceof ApiError ? error.message : 'Something went wrong. Try again.';
+}
+
 export const api = {
   upload(file: File): Promise<Asset> {
     const body = new FormData();
@@ -46,8 +51,20 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body)
     });
+  },
+
+  createProject(name: string): Promise<Project> {
+    return request('/projects', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
   }
 };
 
 // Paths the data hooks read, which also name their cache entries
-export const paths = { workflows: '/workflows', uploads: '/assets', generations: '/generations' } as const;
+export const paths = { workflows: '/workflows', uploads: '/assets', generations: '/generations', projects: '/projects' } as const;
+
+/** The generations in one project, or every generation (My generations) for null. */
+export const generationsIn = (projectId: string | null) =>
+  projectId === null ? paths.generations : `${paths.generations}?project_id=${encodeURIComponent(projectId)}`;

@@ -71,7 +71,8 @@ export interface paths {
     };
     /**
      * List Generations
-     * @description Newest first. For the next page, pass the id of the last one received as before.
+     * @description Newest first: all of them (My generations), or one project's. For the next page, pass the id of the last one
+     *     received as before.
      */
     get: operations['list_generations_generations_get'];
     put?: never;
@@ -92,6 +93,44 @@ export interface paths {
     };
     /** Get Generation */
     get: operations['get_generation_generations__generation_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/projects': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Projects
+     * @description Newest first.
+     */
+    get: operations['list_projects_projects_get'];
+    put?: never;
+    /** Create Project */
+    post: operations['create_project_projects_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/projects/{project_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Project */
+    get: operations['get_project_projects__project_id__get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -170,6 +209,8 @@ export interface components {
       params: components['schemas']['Params'];
       /** Model */
       model?: string | null;
+      /** Project Id */
+      project_id?: string | null;
     };
     /** GenerationInputOut */
     GenerationInputOut: {
@@ -191,6 +232,8 @@ export interface components {
       workflow_id: string;
       /** Prompt */
       prompt: string;
+      /** Project Id */
+      project_id: string | null;
       params: components['schemas']['ParamsOut'];
       /** Inputs */
       inputs: components['schemas']['GenerationInputOut'][];
@@ -302,6 +345,30 @@ export interface components {
        * @default false
        */
       audio: boolean;
+    };
+    /** ProjectIn */
+    ProjectIn: {
+      /** Name */
+      name: string;
+    };
+    /** ProjectOut */
+    ProjectOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Generation Count */
+      generation_count: number;
+      /** Covers */
+      covers: components['schemas']['AssetOut'][];
     };
     /** ValidationError */
     ValidationError: {
@@ -471,6 +538,7 @@ export interface operations {
       query?: {
         before?: string | null;
         limit?: number;
+        project_id?: string | null;
       };
       header?: never;
       path?: never;
@@ -550,6 +618,97 @@ export interface operations {
         };
       };
       /** @description No such generation */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_projects_projects_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProjectOut'][];
+        };
+      };
+    };
+  };
+  create_project_projects_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ProjectIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProjectOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_project_projects__project_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProjectOut'];
+        };
+      };
+      /** @description No such project */
       404: {
         headers: {
           [name: string]: unknown;
