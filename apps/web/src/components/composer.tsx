@@ -4,14 +4,15 @@ import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } fr
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
 import {
+  ChevronDownIcon,
   ChevronRightIcon,
   ClockIcon,
   FocusIcon,
   GemIcon,
   ImageIcon,
+  LoaderCircleIcon,
   MinusIcon,
   PlusIcon,
-  SparkleIcon,
   VideoIcon,
   Volume2Icon,
   VolumeXIcon,
@@ -28,107 +29,219 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { outputType, roleFor, roleLabels } from '@/lib/capabilities';
+import { api, ApiError } from '@/lib/api';
+import { defaultRole, roleLabels } from '@/lib/capabilities';
+import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
+import { rolesFor, route, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
-import type {
-  AspectRatio,
-  Asset,
-  Capability,
-  ComposerDraft,
-  GenerationInput,
-  GenerationParams,
-  MediaType,
-  Workflow,
-  WorkflowOptions
-} from '@/lib/types';
+import type { AspectRatio, Asset, Generation, InputRole, MediaType, Workflow } from '@/lib/types';
 
 interface ComposerProps {
-  drafts: Record<MediaType, ComposerDraft>;
-  workflows: Workflow[];
-  /** Earlier uploads that can be attached again. */
-  library: Asset[];
+  /** Called once the API has queued what the composer sent. */
+  onGenerated?: (generation: Generation) => void;
 }
 
-interface DraftInput extends GenerationInput {
+interface DraftInput {
   /** Identifies the chip while it animates in and out; the same asset can be attached twice. */
   key: string;
+  /** While uploading, a local preview of the file; then the stored asset. */
+  asset: Asset;
+  uploading: boolean;
+  role: InputRole;
+  /** Seconds into the clip. Keyframes only. */
+  position_s: number | null;
 }
 
-interface Draft extends ComposerDraft {
-  inputs: DraftInput[];
-  /** Videos only. Not part of the request shape yet. */
+/** What the user picked. Each render fits it to the settings the routed workflow offers. */
+interface Settings {
+  aspect_ratio: AspectRatio;
+  resolution: string;
+  duration_s: number;
+  count: number;
   audio: boolean;
 }
 
-const modeLabels: Record<MediaType, string> = { image: 'Image', video: 'Video' };
+interface Draft {
+  prompt: string;
+  inputs: DraftInput[];
+  /** A model picked from the menu, or null for the default of whatever the inputs route to. */
+  model: string | null;
+  settings: Settings;
+}
 
-let lastInputKey = 0;
-const keyed = (input: GenerationInput): DraftInput => ({ ...input, key: `input-${++lastInputKey}` });
+const modeLabels: Record<MediaType, string> = { image: 'Image', video: 'Video' };
 
 const placeholders: Record<MediaType, string> = {
   image: 'Describe the image you want to create...',
   video: 'Describe the video you want to create...'
 };
 
-export function Composer({ drafts, workflows, library }: ComposerProps) {
+const initialDrafts: Record<MediaType, Draft> = {
+  image: {
+    prompt: '',
+    inputs: [],
+    model: null,
+    settings: { aspect_ratio: '3:4', resolution: '1K', duration_s: 5, count: 1, audio: false }
+  },
+  video: {
+    prompt: '',
+    inputs: [],
+    model: null,
+    settings: { aspect_ratio: '16:9', resolution: '720p', duration_s: 5, count: 1, audio: true }
+  }
+};
+
+// Enough for the keyframe workflows; nothing else takes more
+const MAX_INPUTS = 8;
+// The API's upload limit, checked here first to save sending a file that will be refused
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+let lastInputKey = 0;
+const nextKey = () => `input-${++lastInputKey}`;
+
+export function Composer({ onGenerated }: ComposerProps) {
+  const workflows = useWorkflows();
+  const { data: library = [] } = useUploads();
+  const addToCache = useAddToCache();
   const [mode, setMode] = useState<MediaType>('video');
-  const [state, setState] = useState<Record<MediaType, Draft>>(() => ({
-    image: { ...drafts.image, inputs: drafts.image.inputs.map(keyed), audio: false },
-    video: { ...drafts.video, inputs: drafts.video.inputs.map(keyed), audio: true }
-  }));
+  const [drafts, setDrafts] = useState(initialDrafts);
+  const [sending, setSending] = useState(false);
+  // Why the last attempt to upload or send didn't work; cleared by the next change
+  const [problem, setProblem] = useState<string | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const draft = state[mode];
-  const modeWorkflows = workflows.filter(w => outputType(w.capability) === mode);
-  const workflow = modeWorkflows.find(w => w.id === draft.workflow_id) ?? modeWorkflows[0];
-  const { options } = workflow;
-  const full = draft.inputs.length >= options.max_inputs;
+  const draft = drafts[mode];
+  const routed: Routed<Workflow> | null = workflows.data
+    ? route(
+        workflows.data,
+        mode,
+        draft.inputs.map(i => i.role),
+        draft.model
+      )
+    : null;
+  const workflow = routed?.ok ? routed.value : null;
+  const settings = workflow ? fitSettings(draft.settings, workflow) : draft.settings;
+  const full = draft.inputs.length >= MAX_INPUTS;
+  const uploading = draft.inputs.some(i => i.uploading);
+  const status = problem ?? (workflows.error ? workflows.error.message : routed && !routed.ok ? routed.error : null);
 
   function update(patch: Partial<Draft>) {
-    setState(current => ({ ...current, [mode]: { ...current[mode], ...patch } }));
+    setProblem(null);
+    setDrafts(current => ({ ...current, [mode]: { ...current[mode], ...patch } }));
   }
 
-  function setParam<K extends keyof GenerationParams>(key: K, value: GenerationParams[K]) {
-    update({ params: { ...draft.params, [key]: value } });
-  }
-
-  function chooseWorkflow(next: Workflow) {
-    update({
-      workflow_id: next.id,
-      params: fitParams(draft.params, next.options),
-      inputs: draft.inputs.map((input, index) => withRole(input, next.capability, index))
+  /** Changes one input wherever it is now: an upload can finish after its chip moved or the mode changed. */
+  function updateInput(inMode: MediaType, key: string, change: (input: DraftInput) => DraftInput | null) {
+    setDrafts(current => {
+      const inputs = current[inMode].inputs.flatMap(input => (input.key === key ? (change(input) ?? []) : [input]));
+      return { ...current, [inMode]: { ...current[inMode], inputs } };
     });
   }
 
-  function attach(assets: Asset[]) {
-    const room = Math.max(0, options.max_inputs - draft.inputs.length);
-    const added = assets
-      .slice(0, room)
-      .map((asset, i) => withRole(keyed({ role: 'reference', asset, position_s: null }), workflow.capability, draft.inputs.length + i));
-    update({ inputs: [...draft.inputs, ...added] });
+  function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
+    // Fitted values are kept too, so a later change of workflow starts from what was on screen
+    update({ settings: { ...settings, [key]: value } });
+  }
+
+  /** Adds inputs with their default roles and returns their keys. */
+  function attach(assets: Asset[], uploading = false): string[] {
+    const inputs = [...draft.inputs];
+    const added = assets.slice(0, MAX_INPUTS - inputs.length).map(asset => {
+      const role = defaultRole(
+        mode,
+        inputs.map(i => i.role),
+        asset
+      );
+      const input = { key: nextKey(), asset, uploading, role, position_s: null };
+      inputs.push(input);
+      return input.key;
+    });
+    // The model menu only lists models for the new route, so a model picked for the old one no longer applies
+    update({ inputs, model: null });
+    return added;
   }
 
   function detach(index: number) {
     const { asset } = draft.inputs[index];
     if (asset.url.startsWith('blob:')) URL.revokeObjectURL(asset.url);
-    update({
-      inputs: draft.inputs.filter((_, i) => i !== index).map((input, i) => withRole(input, workflow.capability, i))
-    });
+    update({ inputs: draft.inputs.filter((_, i) => i !== index), model: null });
   }
 
   function attachFiles(event: ChangeEvent<HTMLInputElement>) {
-    attach(Array.from(event.target.files ?? [], fileAsset));
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
+    const fits = (file: File) => file.type.startsWith('image/') && file.size <= MAX_UPLOAD_BYTES;
+    const accepted = files.filter(fits);
+    const refused = files.find(file => !fits(file));
+    const keys = attach(accepted.map(previewAsset), true);
+    if (refused) {
+      setProblem(
+        refused.type.startsWith('image/') ? `${refused.name} is over ${MAX_UPLOAD_BYTES >> 20} MB` : 'Only images can be attached for now'
+      );
+    }
+    // Each file uploads as soon as it's attached; its chip shows it until the API has stored it
+    keys.forEach((key, i) => upload(mode, key, accepted[i]));
   }
 
-  function submit(event: FormEvent) {
-    // Nothing to send to until the API exists
+  async function upload(inMode: MediaType, key: string, file: File) {
+    try {
+      const stored = await api.upload(file);
+      updateInput(inMode, key, input => {
+        URL.revokeObjectURL(input.asset.url);
+        return { ...input, asset: stored, uploading: false };
+      });
+      addToCache.upload();
+    } catch (error) {
+      updateInput(inMode, key, input => {
+        URL.revokeObjectURL(input.asset.url);
+        return null;
+      });
+      setProblem(`${file.name}: ${messageOf(error)}`);
+    }
+  }
+
+  function setRole(index: number, role: InputRole) {
+    // Keyframes go a second apart until there is a timeline to place them on
+    const keyframes = draft.inputs.filter((input, i) => i !== index && input.role === 'keyframe').length;
+    const inputs = draft.inputs.map((input, i) =>
+      i === index ? { ...input, role, position_s: role === 'keyframe' ? keyframes : null } : input
+    );
+    update({ inputs, model: null });
+  }
+
+  async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!workflow || uploading || sending) return;
     if (draft.prompt.trim() === '') {
       promptRef.current?.focus();
       shake(promptRef.current);
+      return;
+    }
+    setSending(true);
+    setProblem(null);
+    try {
+      const generation = await api.createGeneration({
+        media_type: mode,
+        prompt: draft.prompt,
+        inputs: draft.inputs.map(i => ({ asset_id: i.asset.id, role: i.role, position_s: i.position_s })),
+        params: {
+          aspect_ratio: settings.aspect_ratio,
+          resolution: settings.resolution,
+          duration_s: mode === 'video' ? settings.duration_s : null,
+          count: settings.count,
+          audio: settings.audio,
+          seed: null
+        },
+        model: draft.model
+      });
+      addToCache.generation(generation);
+      onGenerated?.(generation);
+    } catch (error) {
+      setProblem(messageOf(error));
+    } finally {
+      setSending(false);
     }
   }
 
@@ -166,7 +279,7 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
         <AnimatePresence initial={false}>
           {mode === 'video' && (
             <m.div
-              key="references"
+              key="frames"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0, transition: { duration: 0.22, ease: easeOutQuint } }}
@@ -177,14 +290,14 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
                 <div className={cn(cardClass, enterClass, 'w-40 shrink-0')}>
                   <button
                     type="button"
-                    aria-label="Add references"
+                    aria-label="Add frames"
                     disabled={full}
                     onClick={() => fileRef.current?.click()}
                     className="group/add flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#19191b] text-[#b5b5b5] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] ring-1 ring-white/10 transition-[color,scale] duration-150 hover:text-white active:scale-90 disabled:opacity-40"
                   >
                     <PlusIcon className="size-5 transition-[rotate] duration-500 ease-spring-bouncy group-hover/add:rotate-90 group-disabled/add:rotate-0" />
                   </button>
-                  <CardText label="References" value={`${draft.inputs.length}/${options.max_inputs}`} />
+                  <CardText label="Frames" value={String(draft.inputs.length)} />
                 </div>
               </div>
             </m.div>
@@ -211,21 +324,17 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
                           initial={{ width: 0, opacity: 0, scale: 0.6 }}
                           animate={{ width: 'auto', opacity: 1, scale: 1 }}
                           exit={{ width: 0, opacity: 0, scale: 0.6 }}
-                          title={index >= options.max_inputs ? 'Not used by this workflow' : undefined}
                           // Clips the chip while the slot opens and closes around it
                           className="shrink-0 origin-left overflow-hidden pr-2"
                         >
-                          <div
-                            className={cn(
-                              'flex w-max items-center gap-2 rounded-xl bg-chip p-1 pr-1.5 transition-opacity duration-300',
-                              index >= options.max_inputs && 'opacity-40'
-                            )}
-                          >
-                            <Thumbnail asset={input.asset} />
-                            <span className="flex text-[13px] font-semibold whitespace-nowrap">
-                              <RollingValue value={roleLabels[input.role]} />
-                              {input.position_s !== null && <span className="text-[#8a8b8c]">&nbsp;· {input.position_s}s</span>}
-                            </span>
+                          <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
+                            <Thumbnail asset={input.asset} uploading={input.uploading} />
+                            <RoleMenu
+                              roles={rolesFor[mode]}
+                              value={input.role}
+                              position={input.position_s}
+                              onChange={role => setRole(index, role)}
+                            />
                             <button
                               type="button"
                               aria-label={`Remove ${roleLabels[input.role].toLowerCase()}`}
@@ -263,76 +372,87 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
                 <PlusIcon />
               </button>
               <LibraryPicker assets={library} disabled={full} onPick={asset => attach([asset])} />
-              <WorkflowMenu workflows={modeWorkflows} value={workflow} onChange={chooseWorkflow} className={cn(chipClass, 'px-3')} />
-              <OptionChip
-                label="Resolution"
-                icon={<GemIcon />}
-                value={draft.params.resolution}
-                options={options.resolutions}
-                onChange={value => setParam('resolution', value)}
+              <WorkflowMenu
+                models={workflow ? (workflows.data ?? []).filter(w => w.capability === workflow.capability) : []}
+                value={workflow}
+                onChange={next => update({ model: next.model })}
+                className={cn(chipClass, 'px-3')}
               />
-              <OptionChip
-                label="Aspect ratio"
-                icon={<AspectIcon ratio={draft.params.aspect_ratio} />}
-                value={draft.params.aspect_ratio}
-                options={options.aspect_ratios}
-                onChange={value => setParam('aspect_ratio', value as AspectRatio)}
-              />
-              {draft.params.duration_s !== null && (
-                <OptionChip
-                  label="Duration"
-                  icon={<ClockIcon strokeWidth={2.5} />}
-                  value={`${draft.params.duration_s}s`}
-                  options={options.durations_s.map(s => `${s}s`)}
-                  onChange={value => setParam('duration_s', parseInt(value))}
-                  className={enterClass}
-                />
-              )}
-              {options.audio && (
-                <button
-                  type="button"
-                  aria-label="Sound"
-                  aria-pressed={draft.audio}
-                  onClick={() => update({ audio: !draft.audio })}
-                  className={cn(chipClass, enterClass)}
-                >
-                  {draft.audio ? <Volume2Icon /> : <VolumeXIcon />}
-                  <RollingValue value={draft.audio ? 'On' : 'Off'} />
-                </button>
-              )}
-              {mode === 'video' ? (
-                <CountStepper
-                  count={draft.params.count}
-                  max={options.max_count}
-                  onChange={count => setParam('count', count)}
-                  className={enterClass}
-                />
-              ) : (
-                <Popover>
-                  <PopoverTrigger
-                    aria-label="More settings"
-                    className={cn(chipClass, enterClass, 'group/more w-[35px] justify-center px-0')}
-                  >
-                    <ChevronRightIcon className="transition-[rotate] duration-300 ease-spring group-data-[popup-open]/more:-rotate-90" />
-                  </PopoverTrigger>
-                  <PopoverContent
-                    side="top"
-                    align="start"
-                    sideOffset={8}
-                    className={cn(menuClass, 'w-auto flex-row items-center gap-3 p-2 pl-3.5')}
-                  >
-                    <span className="text-sm text-[#8a8b8c]">Outputs</span>
-                    <CountStepper count={draft.params.count} max={options.max_count} onChange={count => setParam('count', count)} />
-                  </PopoverContent>
-                </Popover>
+              {workflow && (
+                <>
+                  <OptionChip
+                    label="Resolution"
+                    icon={<GemIcon />}
+                    value={settings.resolution}
+                    options={Object.keys(workflow.resolutions)}
+                    onChange={value => setSetting('resolution', value)}
+                  />
+                  <OptionChip
+                    label="Aspect ratio"
+                    icon={<AspectIcon ratio={settings.aspect_ratio} />}
+                    value={settings.aspect_ratio}
+                    options={workflow.resolutions[settings.resolution]}
+                    onChange={value => setSetting('aspect_ratio', value as AspectRatio)}
+                  />
+                  {workflow.durations_s.length > 0 && (
+                    <OptionChip
+                      label="Duration"
+                      icon={<ClockIcon strokeWidth={2.5} />}
+                      value={`${settings.duration_s}s`}
+                      options={workflow.durations_s.map(s => `${s}s`)}
+                      onChange={value => setSetting('duration_s', parseFloat(value))}
+                      className={enterClass}
+                    />
+                  )}
+                  {workflow.audio && (
+                    <button
+                      type="button"
+                      aria-label="Sound"
+                      aria-pressed={settings.audio}
+                      onClick={() => setSetting('audio', !settings.audio)}
+                      className={cn(chipClass, enterClass)}
+                    >
+                      {settings.audio ? <Volume2Icon /> : <VolumeXIcon />}
+                      <RollingValue value={settings.audio ? 'On' : 'Off'} />
+                    </button>
+                  )}
+                  {workflow.max_count > 1 &&
+                    (mode === 'video' ? (
+                      <CountStepper
+                        count={settings.count}
+                        max={workflow.max_count}
+                        onChange={count => setSetting('count', count)}
+                        className={enterClass}
+                      />
+                    ) : (
+                      <Popover>
+                        <PopoverTrigger
+                          aria-label="More settings"
+                          className={cn(chipClass, enterClass, 'group/more w-[35px] justify-center px-0')}
+                        >
+                          <ChevronRightIcon className="transition-[rotate] duration-300 ease-spring group-data-[popup-open]/more:-rotate-90" />
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="top"
+                          align="start"
+                          sideOffset={8}
+                          className={cn(menuClass, 'w-auto flex-row items-center gap-3 p-2 pl-3.5')}
+                        >
+                          <span className="text-sm text-[#8a8b8c]">Outputs</span>
+                          <CountStepper count={settings.count} max={workflow.max_count} onChange={count => setSetting('count', count)} />
+                        </PopoverContent>
+                      </Popover>
+                    ))}
+                </>
               )}
             </div>
           </div>
 
           <button
             type="submit"
-            aria-label={`Generate, ${workflow.credits * draft.params.count} credits`}
-            className="group/generate relative mb-[3px] flex h-14 w-full shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[14px] bg-linear-to-b from-[#d8ff17] via-[#f4ff1f] to-[#ffff17] text-[#191b04] shadow-[0_3px_0_var(--color-lime-edge),0_10px_20px_rgb(0_0_0/0.45)] transition-[translate,box-shadow,filter] duration-300 ease-spring hover:shadow-[0_3px_0_var(--color-lime-edge),0_10px_28px_rgb(220_255_23/0.2)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-lime-edge),0_4px_10px_rgb(0_0_0/0.4)] active:duration-75 active:ease-out lg:h-24 lg:w-40 lg:flex-col lg:gap-1"
+            aria-disabled={!workflow || uploading || sending}
+            aria-busy={sending}
+            className="group/generate relative mb-[3px] flex h-14 w-full shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[14px] bg-linear-to-b from-[#d8ff17] via-[#f4ff1f] to-[#ffff17] text-[#191b04] shadow-[0_3px_0_var(--color-lime-edge),0_10px_20px_rgb(0_0_0/0.45)] transition-[translate,box-shadow,filter,opacity] duration-300 ease-spring hover:shadow-[0_3px_0_var(--color-lime-edge),0_10px_28px_rgb(220_255_23/0.2)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-lime-edge),0_4px_10px_rgb(0_0_0/0.4)] active:duration-75 active:ease-out aria-disabled:pointer-events-none aria-disabled:opacity-40 lg:h-24 lg:w-40"
           >
             {/* A glint crosses the button as the pointer arrives */}
             <span
@@ -340,12 +460,14 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
               className="pointer-events-none absolute inset-0 -translate-x-[120%] bg-linear-to-r from-transparent from-30% via-white/60 to-transparent to-70% motion-safe:group-hover/generate:animate-sheen"
             />
             <span className="font-display text-[15px] font-extrabold tracking-[0.02em] uppercase font-stretch-[88%]">Generate</span>
-            <span className="flex items-center gap-1 text-[15px] font-medium tabular-nums">
-              <SparkleIcon className="size-3.5 fill-current transition-[rotate,scale] duration-700 ease-spring-bouncy motion-safe:group-hover/generate:scale-110 motion-safe:group-hover/generate:rotate-90" />
-              <RollingValue value={workflow.credits * draft.params.count} />
-            </span>
           </button>
         </div>
+
+        {status && (
+          <p role="status" className="px-3 pt-2 pb-1 text-sm text-[#e8a33d]">
+            {status}
+          </p>
+        )}
       </div>
 
       <input ref={fileRef} type="file" accept="image/*,video/*" multiple hidden onChange={attachFiles} />
@@ -363,14 +485,17 @@ const enterClass = 'motion-safe:animate-rise [--rise-blur:3px] [--rise-distance:
 const easeOutQuint = [0.23, 1, 0.32, 1] as const;
 const menuClass =
   'rounded-2xl border border-white/[0.07] bg-[#25282c]/90 p-1.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-0 backdrop-blur-xl';
-function fitParams(params: GenerationParams, options: WorkflowOptions): GenerationParams {
+
+/** The picked settings, moved to the nearest ones the workflow offers. */
+export function fitSettings(settings: Settings, workflow: Workflow): Settings {
   const pick = <T,>(value: T, allowed: T[]) => (allowed.includes(value) ? value : allowed[0]);
+  const resolution = pick(settings.resolution, Object.keys(workflow.resolutions));
   return {
-    ...params,
-    aspect_ratio: pick(params.aspect_ratio, options.aspect_ratios),
-    resolution: pick(params.resolution, options.resolutions),
-    duration_s: options.durations_s.length > 0 ? pick(params.duration_s ?? options.durations_s[0], options.durations_s) : null,
-    count: Math.min(params.count, options.max_count)
+    resolution,
+    aspect_ratio: pick(settings.aspect_ratio, workflow.resolutions[resolution]),
+    duration_s: workflow.durations_s.length > 0 ? pick(settings.duration_s, workflow.durations_s) : settings.duration_s,
+    count: Math.min(settings.count, workflow.max_count),
+    audio: workflow.audio && settings.audio
   };
 }
 
@@ -380,13 +505,8 @@ function shake(element: HTMLElement | null) {
   element.animate({ translate: ['0', '-6px', '5px', '-3px', '2px', '0'] }, { duration: 400, easing: 'ease-out' });
 }
 
-function withRole<T extends GenerationInput>(input: T, capability: Capability, index: number): T {
-  const role = roleFor(capability, index);
-  // Keyframes go a second apart until there is a timeline to place them on
-  return { ...input, role, position_s: role === 'keyframe' ? index : null };
-}
-
-function fileAsset(file: File): Asset {
+/** Stands in for a file while it uploads, so its chip shows straight away. */
+function previewAsset(file: File): Asset {
   const url = URL.createObjectURL(file);
   return {
     id: `local_${crypto.randomUUID()}`,
@@ -401,12 +521,43 @@ function fileAsset(file: File): Asset {
   };
 }
 
+function messageOf(error: unknown): string {
+  return error instanceof ApiError ? error.message : 'Something went wrong. Try again.';
+}
+
 function CardText({ label, value }: { label: string; value: string }) {
   return (
     <span className="flex min-w-0 flex-col">
       <span className="truncate font-mono text-[11px] text-[#6d6e70]">{label}</span>
       <RollingValue value={value} className="text-[17px] leading-tight font-bold" />
     </span>
+  );
+}
+
+/** The role an input plays, as a chip that opens the roles it could play instead. */
+function RoleMenu({
+  roles,
+  value,
+  position,
+  onChange
+}: {
+  roles: InputRole[];
+  value: InputRole;
+  position: number | null;
+  onChange: (role: InputRole) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`Role: ${roleLabels[value]}`}
+        className="group/role flex items-center gap-0.5 rounded-md py-0.5 pr-0.5 pl-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors duration-150 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/30 data-[popup-open]:bg-white/10"
+      >
+        <RollingValue value={roleLabels[value]} />
+        {position !== null && <span className="text-[#8a8b8c]">&nbsp;· {position}s</span>}
+        <ChevronDownIcon className="size-3.5 text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]/role:rotate-180" />
+      </DropdownMenuTrigger>
+      <OptionList label="Role" value={value} options={roles} labels={roleLabels} onChange={role => onChange(role as InputRole)} />
+    </DropdownMenu>
   );
 }
 
@@ -440,11 +591,14 @@ function OptionList({
   label,
   value,
   options,
+  labels,
   onChange
 }: {
   label: string;
   value: string;
   options: string[];
+  /** Shown in place of the values, where they aren't words. */
+  labels?: Record<string, string>;
   onChange: (value: string) => void;
 }) {
   return (
@@ -454,10 +608,12 @@ function OptionList({
           <DropdownMenuRadioItem
             key={option}
             value={option}
+            // One choice per menu, so picking it is done with the menu
+            closeOnClick
             style={menuItemDelay(index)}
             className={cn(menuItemClass, 'h-9 rounded-[10px] px-2.5 text-sm font-medium transition-colors focus:bg-white/[0.07]')}
           >
-            {option}
+            {labels?.[option] ?? option}
           </DropdownMenuRadioItem>
         ))}
       </DropdownMenuRadioGroup>
@@ -508,13 +664,23 @@ function CountStepper({
   );
 }
 
-function Thumbnail({ asset }: { asset: Asset }) {
+function Thumbnail({ asset, uploading }: { asset: Asset; uploading: boolean }) {
   const className = 'size-9 max-w-none shrink-0 overflow-hidden rounded-lg bg-muted object-cover';
-  // Local video files have no poster yet, so show their first frame
-  if (asset.media_type === 'video' && asset.thumbnail_url.startsWith('blob:')) {
-    return <video src={asset.url} muted preload="metadata" className={className} />;
-  }
-  return <Image src={asset.thumbnail_url} alt="" width={36} height={36} className={className} />;
+  return (
+    <span className="relative shrink-0">
+      {/* Local video files have no poster yet, so show their first frame */}
+      {asset.media_type === 'video' && asset.thumbnail_url.startsWith('blob:') ? (
+        <video src={asset.url} muted preload="metadata" className={className} />
+      ) : (
+        <Image src={asset.thumbnail_url} alt="" width={36} height={36} className={className} />
+      )}
+      {uploading && (
+        <span role="img" aria-label="Uploading" className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
+          <LoaderCircleIcon className="size-4 animate-spin text-white" />
+        </span>
+      )}
+    </span>
+  );
 }
 
 function LibraryPicker({ assets, disabled, onPick }: { assets: Asset[]; disabled: boolean; onPick: (asset: Asset) => void }) {

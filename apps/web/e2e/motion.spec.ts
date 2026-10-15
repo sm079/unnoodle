@@ -1,4 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockApi } from './api';
+
+test.beforeEach(({ page }) => mockApi(page));
 
 const highlights = (page: Page) => page.getByRole('region', { name: 'Highlights' });
 const frontCard = (page: Page) => highlights(page).getByRole('button', { name: /^Highlight \d+ of \d+$/ });
@@ -52,7 +55,7 @@ test('composer chips animate in and out, and Generate with no prompt goes back t
 
   await composer.getByRole('button', { name: 'More outputs' }).click();
   await expect(composer.getByRole('group', { name: 'Outputs' })).toContainText('2');
-  await expect(composer.getByRole('button', { name: 'Generate, 40 credits' })).toBeVisible();
+  await expect(composer.getByRole('button', { name: 'Generate' })).toBeVisible();
 
   const prompt = composer.getByRole('textbox', { name: 'Prompt' });
   await prompt.fill('');

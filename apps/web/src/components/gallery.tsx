@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
 import Image from 'next/image';
 import { ClockIcon, ImageIcon, LoaderCircleIcon, PlayIcon, TriangleAlertIcon, VideoIcon } from 'lucide-react';
-import { outputType } from '@/lib/capabilities';
+import { capabilityLabels, outputType } from '@/lib/capabilities';
 import type { Generation } from '@/lib/types';
 
+/** Generations newest first: finished ones show their output, the rest where they are in the queue. */
 export function Gallery({ generations }: { generations: Generation[] }) {
   return (
-    <ul aria-label="Gallery" className="grid grid-cols-2 gap-1 p-1 sm:grid-cols-3 lg:grid-cols-4">
+    <ul aria-label="Gallery" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3">
       {generations.map(generation => (
-        <li key={generation.id}>
+        <li key={generation.id} className="[--rise-blur:4px] [--rise-distance:10px] motion-safe:animate-rise">
           <GalleryTile generation={generation} />
         </li>
       ))}
@@ -16,20 +17,23 @@ export function Gallery({ generations }: { generations: Generation[] }) {
   );
 }
 
+const tileClass = 'relative block aspect-square overflow-hidden rounded-2xl bg-panel';
+
 function GalleryTile({ generation }: { generation: Generation }) {
   const cover = generation.outputs[0];
 
   if (generation.status === 'done' && cover) {
     return (
-      <div className="relative aspect-square overflow-hidden rounded-md bg-muted">
+      // A detail sheet comes later; for now a tap opens the file itself
+      <a href={cover.url} target="_blank" rel="noreferrer" aria-label={generation.prompt} className={`${tileClass} group`}>
         <Image
           src={cover.thumbnail_url}
-          alt={generation.prompt}
+          alt=""
           fill
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
-          className="object-cover"
+          className="object-cover transition-[scale] duration-700 ease-out-quint group-hover:scale-[1.04]"
         />
-        <div className="absolute inset-x-1.5 top-1.5 flex justify-between">
+        <div className="absolute inset-x-2 top-2 flex justify-between">
           {cover.media_type === 'video' && cover.duration_s !== null ? (
             <TileBadge>
               <PlayIcon className="size-3" />
@@ -40,18 +44,21 @@ function GalleryTile({ generation }: { generation: Generation }) {
           )}
           {generation.outputs.length > 1 && <TileBadge>{generation.outputs.length}</TileBadge>}
         </div>
-      </div>
+      </a>
     );
   }
 
   const TypeIcon = outputType(generation.capability) === 'video' ? VideoIcon : ImageIcon;
 
   return (
-    <div className="flex aspect-square flex-col gap-2 rounded-md bg-muted p-3 text-xs">
-      <TypeIcon className="size-4 text-muted-foreground" aria-hidden />
-      <div className="mt-auto flex flex-col gap-1.5">
+    <div className={`${tileClass} flex flex-col gap-2 p-3 text-[13px]`}>
+      <span className="flex items-center gap-1.5 text-[#8a8b8c]">
+        <TypeIcon className="size-4" aria-hidden />
+        {capabilityLabels[generation.capability]}
+      </span>
+      <div className="mt-auto flex flex-col gap-2">
         <StatusLine generation={generation} />
-        <p className="line-clamp-3 text-muted-foreground">{generation.prompt}</p>
+        <p className="line-clamp-3 text-[#8a8b8c]">{generation.prompt}</p>
       </div>
     </div>
   );
@@ -61,7 +68,7 @@ function StatusLine({ generation }: { generation: Generation }) {
   switch (generation.status) {
     case 'queued':
       return (
-        <p className="flex items-center gap-1.5 font-medium">
+        <p className="flex items-center gap-1.5 font-semibold">
           <ClockIcon className="size-3.5" /> Queued
         </p>
       );
@@ -69,25 +76,26 @@ function StatusLine({ generation }: { generation: Generation }) {
       const percent = Math.round((generation.progress ?? 0) * 100);
       return (
         <div className="flex flex-col gap-1.5">
-          <p className="flex items-center gap-1.5 font-medium">
+          <p className="flex items-center gap-1.5 font-semibold">
             <LoaderCircleIcon className="size-3.5 animate-spin" /> Generating · {percent}%
           </p>
           <div
             role="progressbar"
+            aria-label="Progress"
             aria-valuenow={percent}
             aria-valuemin={0}
             aria-valuemax={100}
-            className="h-1 rounded-full bg-foreground/10"
+            className="h-1 overflow-hidden rounded-full bg-white/10"
           >
-            <div className="h-full rounded-full bg-foreground" style={{ width: `${percent}%` }} />
+            <div className="h-full rounded-full bg-lime transition-[width] duration-700 ease-out" style={{ width: `${percent}%` }} />
           </div>
         </div>
       );
     }
     case 'failed':
       return (
-        <p className="flex items-start gap-1.5 font-medium text-destructive">
-          <TriangleAlertIcon className="size-3.5 shrink-0" /> {generation.error}
+        <p className="flex items-start gap-1.5 font-semibold text-[#ff6b6b]">
+          <TriangleAlertIcon className="mt-px size-3.5 shrink-0" /> {generation.error}
         </p>
       );
     case 'done':
@@ -98,7 +106,9 @@ function StatusLine({ generation }: { generation: Generation }) {
 
 function TileBadge({ children }: { children: ReactNode }) {
   return (
-    <span className="flex items-center gap-1 rounded-sm bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white">{children}</span>
+    <span className="flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+      {children}
+    </span>
   );
 }
 

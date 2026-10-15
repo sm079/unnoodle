@@ -20,6 +20,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Web types match the API schema
+        run: pnpm --filter @unnoodle/web api:types && git diff --exit-code apps/web/src/lib/api-types.ts
 
   web-e2e:
     runs-on: ubuntu-latest
@@ -78,3 +80,5 @@ jobs:
       - name: Models match the migrations
         run: uv run alembic check
       - run: uv run pytest
+      - name: The committed OpenAPI schema is current
+        run: uv run python -m app.openapi openapi.json && git diff --exit-code openapi.json

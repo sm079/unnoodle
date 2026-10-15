@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type ComponentType, type ReactNode } from 'react';
-import Link from 'next/link';
 import { m } from 'motion/react';
 import {
   ArchiveIcon,
@@ -26,23 +25,29 @@ interface NavItem {
   icon: ComponentType<{ className?: string }>;
   /** Gradient of the icon tile. */
   tile: string;
-  /** Left out for pages that don't exist yet. */
-  href?: string;
+  /** The view it opens; left out for ones that don't exist yet. */
+  view?: View;
 }
 
+/** The home screen, or the gallery that takes its place once something is generating. */
+export type View = 'home' | 'gallery';
+
 const navItems: NavItem[] = [
-  { label: 'Home', icon: HouseIcon, tile: 'from-[#d4d4d4] to-[#4d4d4d]', href: '/generate' },
-  { label: 'My generations', icon: SparklesIcon, tile: 'from-[#8de7f5] to-[#2687b3]' },
+  { label: 'Home', icon: HouseIcon, tile: 'from-[#d4d4d4] to-[#4d4d4d]', view: 'home' },
+  { label: 'My generations', icon: SparklesIcon, tile: 'from-[#8de7f5] to-[#2687b3]', view: 'gallery' },
   { label: 'My favorites', icon: HeartIcon, tile: 'from-[#ffa1cb] to-[#d23c7c]' }
 ];
 
 interface AppShellProps {
   projects: Project[];
+  view: View;
+  onView: (view: View) => void;
   children: ReactNode;
 }
 
-export function AppShell({ projects, children }: AppShellProps) {
+export function AppShell({ projects, view, onView, children }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="flex h-dvh flex-col lg:flex-row">
@@ -53,6 +58,8 @@ export function AppShell({ projects, children }: AppShellProps) {
       >
         <SidebarBody
           projects={projects}
+          view={view}
+          onView={onView}
           action={
             <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar" className={topButtonClass}>
               <PanelLeftIcon className="size-[18px]" />
@@ -62,7 +69,7 @@ export function AppShell({ projects, children }: AppShellProps) {
       </aside>
 
       <header className="flex h-14 shrink-0 items-center gap-3 px-4 lg:hidden">
-        <Sheet>
+        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger
             aria-label="Open menu"
             className="flex size-10 items-center justify-center rounded-xl bg-panel text-muted-foreground transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-90"
@@ -73,6 +80,11 @@ export function AppShell({ projects, children }: AppShellProps) {
             <SheetTitle className="sr-only">Menu</SheetTitle>
             <SidebarBody
               projects={projects}
+              view={view}
+              onView={next => {
+                onView(next);
+                setMenuOpen(false);
+              }}
               action={
                 <SheetClose aria-label="Close menu" className={topButtonClass}>
                   <XIcon className="size-[18px]" />
@@ -102,7 +114,17 @@ const label = cn('truncate', collapsible);
 
 const smallButtonClass = 'rounded-md p-1 transition-[color,scale] duration-200 ease-spring hover:text-foreground active:scale-85';
 
-function SidebarBody({ projects, action }: { projects: Project[]; action: ReactNode }) {
+function SidebarBody({
+  projects,
+  view,
+  onView,
+  action
+}: {
+  projects: Project[];
+  view: View;
+  onView: (view: View) => void;
+  action: ReactNode;
+}) {
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2.5 pb-5 group-data-[collapsed=true]/sidebar:px-2.5">
       <div className="flex gap-1.5 group-data-[collapsed=true]/sidebar:flex-col">
@@ -129,12 +151,15 @@ function SidebarBody({ projects, action }: { projects: Project[]; action: ReactN
             </>
           );
           const className = cn(rowClass, 'hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent');
-          return item.href ? (
-            <Link key={item.label} href={item.href} aria-current="page" title={item.label} className={className}>
-              {content}
-            </Link>
-          ) : (
-            <button key={item.label} type="button" title={item.label} className={className}>
+          return (
+            <button
+              key={item.label}
+              type="button"
+              title={item.label}
+              aria-current={item.view === view ? 'page' : undefined}
+              onClick={() => item.view && onView(item.view)}
+              className={className}
+            >
               {content}
             </button>
           );

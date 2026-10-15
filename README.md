@@ -29,6 +29,9 @@ uv run python -m app.worker             # runs queued generations on ComfyUI (be
 The API queues generations in Postgres and the worker, a separate process, runs them on ComfyUI one at a time. Several
 workers can share the queue.
 
+The browser only talks to the web app, which passes `/api/*` and `/media/*` through to the API (`API_URL`, by default
+`http://127.0.0.1:8000`), so a phone needs one address and no cross-origin setup.
+
 Every setting has a working default. To change one, copy `.env.example` to `.env`; compose and the API both read it.
 
 ### ComfyUI without models

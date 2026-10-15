@@ -1,0 +1,894 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "unnoodle API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workflows": {
+      "get": {
+        "summary": "List Workflows",
+        "operationId": "list_workflows_workflows_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Workflows Workflows Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assets": {
+      "post": {
+        "summary": "Upload Asset",
+        "description": "Stores an uploaded image, to attach to generations. Videos come once a workflow takes them.",
+        "operationId": "upload_asset_assets_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_asset_assets_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Uploads",
+        "description": "Uploads, newest first: the library the composer attaches from.",
+        "operationId": "list_uploads_assets_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 60,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssetOut"
+                  },
+                  "title": "Response List Uploads Assets Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generations": {
+      "post": {
+        "summary": "Create Generation",
+        "operationId": "create_generation_generations_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Can't be run"
+          }
+        }
+      },
+      "get": {
+        "summary": "List Generations",
+        "description": "Newest first. For the next page, pass the id of the last one received as before.",
+        "operationId": "list_generations_generations_get",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GenerationOut"
+                  },
+                  "title": "Response List Generations Generations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generations/{generation_id}": {
+      "get": {
+        "summary": "Get Generation",
+        "operationId": "get_generation_generations__generation_id__get",
+        "parameters": [
+          {
+            "name": "generation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Generation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such generation"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssetOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "media_type": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/AssetSource"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "thumbnail_url": {
+            "type": "string",
+            "title": "Thumbnail Url"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "media_type",
+          "source",
+          "url",
+          "thumbnail_url",
+          "width",
+          "height",
+          "duration_s",
+          "created_at"
+        ],
+        "title": "AssetOut"
+      },
+      "AssetSource": {
+        "type": "string",
+        "enum": [
+          "upload",
+          "generation"
+        ],
+        "title": "AssetSource"
+      },
+      "Body_upload_asset_assets_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_asset_assets_post"
+      },
+      "Capability": {
+        "type": "string",
+        "enum": [
+          "image.generate",
+          "image.edit",
+          "image.restyle",
+          "image.multi_ref",
+          "video.generate",
+          "video.from_frame",
+          "video.first_last",
+          "video.keyframes",
+          "video.reference",
+          "video.character_swap"
+        ],
+        "title": "Capability"
+      },
+      "GenerationIn": {
+        "properties": {
+          "media_type": {
+            "$ref": "#/components/schemas/MediaType"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Prompt"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/InputIn"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Inputs",
+            "default": []
+          },
+          "params": {
+            "$ref": "#/components/schemas/Params"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "media_type",
+          "prompt",
+          "params"
+        ],
+        "title": "GenerationIn",
+        "description": "What the composer sends. It names no workflow: the inputs' roles decide one."
+      },
+      "GenerationInputOut": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/InputRole"
+          },
+          "position_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position S"
+          },
+          "asset": {
+            "$ref": "#/components/schemas/AssetOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "position_s",
+          "asset"
+        ],
+        "title": "GenerationInputOut"
+      },
+      "GenerationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GenerationStatus"
+          },
+          "capability": {
+            "$ref": "#/components/schemas/Capability"
+          },
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "params": {
+            "$ref": "#/components/schemas/ParamsOut"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationInputOut"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/AssetOut"
+            },
+            "type": "array",
+            "title": "Outputs"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "capability",
+          "workflow_id",
+          "prompt",
+          "params",
+          "inputs",
+          "outputs",
+          "progress",
+          "error",
+          "created_at",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "GenerationOut"
+      },
+      "GenerationStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "failed",
+          "done"
+        ],
+        "title": "GenerationStatus"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "db": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "down"
+            ],
+            "title": "Db"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "db"
+        ],
+        "title": "Health"
+      },
+      "InputIn": {
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Asset Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/InputRole"
+          },
+          "position_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "role"
+        ],
+        "title": "InputIn"
+      },
+      "InputRole": {
+        "type": "string",
+        "enum": [
+          "start_frame",
+          "end_frame",
+          "keyframe",
+          "reference",
+          "edit_target",
+          "restyle",
+          "source_video"
+        ],
+        "title": "InputRole",
+        "description": "What an attached asset is for. The output type plus the roles of the inputs decide the capability."
+      },
+      "MediaType": {
+        "type": "string",
+        "enum": [
+          "image",
+          "video"
+        ],
+        "title": "MediaType"
+      },
+      "Params": {
+        "properties": {
+          "aspect_ratio": {
+            "type": "string",
+            "enum": [
+              "1:1",
+              "4:3",
+              "3:4",
+              "16:9",
+              "9:16"
+            ],
+            "title": "Aspect Ratio"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "audio": {
+            "type": "boolean",
+            "title": "Audio",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "aspect_ratio",
+          "resolution"
+        ],
+        "title": "Params"
+      },
+      "ParamsOut": {
+        "properties": {
+          "aspect_ratio": {
+            "type": "string",
+            "enum": [
+              "1:1",
+              "4:3",
+              "3:4",
+              "16:9",
+              "9:16"
+            ],
+            "title": "Aspect Ratio"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 1
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "audio": {
+            "type": "boolean",
+            "title": "Audio",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "aspect_ratio",
+          "resolution",
+          "seed"
+        ],
+        "title": "ParamsOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkflowOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "capability": {
+            "$ref": "#/components/schemas/Capability"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default"
+          },
+          "resolutions": {
+            "additionalProperties": {
+              "items": {
+                "type": "string",
+                "enum": [
+                  "1:1",
+                  "4:3",
+                  "3:4",
+                  "16:9",
+                  "9:16"
+                ]
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Resolutions"
+          },
+          "max_count": {
+            "type": "integer",
+            "title": "Max Count"
+          },
+          "durations_s": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Durations S"
+          },
+          "audio": {
+            "type": "boolean",
+            "title": "Audio"
+          },
+          "roles": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/InputRole"
+            },
+            "type": "object",
+            "title": "Roles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "capability",
+          "model",
+          "model_name",
+          "description",
+          "default",
+          "resolutions",
+          "max_count",
+          "durations_s",
+          "audio",
+          "roles"
+        ],
+        "title": "WorkflowOut"
+      }
+    }
+  }
+}
