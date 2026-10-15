@@ -3,7 +3,7 @@ import { AppShell } from '@/components/app-shell';
 import { Composer } from '@/components/composer';
 import { Hero } from '@/components/hero';
 import { ProjectGrid } from '@/components/project-grid';
-import { generations, projects, uploads, workflows } from '@/lib/fixtures';
+import { generations, projects } from '@/lib/fixtures';
 
 export const metadata: Metadata = {
   title: 'Home · unnoodle'
@@ -20,7 +20,7 @@ export default function HomePage() {
           <Hero assets={highlights} title="One prompt, any workflow" />
           {/* Arrives after the highlights are dealt and the headline lands */}
           <div className="w-full max-w-[1092px] animate-rise [--rise-blur:0px] [--rise-distance:18px] [animation-delay:250ms] [animation-duration:650ms]">
-            <Composer workflows={workflows} library={uploads} />
+            <Composer />
           </div>
         </div>
         <ProjectGrid projects={projects} />

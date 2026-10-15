@@ -1,4 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { mockApi } from './api';
+
+test.beforeEach(({ page }) => mockApi(page));
 
 const highlights = (page: Page) => page.getByRole('region', { name: 'Highlights' });
 const frontCard = (page: Page) => highlights(page).getByRole('button', { name: /^Highlight \d+ of \d+$/ });

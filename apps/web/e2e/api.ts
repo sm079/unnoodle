@@ -1,0 +1,60 @@
+import type { Page, Route } from '@playwright/test';
+import { generations, uploads, workflows } from '../src/lib/fixtures';
+import type { Asset, Generation, GenerationRequest } from '../src/lib/types';
+
+/**
+ * Answers the browser's API calls with the fixtures, so the tests need no API and always see the same data. A
+ * generation sent from the composer is queued, then runs and finishes over the next few times the list is fetched.
+ */
+export async function mockApi(page: Page) {
+  const created: Generation[] = [];
+  let reads = 0;
+
+  await page.route('**/api/workflows', route => route.fulfill({ json: workflows }));
+
+  await page.route('**/api/assets', async route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: uploads });
+    const asset: Asset = { ...uploads[1], id: `ast_upload_${Date.now()}`, created_at: new Date().toISOString() };
+    return route.fulfill({ status: 201, json: asset });
+  });
+
+  await page.route('**/api/generations', async route => {
+    if (route.request().method() === 'POST') return route.fulfill({ status: 201, json: queue(route) });
+    reads += 1;
+    for (const g of created) advance(g);
+    return route.fulfill({ json: [...created, ...generations] });
+  });
+
+  function queue(route: Route): Generation {
+    const body = route.request().postDataJSON() as GenerationRequest;
+    const workflow = workflows.find(w => w.capability.startsWith(`${body.media_type}.`) && w.default)!;
+    const generation: Generation = {
+      id: `gen_new_${created.length}`,
+      status: 'queued',
+      capability: workflow.capability,
+      workflow_id: workflow.id,
+      prompt: body.prompt,
+      params: { ...body.params, seed: body.params.seed ?? 42 },
+      inputs: [],
+      outputs: [],
+      progress: null,
+      error: null,
+      created_at: new Date().toISOString(),
+      started_at: null,
+      finished_at: null
+    };
+    created.unshift(generation);
+    return generation;
+  }
+
+  function advance(g: Generation) {
+    if (g.status === 'queued') Object.assign(g, { status: 'running', progress: 0.5, started_at: new Date().toISOString() });
+    else if (g.status === 'running' && reads > 3)
+      Object.assign(g, {
+        status: 'done',
+        progress: null,
+        finished_at: new Date().toISOString(),
+        outputs: [{ ...uploads[2], id: `${g.id}_out`, source: 'generation' }]
+      });
+  }
+}

@@ -10,6 +10,7 @@ import {
   FocusIcon,
   GemIcon,
   ImageIcon,
+  LoaderCircleIcon,
   MinusIcon,
   PlusIcon,
   VideoIcon,
@@ -28,22 +29,25 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { api, ApiError } from '@/lib/api';
 import { defaultRole, roleLabels } from '@/lib/capabilities';
+import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
-import { rolesFor, route } from '@/lib/routing';
+import { rolesFor, route, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
-import type { AspectRatio, Asset, InputRole, MediaType, Workflow } from '@/lib/types';
+import type { AspectRatio, Asset, Generation, InputRole, MediaType, Workflow } from '@/lib/types';
 
 interface ComposerProps {
-  workflows: Workflow[];
-  /** Earlier uploads that can be attached again. */
-  library: Asset[];
+  /** Called once the API has queued what the composer sent. */
+  onGenerated?: (generation: Generation) => void;
 }
 
 interface DraftInput {
   /** Identifies the chip while it animates in and out; the same asset can be attached twice. */
   key: string;
+  /** While uploading, a local preview of the file; then the stored asset. */
   asset: Asset;
+  uploading: boolean;
   role: InputRole;
   /** Seconds into the clip. Keyframes only. */
   position_s: number | null;
@@ -90,24 +94,50 @@ const initialDrafts: Record<MediaType, Draft> = {
 
 // Enough for the keyframe workflows; nothing else takes more
 const MAX_INPUTS = 8;
+// The API's upload limit, checked here first to save sending a file that will be refused
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 let lastInputKey = 0;
 const nextKey = () => `input-${++lastInputKey}`;
 
-export function Composer({ workflows, library }: ComposerProps) {
+export function Composer({ onGenerated }: ComposerProps) {
+  const workflows = useWorkflows();
+  const { data: library = [] } = useUploads();
+  const addToCache = useAddToCache();
   const [mode, setMode] = useState<MediaType>('video');
   const [drafts, setDrafts] = useState(initialDrafts);
+  const [sending, setSending] = useState(false);
+  // Why the last attempt to upload or send didn't work; cleared by the next change
+  const [problem, setProblem] = useState<string | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const draft = drafts[mode];
-  const routed = route(workflows, mode, draft.inputs.map(i => i.role), draft.model);
-  const workflow = routed.ok ? routed.value : null;
+  const routed: Routed<Workflow> | null = workflows.data
+    ? route(
+        workflows.data,
+        mode,
+        draft.inputs.map(i => i.role),
+        draft.model
+      )
+    : null;
+  const workflow = routed?.ok ? routed.value : null;
   const settings = workflow ? fitSettings(draft.settings, workflow) : draft.settings;
   const full = draft.inputs.length >= MAX_INPUTS;
+  const uploading = draft.inputs.some(i => i.uploading);
+  const status = problem ?? (workflows.error ? workflows.error.message : routed && !routed.ok ? routed.error : null);
 
   function update(patch: Partial<Draft>) {
+    setProblem(null);
     setDrafts(current => ({ ...current, [mode]: { ...current[mode], ...patch } }));
+  }
+
+  /** Changes one input wherever it is now: an upload can finish after its chip moved or the mode changed. */
+  function updateInput(inMode: MediaType, key: string, change: (input: DraftInput) => DraftInput | null) {
+    setDrafts(current => {
+      const inputs = current[inMode].inputs.flatMap(input => (input.key === key ? (change(input) ?? []) : [input]));
+      return { ...current, [inMode]: { ...current[inMode], inputs } };
+    });
   }
 
   function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
@@ -115,24 +145,61 @@ export function Composer({ workflows, library }: ComposerProps) {
     update({ settings: { ...settings, [key]: value } });
   }
 
-  function attach(assets: Asset[]) {
+  /** Adds inputs with their default roles and returns their keys. */
+  function attach(assets: Asset[], uploading = false): string[] {
     const inputs = [...draft.inputs];
-    for (const asset of assets.slice(0, MAX_INPUTS - inputs.length)) {
+    const added = assets.slice(0, MAX_INPUTS - inputs.length).map(asset => {
       const role = defaultRole(
         mode,
         inputs.map(i => i.role),
         asset
       );
-      inputs.push({ key: nextKey(), asset, role, position_s: null });
-    }
+      const input = { key: nextKey(), asset, uploading, role, position_s: null };
+      inputs.push(input);
+      return input.key;
+    });
     // The model menu only lists models for the new route, so a model picked for the old one no longer applies
     update({ inputs, model: null });
+    return added;
   }
 
   function detach(index: number) {
     const { asset } = draft.inputs[index];
     if (asset.url.startsWith('blob:')) URL.revokeObjectURL(asset.url);
     update({ inputs: draft.inputs.filter((_, i) => i !== index), model: null });
+  }
+
+  function attachFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    const fits = (file: File) => file.type.startsWith('image/') && file.size <= MAX_UPLOAD_BYTES;
+    const accepted = files.filter(fits);
+    const refused = files.find(file => !fits(file));
+    const keys = attach(accepted.map(previewAsset), true);
+    if (refused) {
+      setProblem(
+        refused.type.startsWith('image/') ? `${refused.name} is over ${MAX_UPLOAD_BYTES >> 20} MB` : 'Only images can be attached for now'
+      );
+    }
+    // Each file uploads as soon as it's attached; its chip shows it until the API has stored it
+    keys.forEach((key, i) => upload(mode, key, accepted[i]));
+  }
+
+  async function upload(inMode: MediaType, key: string, file: File) {
+    try {
+      const stored = await api.upload(file);
+      updateInput(inMode, key, input => {
+        URL.revokeObjectURL(input.asset.url);
+        return { ...input, asset: stored, uploading: false };
+      });
+      addToCache.upload();
+    } catch (error) {
+      updateInput(inMode, key, input => {
+        URL.revokeObjectURL(input.asset.url);
+        return null;
+      });
+      setProblem(`${file.name}: ${messageOf(error)}`);
+    }
   }
 
   function setRole(index: number, role: InputRole) {
@@ -144,16 +211,37 @@ export function Composer({ workflows, library }: ComposerProps) {
     update({ inputs, model: null });
   }
 
-  function attachFiles(event: ChangeEvent<HTMLInputElement>) {
-    attach(Array.from(event.target.files ?? [], fileAsset));
-    event.target.value = '';
-  }
-
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!workflow || uploading || sending) return;
     if (draft.prompt.trim() === '') {
       promptRef.current?.focus();
       shake(promptRef.current);
+      return;
+    }
+    setSending(true);
+    setProblem(null);
+    try {
+      const generation = await api.createGeneration({
+        media_type: mode,
+        prompt: draft.prompt,
+        inputs: draft.inputs.map(i => ({ asset_id: i.asset.id, role: i.role, position_s: i.position_s })),
+        params: {
+          aspect_ratio: settings.aspect_ratio,
+          resolution: settings.resolution,
+          duration_s: mode === 'video' ? settings.duration_s : null,
+          count: settings.count,
+          audio: settings.audio,
+          seed: null
+        },
+        model: draft.model
+      });
+      addToCache.generation(generation);
+      onGenerated?.(generation);
+    } catch (error) {
+      setProblem(messageOf(error));
+    } finally {
+      setSending(false);
     }
   }
 
@@ -240,7 +328,7 @@ export function Composer({ workflows, library }: ComposerProps) {
                           className="shrink-0 origin-left overflow-hidden pr-2"
                         >
                           <div className="flex w-max items-center gap-1 rounded-xl bg-chip p-1 pr-1.5">
-                            <Thumbnail asset={input.asset} />
+                            <Thumbnail asset={input.asset} uploading={input.uploading} />
                             <RoleMenu
                               roles={rolesFor[mode]}
                               value={input.role}
@@ -285,7 +373,7 @@ export function Composer({ workflows, library }: ComposerProps) {
               </button>
               <LibraryPicker assets={library} disabled={full} onPick={asset => attach([asset])} />
               <WorkflowMenu
-                models={workflow ? workflows.filter(w => w.capability === workflow.capability) : []}
+                models={workflow ? (workflows.data ?? []).filter(w => w.capability === workflow.capability) : []}
                 value={workflow}
                 onChange={next => update({ model: next.model })}
                 className={cn(chipClass, 'px-3')}
@@ -362,7 +450,8 @@ export function Composer({ workflows, library }: ComposerProps) {
 
           <button
             type="submit"
-            aria-disabled={!workflow}
+            aria-disabled={!workflow || uploading || sending}
+            aria-busy={sending}
             className="group/generate relative mb-[3px] flex h-14 w-full shrink-0 items-center justify-center gap-3 overflow-hidden rounded-[14px] bg-linear-to-b from-[#d8ff17] via-[#f4ff1f] to-[#ffff17] text-[#191b04] shadow-[0_3px_0_var(--color-lime-edge),0_10px_20px_rgb(0_0_0/0.45)] transition-[translate,box-shadow,filter,opacity] duration-300 ease-spring hover:shadow-[0_3px_0_var(--color-lime-edge),0_10px_28px_rgb(220_255_23/0.2)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-lime-edge),0_4px_10px_rgb(0_0_0/0.4)] active:duration-75 active:ease-out aria-disabled:pointer-events-none aria-disabled:opacity-40 lg:h-24 lg:w-40"
           >
             {/* A glint crosses the button as the pointer arrives */}
@@ -374,9 +463,9 @@ export function Composer({ workflows, library }: ComposerProps) {
           </button>
         </div>
 
-        {!routed.ok && (
+        {status && (
           <p role="status" className="px-3 pt-2 pb-1 text-sm text-[#e8a33d]">
-            {routed.error}
+            {status}
           </p>
         )}
       </div>
@@ -416,7 +505,8 @@ function shake(element: HTMLElement | null) {
   element.animate({ translate: ['0', '-6px', '5px', '-3px', '2px', '0'] }, { duration: 400, easing: 'ease-out' });
 }
 
-function fileAsset(file: File): Asset {
+/** Stands in for a file while it uploads, so its chip shows straight away. */
+function previewAsset(file: File): Asset {
   const url = URL.createObjectURL(file);
   return {
     id: `local_${crypto.randomUUID()}`,
@@ -429,6 +519,10 @@ function fileAsset(file: File): Asset {
     duration_s: null,
     created_at: new Date().toISOString()
   };
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof ApiError ? error.message : 'Something went wrong. Try again.';
 }
 
 function CardText({ label, value }: { label: string; value: string }) {
@@ -462,13 +556,7 @@ function RoleMenu({
         {position !== null && <span className="text-[#8a8b8c]">&nbsp;· {position}s</span>}
         <ChevronDownIcon className="size-3.5 text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]/role:rotate-180" />
       </DropdownMenuTrigger>
-      <OptionList
-        label="Role"
-        value={value}
-        options={roles}
-        labels={roleLabels}
-        onChange={role => onChange(role as InputRole)}
-      />
+      <OptionList label="Role" value={value} options={roles} labels={roleLabels} onChange={role => onChange(role as InputRole)} />
     </DropdownMenu>
   );
 }
@@ -576,13 +664,23 @@ function CountStepper({
   );
 }
 
-function Thumbnail({ asset }: { asset: Asset }) {
+function Thumbnail({ asset, uploading }: { asset: Asset; uploading: boolean }) {
   const className = 'size-9 max-w-none shrink-0 overflow-hidden rounded-lg bg-muted object-cover';
-  // Local video files have no poster yet, so show their first frame
-  if (asset.media_type === 'video' && asset.thumbnail_url.startsWith('blob:')) {
-    return <video src={asset.url} muted preload="metadata" className={className} />;
-  }
-  return <Image src={asset.thumbnail_url} alt="" width={36} height={36} className={className} />;
+  return (
+    <span className="relative shrink-0">
+      {/* Local video files have no poster yet, so show their first frame */}
+      {asset.media_type === 'video' && asset.thumbnail_url.startsWith('blob:') ? (
+        <video src={asset.url} muted preload="metadata" className={className} />
+      ) : (
+        <Image src={asset.thumbnail_url} alt="" width={36} height={36} className={className} />
+      )}
+      {uploading && (
+        <span role="img" aria-label="Uploading" className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
+          <LoaderCircleIcon className="size-4 animate-spin text-white" />
+        </span>
+      )}
+    </span>
+  );
 }
 
 function LibraryPicker({ assets, disabled, onPick }: { assets: Asset[]; disabled: boolean; onPick: (asset: Asset) => void }) {

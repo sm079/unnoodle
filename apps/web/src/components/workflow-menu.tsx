@@ -45,7 +45,10 @@ export function WorkflowMenu({ models, value, onChange, className }: WorkflowMen
           sideOffset={10}
           className="w-[min(500px,calc(100vw-2rem))] gap-0 overflow-hidden rounded-[20px] border border-white/[0.07] bg-[#25282c]/85 p-0 shadow-[0_24px_60px_rgb(0_0_0/0.6)] ring-0 backdrop-blur-2xl"
         >
-          <section aria-label={capabilityLabels[value.capability]} className="max-h-[min(460px,var(--available-height))] overflow-y-auto p-2">
+          <section
+            aria-label={capabilityLabels[value.capability]}
+            className="max-h-[min(460px,var(--available-height))] overflow-y-auto p-2"
+          >
             <h3 className="flex items-center gap-2 px-2 py-2 text-[15px] text-[#8a8b8c]">
               <SparkleIcon className="size-4 fill-current" />
               {capabilityLabels[value.capability]}
