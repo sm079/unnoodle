@@ -18,7 +18,8 @@ export default function HomePage() {
       <div className="flex flex-col gap-20 px-4 pt-6 pb-16 lg:gap-[92px] lg:px-[50px] lg:pt-[73px]">
         <div className="flex flex-col items-center gap-10 lg:gap-[55px]">
           <Hero assets={highlights} title="One prompt, any workflow" />
-          <div className="w-full max-w-[1092px]">
+          {/* Arrives after the highlights are dealt and the headline lands */}
+          <div className="w-full max-w-[1092px] animate-rise [--rise-blur:0px] [--rise-distance:18px] [animation-delay:250ms] [animation-duration:650ms]">
             <Composer drafts={composerDrafts} workflows={workflows} library={uploads} />
           </div>
         </div>
