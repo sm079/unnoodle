@@ -3,17 +3,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
-import {
-  ClockIcon,
-  FocusIcon,
-  GemIcon,
-  ImageIcon,
-  LoaderCircleIcon,
-  MinusIcon,
-  PlusIcon,
-  VideoIcon,
-  XIcon
-} from 'lucide-react';
+import { ClockIcon, FocusIcon, GemIcon, ImageIcon, LoaderCircleIcon, MinusIcon, PlusIcon, VideoIcon, XIcon } from 'lucide-react';
 import { RollingValue } from '@/components/rolling-value';
 import { WorkflowMenu } from '@/components/workflow-menu';
 import {
