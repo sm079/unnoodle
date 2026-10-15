@@ -304,10 +304,95 @@
   }
 }
 
+@layer components {
+  /*
+   * A highlight card in the hero fan. The hero renders where each card rests (--x in shifts from the centre, --s scale,
+   * --a opacity) and where it would rest one step either way (-next, -prev). While a swipe is in progress the stage
+   * sets --p from -1 (one step to the next card) to 1 (one step back), and each card moves that far between the two.
+   */
+  .hero-card {
+    --to-next: max(0, -1 * var(--p, 0));
+    --to-prev: max(0, var(--p, 0));
+    --ex: calc(var(--x) + (var(--x-next) - var(--x)) * var(--to-next) + (var(--x-prev) - var(--x)) * var(--to-prev));
+    --es: calc(var(--s) + (var(--s-next) - var(--s)) * var(--to-next) + (var(--s-prev) - var(--s)) * var(--to-prev));
+    translate: calc(-50% + var(--shift) * var(--ex)) -50%;
+    scale: var(--es);
+    opacity: calc(var(--a) + (var(--a-next) - var(--a)) * var(--to-next) + (var(--a-prev) - var(--a)) * var(--to-prev));
+    /* The bigger card is in front, including halfway through a swipe */
+    z-index: calc(var(--es) * 100);
+    transition:
+      translate 650ms var(--ease-spring),
+      scale 650ms var(--ease-spring),
+      opacity 350ms var(--ease-out-quint),
+      transform 450ms var(--ease-out-quint),
+      filter 300ms ease-out;
+    animation: hero-deal 900ms var(--ease-spring) backwards;
+    animation-delay: calc(80ms + var(--deal) * 90ms);
+  }
+  [data-dragging] > .hero-card {
+    transition: none;
+  }
+
+  /* With a mouse, the front card leans toward the pointer and catches a highlight; the stage sets --rx, --ry, --mx, --my */
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .hero-card[data-front] {
+      transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    }
+    .hero-stage:hover .hero-glare {
+      opacity: 1;
+    }
+  }
+
+  /* One headline word: a vertical white-to-grey fill with a lime glint that sweeps across once after it arrives */
+  .hero-word {
+    display: inline-block;
+    background-image:
+      linear-gradient(105deg, transparent 42%, rgb(236 255 140 / 0.95) 50%, transparent 58%), linear-gradient(to bottom, #fff, #8d8d8e);
+    background-size:
+      250% 100%,
+      100% 100%;
+    background-repeat: no-repeat;
+    background-position:
+      0% 0,
+      0 0;
+    background-clip: text;
+    color: transparent;
+    --rise-distance: 0.35em;
+    animation:
+      rise 800ms var(--ease-out-quint) backwards,
+      glint 1100ms var(--ease-in-out-quart) backwards;
+    animation-delay: calc(260ms + var(--i) * 70ms), calc(950ms + var(--i) * 110ms);
+  }
+}
+
+/* The cards start stacked behind the front card and fan out. The front card is visible from the first frame and only
+   grows into place, so it still counts as painted for Largest Contentful Paint. */
+@keyframes hero-deal {
+  from {
+    translate: -50% -50%;
+    scale: calc(var(--s) * 0.85);
+  }
+}
+
+@keyframes glint {
+  from {
+    background-position:
+      100% 0,
+      0 0;
+  }
+}
+
 /* Keep fades and colour changes; drop movement, blur and sweeps */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-scale: 0;
+  }
+  .hero-card {
+    transition: opacity 250ms ease-out;
+    animation-name: fade-in;
+  }
+  .hero-word {
+    animation-name: fade-in, none;
   }
 }
 
