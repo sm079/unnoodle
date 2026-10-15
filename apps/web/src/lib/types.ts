@@ -80,15 +80,6 @@ export interface WorkflowOptions {
   max_count: number;
   /** Most inputs it accepts. */
   max_inputs: number;
-  /** Look settings shown as cards, in order. */
-  controls: WorkflowControl[];
-}
-
-/** A look setting such as camera or lighting. The first option is the default. */
-export interface WorkflowControl {
-  id: string;
-  label: string;
-  options: string[];
 }
 
 export interface Generation {

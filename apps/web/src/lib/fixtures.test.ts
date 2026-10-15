@@ -75,5 +75,4 @@ test.each(workflows)('$id offers settings for its output type', ({ capability, o
   const video = outputType(capability) === 'video';
   expect(options.durations_s.length > 0).toBe(video);
   if (!video) expect(options.audio).toBe(false);
-  for (const control of options.controls) expect(control.options.length).toBeGreaterThan(0);
 });
