@@ -4,11 +4,12 @@ import { useRef, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { ChevronRightIcon } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
-import { Composer } from '@/components/composer';
+import { Composer, type ComposerHandle } from '@/components/composer';
 import { Gallery } from '@/components/gallery';
 import { Hero } from '@/components/hero';
 import { ProjectGrid } from '@/components/project-grid';
 import { useGenerations, useProjects } from '@/lib/data';
+import type { Asset } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { allProjects, folder, home, projectOf, type View } from '@/lib/views';
 
@@ -25,6 +26,8 @@ export function Studio() {
   const { data: generations = [] } = useGenerations();
   const highlights = generations.flatMap(g => g.outputs).slice(0, HIGHLIGHTS);
   const top = useRef<HTMLDivElement>(null);
+  const composer = useRef<ComposerHandle>(null);
+  const attachToComposer = (asset: Asset) => composer.current?.attach(asset);
 
   function show(next: View) {
     setView(next);
@@ -59,7 +62,11 @@ export function Studio() {
               animate={{ opacity: 1, transition: { delay: 0.15 } }}
               className="flex flex-1 flex-col"
             >
-              {view.name === 'projects' ? <ProjectGrid onView={show} /> : <Folder project={view.project} onView={show} />}
+              {view.name === 'projects' ? (
+                <ProjectGrid onView={show} />
+              ) : (
+                <Folder project={view.project} onView={show} onUseAsInput={attachToComposer} />
+              )}
             </m.div>
           )}
         </AnimatePresence>
@@ -74,6 +81,7 @@ export function Studio() {
           )}
         >
           <Composer
+            ref={composer}
             projectId={projectOf(view)}
             onGenerated={generation => show(view.name === 'folder' ? view : folder(generation.project_id))}
           />
@@ -84,7 +92,15 @@ export function Studio() {
 }
 
 /** A folder's gallery: one project's generations, or every generation for My generations. */
-function Folder({ project, onView }: { project: string | null; onView: (view: View) => void }) {
+function Folder({
+  project,
+  onView,
+  onUseAsInput
+}: {
+  project: string | null;
+  onView: (view: View) => void;
+  onUseAsInput: (asset: Asset) => void;
+}) {
   const { data: projects } = useProjects();
   const name = project === null ? 'My generations' : (projects?.find(p => p.id === project)?.name ?? '');
   return (
@@ -102,12 +118,12 @@ function Folder({ project, onView }: { project: string | null; onView: (view: Vi
           {name}
         </h1>
       </div>
-      <Generations project={project} name={name} />
+      <Generations project={project} name={name} onUseAsInput={onUseAsInput} />
     </section>
   );
 }
 
-function Generations({ project, name }: { project: string | null; name: string }) {
+function Generations({ project, name, onUseAsInput }: { project: string | null; name: string; onUseAsInput: (asset: Asset) => void }) {
   const { data, error, isLoading } = useGenerations(project);
   if (isLoading) return <p className="text-[#8a8b8c]">Loading…</p>;
   if (error && !data) return <p className="text-[#e8a33d]">{error.message}</p>;
@@ -120,5 +136,5 @@ function Generations({ project, name }: { project: string | null; name: string }
       </p>
     );
   }
-  return <Gallery generations={data} />;
+  return <Gallery generations={data} onUseAsInput={onUseAsInput} />;
 }

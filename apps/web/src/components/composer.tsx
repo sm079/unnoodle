@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useImperativeHandle, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode, type Ref } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
 import { ClockIcon, FocusIcon, GemIcon, ImageIcon, LoaderCircleIcon, MinusIcon, PlusIcon, VideoIcon, XIcon } from 'lucide-react';
@@ -18,12 +18,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { api, messageOf } from '@/lib/api';
 import { qualityLabels, shapeLabels } from '@/lib/capabilities';
 import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
+import { handleOf } from '@/lib/mentions';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
 import { capabilityFor, route, type Attached, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
 import type { AspectRatio, Asset, Generation, InputRole, MediaType, Quality, Workflow } from '@/lib/types';
 
+/** What the rest of the screen can do to the composer. */
+export interface ComposerHandle {
+  /** Attaches an asset in whichever mode the composer is in, as if it were picked from the library. */
+  attach: (asset: Asset) => void;
+}
+
 interface ComposerProps {
+  ref?: Ref<ComposerHandle>;
   /** The project to file what it generates in, or null for My generations alone. */
   projectId: string | null;
   /** Called once the API has queued what the composer sent. */
@@ -95,7 +103,7 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 let lastInputKey = 0;
 const nextKey = () => `input-${++lastInputKey}`;
 
-export function Composer({ projectId, onGenerated }: ComposerProps) {
+export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
   const workflows = useWorkflows();
   const { data: library = [] } = useUploads();
   const addToCache = useAddToCache();
@@ -108,6 +116,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const draft = drafts[mode];
+  const kinds = draft.inputs.map(i => i.asset.media_type);
   const attached = draft.inputs.map((i): Attached => [i.role, i.asset.media_type]);
   const routed: Routed<Workflow> | null = workflows.data ? route(workflows.data, mode, attached, draft.model) : null;
   const workflow = routed?.ok ? routed.value : null;
@@ -154,6 +163,13 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
     update({ inputs, model: null, settings });
     return added;
   }
+
+  useImperativeHandle(ref, () => ({
+    attach(asset) {
+      if (full) setProblem(`${MAX_INPUTS} attachments is the most. Remove one to add another.`);
+      else attach([asset]);
+    }
+  }));
 
   function detach(index: number) {
     const { asset } = draft.inputs[index];
@@ -264,7 +280,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                   <ul aria-label="Inputs" className="no-scrollbar flex overflow-x-auto">
                     <AnimatePresence initial={false}>
                       {draft.inputs.map((input, index) => {
-                        const handle = handleOf(draft.inputs, index);
+                        const handle = handleOf(kinds, index);
                         return (
                           <m.li
                             key={input.key}
@@ -346,7 +362,7 @@ export function Composer({ projectId, onGenerated }: ComposerProps) {
                     icon={<AspectIcon ratio={settings.aspect_ratio === 'first' ? firstShape : settings.aspect_ratio} />}
                     value={settings.aspect_ratio}
                     options={[...(first ? ['first'] : []), ...workflow.aspect_ratios]}
-                    labels={{ ...shapeLabels, first: first ? `Same as ${handleOf(draft.inputs, 0)}` : '' }}
+                    labels={{ ...shapeLabels, first: first ? `Same as ${handleOf(kinds, 0)}` : '' }}
                     onChange={value => setSetting('aspect_ratio', value as Shape)}
                   />
                   {workflow.durations_s.length > 0 && (
@@ -481,14 +497,6 @@ export function fitSettings(settings: Settings, workflow: Workflow, mode: MediaT
     duration_s: pick(settings.duration_s, workflow.durations_s),
     count: settings.count
   };
-}
-
-/** "@photo2" or "@clip1": what the prompt calls an attachment. Photos and clips are numbered separately, in the order
- * they were attached, as the API reads them. */
-function handleOf(inputs: DraftInput[], index: number): string {
-  const kind = inputs[index].asset.media_type;
-  const number = inputs.slice(0, index + 1).filter(i => i.asset.media_type === kind).length;
-  return `@${kind === 'image' ? 'photo' : 'clip'}${number}`;
 }
 
 /** A short head shake: the prompt is needed before anything can be generated. */

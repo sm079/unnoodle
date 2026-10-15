@@ -1,31 +1,58 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import { ClockIcon, ImageIcon, LoaderCircleIcon, PlayIcon, TriangleAlertIcon, VideoIcon } from 'lucide-react';
+import { ResultView } from '@/components/result-view';
 import { capabilityLabels, outputType } from '@/lib/capabilities';
-import type { Generation } from '@/lib/types';
+import type { Asset, Generation } from '@/lib/types';
 
-/** Generations newest first: finished ones show their output, the rest where they are in the queue. */
-export function Gallery({ generations }: { generations: Generation[] }) {
+interface GalleryProps {
+  generations: Generation[];
+  /** Attaches an output to the composer. */
+  onUseAsInput: (asset: Asset) => void;
+}
+
+/**
+ * Generations newest first: finished ones show their output and open in the result view, the rest show where they
+ * are in the queue.
+ */
+export function Gallery({ generations, onUseAsInput }: GalleryProps) {
+  const [viewing, setViewing] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   return (
-    <ul aria-label="Gallery" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3">
-      {generations.map(generation => (
-        <li key={generation.id} className="[--rise-blur:4px] [--rise-distance:10px] motion-safe:animate-rise">
-          <GalleryTile generation={generation} />
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul aria-label="Gallery" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3">
+        {generations.map(generation => (
+          <li key={generation.id} className="[--rise-blur:4px] [--rise-distance:10px] motion-safe:animate-rise">
+            <GalleryTile
+              generation={generation}
+              onOpen={() => {
+                setViewing(generation.id);
+                setOpen(true);
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+      <ResultView
+        generation={generations.find(g => g.id === viewing) ?? null}
+        open={open}
+        onOpenChange={setOpen}
+        onUseAsInput={onUseAsInput}
+      />
+    </>
   );
 }
 
 const tileClass = 'relative block aspect-square overflow-hidden rounded-2xl bg-panel';
 
-function GalleryTile({ generation }: { generation: Generation }) {
+function GalleryTile({ generation, onOpen }: { generation: Generation; onOpen: () => void }) {
   const cover = generation.outputs[0];
 
   if (generation.status === 'done' && cover) {
     return (
-      // A detail sheet comes later; for now a tap opens the file itself
-      <a href={cover.url} target="_blank" rel="noreferrer" aria-label={generation.prompt} className={`${tileClass} group`}>
+      <button type="button" onClick={onOpen} aria-label={generation.prompt} className={`${tileClass} group w-full`}>
         <Image
           src={cover.thumbnail_url}
           alt=""
@@ -44,7 +71,7 @@ function GalleryTile({ generation }: { generation: Generation }) {
           )}
           {generation.outputs.length > 1 && <TileBadge>{generation.outputs.length}</TileBadge>}
         </div>
-      </a>
+      </button>
     );
   }
 

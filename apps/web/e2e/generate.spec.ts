@@ -1,10 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi } from './api';
 
-// Queued and running tiles show the prompt as text; a finished one is a link named by it
+// Queued and running tiles show the prompt as text; a finished one is a button named by it
 const newTile = (page: Page) => {
   const gallery = page.getByRole('list', { name: 'Gallery' });
-  return gallery.getByText('a poster for a jazz night').or(gallery.getByRole('link', { name: 'a poster for a jazz night' }));
+  return gallery.getByText('a poster for a jazz night').or(gallery.getByRole('button', { name: 'a poster for a jazz night' }));
 };
 
 test.beforeEach(({ page }) => mockApi(page));
@@ -83,7 +83,7 @@ test('Generate sends the inputs with their roles and lets the API pick the workf
   });
 });
 
-test('after Generate the gallery takes over and follows the generation to its output', async ({ page }) => {
+test('after Generate the gallery follows the generation to its output, which can be used as input', async ({ page }) => {
   await page.goto('/generate');
   const composer = page.getByRole('form', { name: 'Composer' });
   await composer.getByRole('textbox', { name: 'Prompt' }).fill('a lighthouse at night');
@@ -93,10 +93,21 @@ test('after Generate the gallery takes over and follows the generation to its ou
   await expect(page.getByRole('region', { name: 'Highlights' })).toHaveCount(0);
   const newest = page.getByRole('list', { name: 'Gallery' }).getByRole('listitem').first();
   await expect(newest.getByRole('progressbar', { name: 'Progress' })).toBeVisible();
-  await expect(newest.getByRole('link', { name: 'a lighthouse at night' })).toBeVisible({ timeout: 10_000 });
+  await expect(newest.getByRole('button', { name: 'a lighthouse at night' })).toBeVisible({ timeout: 10_000 });
   // The prompt stays, ready for the next try, with the composer still on screen under the gallery
   await expect(composer.getByRole('textbox', { name: 'Prompt' })).toHaveValue('a lighthouse at night');
   await expect(composer.getByRole('button', { name: 'Generate' })).toBeInViewport();
+
+  // The result opens in the app, and goes from there into the composer as the photo to edit
+  await newest.getByRole('button', { name: 'a lighthouse at night' }).click();
+  const result = page.getByRole('dialog', { name: 'Result' });
+  await expect(result.getByRole('img', { name: 'a lighthouse at night' })).toBeVisible();
+  await expect(result.getByText('Create an image')).toBeVisible();
+  await expect(result.getByRole('link', { name: 'Download' })).toHaveAttribute('download', /^unnoodle-gen_new_/);
+  await result.getByRole('button', { name: 'Use as input' }).click();
+  await expect(result).toHaveCount(0);
+  await expect(composer.getByRole('list', { name: 'Inputs' }).getByRole('button', { name: 'Mention @photo1 in the prompt' })).toBeVisible();
+  await expect(routeLine(composer, 'Edit an image')).toBeVisible();
 });
 
 test('My generations opens the gallery from the menu', async ({ page }) => {
