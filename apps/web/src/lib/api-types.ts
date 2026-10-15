@@ -53,7 +53,7 @@ export interface paths {
     put?: never;
     /**
      * Upload Asset
-     * @description Stores an uploaded image, to attach to generations. Videos come once a workflow takes them.
+     * @description Stores an uploaded photo or video clip, to attach to generations. Clips are cut to their first 15 seconds.
      */
     post: operations['upload_asset_assets_post'];
     delete?: never;
@@ -502,14 +502,12 @@ export interface operations {
           'application/json': components['schemas']['AssetOut'];
         };
       };
-      /** @description Validation Error */
+      /** @description A clip too short */
       422: {
         headers: {
           [name: string]: unknown;
         };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
+        content?: never;
       };
     };
   };
