@@ -37,7 +37,7 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   await expect(composer.getByRole('button', { name: 'Generate' })).toHaveAttribute('aria-disabled', 'true');
 
   await page.getByRole('button', { name: 'Open menu' }).click();
-  await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('link', { name: 'Home' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
 });
 
 test('Generate sends the inputs with their roles and lets the API pick the workflow', async ({ page }) => {
@@ -56,4 +56,29 @@ test('Generate sends the inputs with their roles and lets the API pick the workf
     params: { aspect_ratio: '16:9', resolution: '720p', duration_s: 5, count: 1, audio: true, seed: null },
     model: null
   });
+});
+
+test('after Generate the gallery takes over and follows the generation to its output', async ({ page }) => {
+  await page.goto('/generate');
+  const composer = page.getByRole('form', { name: 'Composer' });
+  await composer.getByRole('textbox', { name: 'Prompt' }).fill('a lighthouse at night');
+  await composer.getByRole('button', { name: 'Generate' }).click();
+
+  await expect(page.getByRole('heading', { name: 'My generations' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Highlights' })).toHaveCount(0);
+  const newest = page.getByRole('list', { name: 'Gallery' }).getByRole('listitem').first();
+  await expect(newest.getByRole('progressbar', { name: 'Progress' })).toBeVisible();
+  await expect(newest.getByRole('link', { name: 'a lighthouse at night' })).toBeVisible({ timeout: 10_000 });
+  // The prompt stays, ready for the next try, with the composer still on screen under the gallery
+  await expect(composer.getByRole('textbox', { name: 'Prompt' })).toHaveValue('a lighthouse at night');
+  await expect(composer.getByRole('button', { name: 'Generate' })).toBeInViewport();
+});
+
+test('My generations opens the gallery from the menu', async ({ page }) => {
+  await page.goto('/generate');
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: 'My generations' }).click();
+  await expect(page.getByRole('dialog', { name: 'Menu' })).toHaveCount(0);
+  const gallery = page.getByRole('list', { name: 'Gallery' });
+  await expect(gallery.getByText('The GPU ran out of memory. Try a smaller size or fewer outputs.')).toBeVisible();
 });
