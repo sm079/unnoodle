@@ -4,13 +4,15 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 
 import app.models  # noqa: F401  (registers the tables on Base.metadata)
 from app.db import Base, make_engine
-from app.settings import ENV_FILE
+from app.main import create_app
+from app.settings import ENV_FILE, Settings
 
 API_DIR = Path(__file__).resolve().parents[1]
 
@@ -50,6 +52,18 @@ def engine(migrated_engine: Engine) -> Iterator[Engine]:
     tables = ", ".join(table.name for table in Base.metadata.sorted_tables)
     with migrated_engine.begin() as connection:
         connection.execute(text(f"TRUNCATE {tables} CASCADE"))
+
+
+@pytest.fixture
+def settings(engine: Engine, test_database_url: str, tmp_path: Path) -> Settings:
+    """Settings for an app on the test database, with its media in a fresh folder."""
+    return Settings(database_url=test_database_url, media_dir=tmp_path / "media")
+
+
+@pytest.fixture
+def client(settings: Settings) -> Iterator[TestClient]:
+    with TestClient(create_app(settings)) as client:
+        yield client
 
 
 def create_database_if_missing(url: str) -> None:

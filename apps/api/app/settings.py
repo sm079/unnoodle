@@ -18,3 +18,6 @@ class Settings(BaseSettings):
 
     # The stand-in workflows that run on the dev ComfyUI without models, until real workflows replace them
     workflows_dir: Path = REPO_ROOT / "dev" / "workflows"
+
+    # Uploads and outputs, served under /media
+    media_dir: Path = REPO_ROOT / "apps" / "api" / "media"
