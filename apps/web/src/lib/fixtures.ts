@@ -9,7 +9,6 @@ import type {
   MediaType,
   Project,
   Tag,
-  User,
   Workflow,
   WorkflowControl,
   WorkflowOptions
@@ -167,8 +166,6 @@ export const workflows: Workflow[] = [
     }
   }
 ];
-
-export const me: User = { id: 'usr_me', name: 'Robin', avatar_url: null };
 
 export const projects: Project[] = [
   { id: 'prj_film', name: 'Short film', created_at: '2026-10-08T10:00:00Z' },

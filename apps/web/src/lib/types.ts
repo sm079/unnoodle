@@ -91,12 +91,6 @@ export interface WorkflowControl {
   options: string[];
 }
 
-export interface User {
-  id: string;
-  name: string;
-  avatar_url: string | null;
-}
-
 export interface Generation {
   id: string;
   status: GenerationStatus;

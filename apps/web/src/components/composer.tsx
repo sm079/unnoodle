@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
 import {
   ApertureIcon,
-  AtSignIcon,
   CameraIcon,
   ChevronRightIcon,
   ClockIcon,
@@ -79,7 +78,7 @@ const keyed = (input: GenerationInput): DraftInput => ({ ...input, key: `input-$
 
 const placeholders: Record<MediaType, string> = {
   image: 'Describe the image you want to create...',
-  video: 'Describe the shot - use @ to bring in characters and places'
+  video: 'Describe the video you want to create...'
 };
 
 export function Composer({ drafts, workflows, library }: ComposerProps) {
@@ -132,17 +131,6 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
   function attachFiles(event: ChangeEvent<HTMLInputElement>) {
     attach(Array.from(event.target.files ?? [], fileAsset));
     event.target.value = '';
-  }
-
-  function insertMention() {
-    const field = promptRef.current;
-    if (!field) return;
-    const { selectionStart: start, selectionEnd: end } = field;
-    update({ prompt: `${draft.prompt.slice(0, start)}@${draft.prompt.slice(end)}` });
-    requestAnimationFrame(() => {
-      field.focus();
-      field.setSelectionRange(start + 1, start + 1);
-    });
   }
 
   function submit(event: FormEvent) {
@@ -296,26 +284,15 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
             />
 
             <div className="-mx-3 no-scrollbar flex gap-[7px] overflow-x-auto px-3 lg:mx-0 lg:px-0">
-              <div className={cn(chipClass, 'gap-0 px-0 hover:bg-chip active:scale-100')}>
-                <button
-                  type="button"
-                  aria-label="Attach files"
-                  disabled={full}
-                  onClick={() => fileRef.current?.click()}
-                  className={cn(splitButtonClass, 'rounded-l-[10px]')}
-                >
-                  <PlusIcon />
-                </button>
-                <span className="h-4 w-px bg-white/15" />
-                <button
-                  type="button"
-                  aria-label="Mention an element"
-                  onClick={insertMention}
-                  className={cn(splitButtonClass, 'rounded-r-[10px]')}
-                >
-                  <AtSignIcon />
-                </button>
-              </div>
+              <button
+                type="button"
+                aria-label="Attach files"
+                disabled={full}
+                onClick={() => fileRef.current?.click()}
+                className={cn(chipClass, 'w-[35px] justify-center px-0')}
+              >
+                <PlusIcon />
+              </button>
               <LibraryPicker assets={library} disabled={full} onPick={asset => attach([asset])} />
               <WorkflowMenu workflows={modeWorkflows} value={workflow} onChange={chooseWorkflow} className={cn(chipClass, 'px-3')} />
               <OptionChip
@@ -430,8 +407,6 @@ export function Composer({ drafts, workflows, library }: ComposerProps) {
 // Controls dip slightly while pressed and spring back on release
 const chipClass =
   "flex h-[35px] shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-2.5 text-[15px] font-bold whitespace-nowrap text-white transition-[color,background-color,scale] duration-200 ease-spring outline-none hover:bg-[#3b3c3e] focus-visible:ring-2 focus-visible:ring-white/30 active:scale-[0.95] active:duration-100 disabled:opacity-40 data-[popup-open]:bg-[#3b3c3e] [&_svg:not([class*='size-'])]:size-[18px] [&_svg]:shrink-0";
-const splitButtonClass =
-  'flex h-full w-[35px] items-center justify-center transition-[background-color,scale] duration-200 ease-spring hover:bg-white/[0.06] active:scale-90 disabled:opacity-40';
 const cardClass =
   'flex h-[60px] items-center gap-2.5 rounded-[18px] bg-panel-raised px-2.5 transition-[background-color,scale] duration-200 ease-spring outline-none focus-visible:ring-2 focus-visible:ring-white/30';
 // Controls that come and go with the output type rise into place, one after another
