@@ -57,3 +57,23 @@ test.each(Object.entries(composerDrafts))('the %s draft routes to a workflow for
   expect(workflow).toBeDefined();
   expect(outputType(workflow!.capability)).toBe(mode);
 });
+
+test.each([...generations, ...Object.values(composerDrafts)].map(g => ({ id: 'id' in g ? g.id : `${g.workflow_id} draft`, g })))(
+  '$id only uses settings its workflow offers',
+  ({ g }) => {
+    const { options } = workflowById.get(g.workflow_id)!;
+    expect(options.aspect_ratios).toContain(g.params.aspect_ratio);
+    expect(options.resolutions).toContain(g.params.resolution);
+    if (g.params.duration_s === null) expect(options.durations_s).toEqual([]);
+    else expect(options.durations_s).toContain(g.params.duration_s);
+    expect(g.params.count).toBeLessThanOrEqual(options.max_count);
+    expect(g.inputs.length).toBeLessThanOrEqual(options.max_inputs);
+  }
+);
+
+test.each(workflows)('$id offers settings for its output type', ({ capability, options }) => {
+  const video = outputType(capability) === 'video';
+  expect(options.durations_s.length > 0).toBe(video);
+  if (!video) expect(options.audio).toBe(false);
+  for (const control of options.controls) expect(control.options.length).toBeGreaterThan(0);
+});
