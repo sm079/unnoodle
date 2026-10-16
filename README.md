@@ -1,14 +1,100 @@
 # unnoodle
 
-AI pictures and videos from one prompt box, built for phones. Node-based generation tools hand you every setting and
-a canvas of wires to connect; unnoodle keeps the pipelines on the server and leaves you a few plain choices. You choose
-a picture or a video, describe it and attach any photos or clips to work from, and the request goes to the pipeline that
-fits: a prompt alone makes a picture (Krea 2) or a video (MiniMax H3), a photo to edit goes to FLUX.2 Klein, and photos
-or clips attached to a video are its references. Settings are in plain words: a quality, a shape and, for videos, a
-length.
+Pictures and videos from one prompt, built for phones. Describe what you want, attach a photo or a clip if you have one,
+and press Generate. No nodes to wire and no settings to learn.
 
-The web app sends requests to the API, which queues them in Postgres; a worker builds each request's graph, runs it on
-a GPU render server (the renderer) and stores what it makes.
+![Three videos made in the app, first 5 seconds of each, without their sound](docs/media/videos.webp)
+
+Open image and video models are good now, but running them usually means a canvas of nodes, model files and settings
+with names like CFG and denoise. unnoodle does that part on the server: it picks the model from what you ask for and
+what you attach, builds the steps for that one request, and runs them on a GPU.
+
+## What it does
+
+| Ask for                                                                                                        | Model        | Out of the app                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| A picture: _a white ceramic teapot painted with a blue fish, product photo on a white table_                   | Krea 2 Turbo | <img src="apps/web/public/showcase/teapot.webp" width="160">                                                                |
+| An edit of one photo: _@photo1 wears a black leather jacket instead of the raincoat, same pose and background_ | FLUX.2 Klein | <img src="apps/web/public/showcase/raincoat.webp" width="80"> → <img src="apps/web/public/showcase/jacket.webp" width="80"> |
+| A mix of photos: _@photo1 holds the teapot from @photo2 in both hands, in a sunny kitchen_                     | FLUX.2 Klein | <img src="apps/web/public/showcase/kitchen.webp" width="160">                                                               |
+| A video with sound, from text, photos or clips: _@photo1 pours tea from the teapot in @photo2 into a cup…_     | MiniMax H3   | the middle video above                                                                                                      |
+
+- **Settings in words:** low, medium or high quality; a shape like portrait or wide, or "same as" an attachment; 5, 10
+  or 15 seconds for a video.
+- **@mentions:** each attachment gets a handle (`@photo1`, `@clip1`) so the prompt can say which is which.
+- **Up to four at once:** one tap queues several takes of a prompt, each with the next seed.
+- **Projects:** generations go in folders, and anything you made can go back in as an input.
+- **Credits:** the price is on the Generate button before you press it. For now credits come from invite codes and
+  admins; there is no payment.
+
+## How it works
+
+```mermaid
+flowchart LR
+  phone[Phone browser] --> web[Next.js web app]
+  web -- "/api, /media" --> api[FastAPI API]
+  api --> db[(Postgres:<br/>generations queue,<br/>credit ledger)]
+  worker[Worker] -- "claim: FOR UPDATE<br/>SKIP LOCKED" --> db
+  worker -- "graph JSON over HTTP,<br/>progress over a websocket" --> renderer[Renderer on a GPU]
+  worker --> media[(Media files<br/>+ previews)]
+  api --> media
+```
+
+- **One address for the phone.** The browser only talks to the Next.js app, which passes `/api/*` and `/media/*` to the
+  API, so there's no cross-origin setup. While anything is queued or running, the app re-reads the generations every
+  second; otherwise only when the tab regains focus.
+- **The queue is a table.** `POST /generations` checks the request, charges for it and inserts rows; a Postgres
+  `NOTIFY` wakes an idle worker. A worker claims the oldest queued row with `SELECT … FOR UPDATE SKIP LOCKED`, so
+  several workers never take the same job, and then holds it as a lease: it refreshes a heartbeat while it runs, and a
+  job whose heartbeat goes stale for 60 s is claimed again, up to 3 attempts. A run that takes more than 3× its
+  estimate (never less than 2 minutes) is stopped on the renderer and failed with a plain message.
+- **Pipelines are code.** Each model is a pipeline: what it accepts (photos and clips per role), what it offers
+  (qualities, shapes, lengths), and a function that builds the node graph for one request, with one image chain per
+  attached photo. Routing picks the pipeline from the mode and the attachments, and the worker sends the built graph to
+  the renderer, a node-graph inference server. `app/pipelines.py` describes the contract; `app/catalogues/real.py` holds
+  the three models and `app/catalogues/dev.py` stand-ins that need no GPU.
+- **Everything is scoped to its owner.** Every query filters by the signed-in account; someone else's generation,
+  upload or project answers 404, and `/media` files are served only to their owner (plus a shared Demo project that
+  every account can read). Sessions are random tokens in an httpOnly cookie; the database keeps only their SHA-256.
+- **Credits are a ledger.** Every grant, charge and refund is a row in an append-only `credit_entries` table, so a
+  balance is a sum and every change can be traced. Queuing charges under a row lock on the account, so two requests
+  can't spend the same credits, and a failed generation is refunded in the same transaction that marks it failed.
+- **Media.** Uploaded clips are cut with ffmpeg to what the video model uses. Every video gets a poster frame and every
+  picture a WebP preview of at most 960 px, so grids never load the full file. Private media skips Next's image
+  optimizer, which fetches without the visitor's cookie and caches for everyone.
+
+## Decisions, with the numbers behind them
+
+The real models were run end to end once, on one rented RTX 5090 (32 GB, $1.19 an hour, about 45 minutes, so about $1
+in all), driven through the API. Everything measured is in [`dev/metrics/runpod-5090-2026-10-16`](dev/metrics/runpod-5090-2026-10-16).
+
+| Generation                              | Time on the GPU | GPU cost at $1.19/h |
+| --------------------------------------- | --------------- | ------------------- |
+| Picture (Krea 2, low to high)           | 3–11 s          | under $0.01         |
+| Photo edit (Klein, 1–3 photos)          | 7–27 s          | under $0.01         |
+| Video, low, 5 s, from 2 photos          | 86 s            | $0.03               |
+| Video, medium, 10 s, text only          | 253 s           | $0.08               |
+| Video, medium, 10 s, with 2 video clips | 851 s           | $0.28               |
+
+- **Reference clips are cut to 0.4 megapixels.** The video model works through every frame of a reference clip as well
+  as the frames it makes, so the clip's size sets the speed. With a low 5 s output, seconds per step were 4.1 with no
+  clip, 8.9 with a 0.25 MP clip, 15.8 at 0.5 MP and 34.4 at 1 MP: a phone clip at full size made the video about eight
+  times slower. At 0.4 MP it is about three times slower. Step time follows the total size (frames × pixels) of the
+  output and the clips together, and grows faster than linearly.
+- **A clip costs extra.** Because of that, each clip attached to a video costs 10 more credits, on top of the price per
+  5 seconds of video.
+- **Smart Queue.** With one first-in, first-out queue, a low-quality picture queued behind two videos waited 15 minutes
+  for a job that then took 15 seconds. Smart Queue (opt-in, for admins) orders by when a job was queued plus its estimated run time,
+  counting at most 10 minutes of it: quick jobs go first, and a long one waits at most about 10 minutes longer than it
+  would have.
+- **Real-speed stand-ins.** The dev renderer's node takes as long as the real model did on the 5090 (a set-up phase with
+  no progress, then steps), so progress bars, queue waits and time limits are built against real timing without a GPU.
+- **Resubmitting is cheap.** When the connection to the pod dropped mid-video, the worker released the job without
+  using an attempt and sent it again on reconnect; the renderer finished the original and answered the identical
+  resubmit from its cache in 0.0 s, so no GPU time was lost.
+- **The worker belongs next to the GPU.** Inputs and outputs went over an SSH tunnel at about 0.5–0.7 MB/s, which added
+  3–30 s per job. A worker on the same network as the renderer wouldn't pay it.
+
+Not tested yet: high-quality video, 15 second video, running out of GPU memory.
 
 ## Layout
 
@@ -111,8 +197,9 @@ shows their uses, and keeps the banned words.
 ### The renderer without models
 
 The renderer is a node-graph inference server: it takes a graph as JSON over HTTP, reports progress over a websocket
-and serves the files it writes (`app/worker/renderer.py` makes every call). To develop without downloading any models,
-start one (0.39 or later) from the repo root with `dev/renderer` as its base directory:
+and serves the files it writes (`app/worker/renderer.py` makes every call). The one used here is
+[ComfyUI](https://github.com/comfyanonymous/ComfyUI), 0.39 or later. To develop without downloading any models, start
+it from the repo root with `dev/renderer` as its base directory:
 
 ```sh
 python <path-to-renderer>/main.py --base-directory dev/renderer --port 8189 --cpu --disable-auto-launch
@@ -126,7 +213,9 @@ few seconds when it contains `#quick`. Port 8189 keeps it clear of a normal rend
 
 Pipelines are code: each one builds its graph for every request, with one image chain per attached photo
 (`app/pipelines.py` describes the contract). `app/catalogues/dev.py` holds stand-ins that run on this renderer, and
-`app/catalogues/real.py` the ones that need models. `UNNOODLE_PIPELINES` picks the catalogue (`dev` unless set).
+`app/catalogues/real.py` the ones that need models. `UNNOODLE_PIPELINES` picks the catalogue (`dev` unless set). For
+the real models, point `UNNOODLE_RENDERER_URL` at a renderer on a GPU (32 GB of VRAM was enough for all three) that
+has the model files `app/catalogues/real.py` loads, and set `UNNOODLE_PIPELINES=real`.
 
 ### On a phone
 
