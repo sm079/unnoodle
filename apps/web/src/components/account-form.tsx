@@ -17,14 +17,27 @@ const copy = {
     submit: 'Sign in',
     sending: 'Signing in…',
     other: { prompt: 'New here?', label: 'Make an account', href: '/sign-up' },
-    passwordAutocomplete: 'current-password'
+    passwordAutocomplete: 'current-password',
+    closed: {
+      title: 'Studio resting',
+      lines: ['The studio is resting for now and opens again soon.', 'Your account and everything you made are kept.'],
+      other: null
+    }
   },
   'sign-up': {
     title: 'Make an account',
     submit: 'Make account',
     sending: 'Making your account…',
     other: { prompt: 'Have an account?', label: 'Sign in', href: '/sign-in' },
-    passwordAutocomplete: 'new-password'
+    passwordAutocomplete: 'new-password',
+    closed: {
+      title: 'Invites closed',
+      lines: [
+        'unnoodle lets people in a few at a time, and this round is full.',
+        'The studio and everything made in it are open to look around.'
+      ],
+      other: { prompt: 'Have an account?', label: 'Sign in', href: '/sign-in' }
+    }
   }
 } as const;
 
@@ -36,7 +49,7 @@ export function AccountForm({ mode }: { mode: keyof typeof copy }) {
   const [password, setPassword] = useState('');
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const invites = useInvites(mode === 'sign-up');
+  const reachable = useReachable();
   const [closed, setClosed] = useState(false);
   const text = copy[mode];
   // Only a path in this app, so a link can't send someone elsewhere after they sign in
@@ -56,13 +69,13 @@ export function AccountForm({ mode }: { mode: keyof typeof copy }) {
       router.replace(next);
     } catch (error) {
       // The API went away after the page checked it
-      if (mode === 'sign-up' && error instanceof ApiError && (error.status === 0 || error.status >= 500)) setClosed(true);
+      if (error instanceof ApiError && (error.status === 0 || error.status >= 500)) setClosed(true);
       setProblem(messageOf(error));
       setSending(false);
     }
   }
 
-  if (mode === 'sign-up' && (closed || invites === 'closed')) return <InvitesClosed />;
+  if (closed || reachable === 'no') return <Closed text={text.closed} />;
 
   const otherHref = requested ? `${text.other.href}?next=${encodeURIComponent(requested)}` : text.other.href;
   const field =
@@ -77,8 +90,8 @@ export function AccountForm({ mode }: { mode: keyof typeof copy }) {
       <form
         onSubmit={submit}
         aria-label={text.title}
-        aria-busy={invites === 'checking'}
-        className={`mt-6 flex flex-col gap-3 transition-opacity duration-300 ${invites === 'checking' ? 'pointer-events-none opacity-0' : ''}`}
+        aria-busy={reachable === 'checking'}
+        className={`mt-6 flex flex-col gap-3 transition-opacity duration-300 ${reachable === 'checking' ? 'pointer-events-none opacity-0' : ''}`}
       >
         <label className="flex flex-col gap-1.5 text-sm text-[#a0a1a3]">
           Email
@@ -132,47 +145,51 @@ export function AccountForm({ mode }: { mode: keyof typeof copy }) {
 const title = 'font-display text-3xl font-bold tracking-[-0.01em] uppercase font-stretch-[86%]';
 
 /**
- * Whether new accounts can be made: only while the API answers. The web app stays up when the API's machine is off,
- * and a closed door reads better than a form that fails once it's filled in.
+ * Whether the API answers. The web app stays up when the API's machine is off, and a closed door reads better than a
+ * form that fails once it's filled in.
  */
-function useInvites(check: boolean): 'checking' | 'open' | 'closed' {
-  const [state, setState] = useState<'checking' | 'open' | 'closed'>(check ? 'checking' : 'open');
+function useReachable(): 'checking' | 'yes' | 'no' {
+  const [state, setState] = useState<'checking' | 'yes' | 'no'>('checking');
   useEffect(() => {
-    if (!check) return;
     let left = false;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
     fetch('/api/health', { signal: controller.signal, cache: 'no-store' })
-      .then(response => !left && setState(response.ok ? 'open' : 'closed'))
+      .then(response => !left && setState(response.ok ? 'yes' : 'no'))
       // Unreachable, or no answer in time
-      .catch(() => !left && setState('closed'));
+      .catch(() => !left && setState('no'));
     return () => {
       left = true;
       clearTimeout(timer);
       controller.abort();
     };
-  }, [check]);
+  }, []);
   return state;
 }
 
-function InvitesClosed() {
+function Closed({ text }: { text: (typeof copy)[keyof typeof copy]['closed'] }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center px-4 py-10">
       <Link href="/" aria-label="unnoodle home" className="mb-8 self-start">
         <BrandMark />
       </Link>
-      <h1 className={title}>Invites closed</h1>
-      <p className="mt-4 text-[#a0a1a3]">unnoodle lets people in a few at a time, and this round is full.</p>
-      <p className="mt-2 text-[#a0a1a3]">The studio and everything made in it are open to look around.</p>
+      <h1 className={title}>{text.title}</h1>
+      {text.lines.map((line, i) => (
+        <p key={line} className={`${i === 0 ? 'mt-4' : 'mt-2'} text-[#a0a1a3]`}>
+          {line}
+        </p>
+      ))}
       <Link href="/demo" className="mt-8 rounded-xl bg-brand px-4 py-3 text-center font-medium text-white">
         Look around
       </Link>
-      <p className="mt-6 text-sm text-[#828282]">
-        Have an account?{' '}
-        <Link href="/sign-in" className="text-white underline underline-offset-4">
-          Sign in
-        </Link>
-      </p>
+      {text.other && (
+        <p className="mt-6 text-sm text-[#828282]">
+          {text.other.prompt}{' '}
+          <Link href={text.other.href} className="text-white underline underline-offset-4">
+            {text.other.label}
+          </Link>
+        </p>
+      )}
     </main>
   );
 }

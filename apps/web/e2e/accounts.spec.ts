@@ -39,3 +39,11 @@ test('making an account is open while the API answers', async ({ page }) => {
   await expect(page.getByRole('form', { name: 'Make an account' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Invites closed' })).toHaveCount(0);
 });
+
+test('signing in rests while the API is away', async ({ page }) => {
+  await page.route('**/api/health', route => route.fulfill({ status: 502, body: '' }));
+  await page.goto('/sign-in');
+  await expect(page.getByRole('heading', { name: 'Studio resting' })).toBeVisible();
+  await expect(page.getByRole('form')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Look around' })).toHaveAttribute('href', '/demo');
+});
