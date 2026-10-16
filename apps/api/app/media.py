@@ -25,6 +25,7 @@ from app import video
 from app.accounts import CurrentUser
 from app.db import SessionDep
 from app.models import Asset, AssetSource, MediaType, new_id
+from app.sharing import visible_asset
 
 MEDIA_URL = "/media"
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -224,10 +225,10 @@ def list_uploads(user: CurrentUser, session: SessionDep, limit: int = 60) -> lis
 
 @router.get(MEDIA_URL + "/{key:path}", response_class=FileResponse, responses={404: {"description": "No such file"}})
 def get_media(key: str, user: CurrentUser, session: SessionDep, store: MediaStoreDep) -> FileResponse:
-    """A stored file or a video's poster, for its owner. Anyone else gets the same 404 as for a file that doesn't
-    exist, so whether it exists isn't given away either."""
+    """A stored file or a video's poster, for its owner, or anyone for a demo's. Anyone else gets the same 404 as for
+    a file that doesn't exist, so whether it exists isn't given away either."""
     asset = session.scalars(
-        select(Asset).where(Asset.owner_id == user.id, or_(Asset.storage_key == key, Asset.poster_key == key))
+        select(Asset).where(visible_asset(user), or_(Asset.storage_key == key, Asset.poster_key == key))
     ).first()
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such file")

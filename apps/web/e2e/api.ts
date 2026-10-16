@@ -45,6 +45,8 @@ export async function mockApi(page: Page, { signedIn = true } = {}) {
     const project: Project = {
       id: `prj_new_${createdProjects.length}`,
       name,
+      demo: false,
+      mine: true,
       created_at: new Date().toISOString(),
       generation_count: 0,
       covers: []

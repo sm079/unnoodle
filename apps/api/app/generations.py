@@ -25,6 +25,7 @@ from app.models import (
     User,
 )
 from app.routing import RoutingError, capability_for, route
+from app.sharing import visible_asset, visible_generation
 from app.worker import queue
 from app.workflows import AspectRatio, Work, Workflow, WorkflowsDep, ratio_of
 
@@ -143,6 +144,8 @@ def create_generation(
         check_params(workflow, body.params, attached=len(body.inputs))
         if body.project_id is not None:
             project = session.get(Project, body.project_id)
+            if project is not None and project.is_demo and project.owner_id != user.id:
+                raise RequestError("Only the demo's owner can add to it")
             if project is None or project.owner_id != user.id:
                 raise RequestError("That project no longer exists")
     except (RoutingError, RequestError) as error:
@@ -183,11 +186,13 @@ def list_generations(
     limit: int = 30,
     project_id: uuid.UUID | None = None,
 ) -> list[GenerationOut]:
-    """Your generations, newest first: all of them (My generations), or one project's. For the next page, pass the id
-    of the last one received as before."""
-    query = (
-        select(Generation).where(Generation.owner_id == user.id).order_by(Generation.id.desc()).limit(min(limit, 100))
-    )
+    """Newest first: all of yours (My generations), or one project's, a demo's included. For the next page, pass the
+    id of the last one received as before."""
+    query = select(Generation).order_by(Generation.id.desc()).limit(min(limit, 100))
+    if project_id is None:
+        query = query.where(Generation.owner_id == user.id)
+    else:
+        query = query.where(visible_generation(user))
     if before is not None:
         # Ids are time-ordered, so "older than" is "smaller id"
         query = query.where(Generation.id < before)
@@ -198,8 +203,10 @@ def list_generations(
 
 @router.get("/generations/{generation_id}", responses={404: {"description": "No such generation"}})
 def get_generation(generation_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> GenerationOut:
-    generation = session.get(Generation, generation_id)
-    if generation is None or generation.owner_id != user.id:
+    generation = session.scalars(
+        select(Generation).where(Generation.id == generation_id, visible_generation(user))
+    ).first()
+    if generation is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such generation")
     return GenerationOut.of(generation)
 
@@ -237,9 +244,10 @@ def estimate(workflow: Workflow, params: Params, attached: list[Asset]) -> float
 
 
 def attached_assets(session: SessionDep, user: User, inputs: list[InputIn]) -> dict[uuid.UUID, Asset]:
-    """The attached assets by id. Someone else's count as missing, so their ids can't be used to borrow them."""
+    """The attached assets by id: your own, or a demo's. Anyone else's count as missing, so their ids can't be used to
+    borrow them."""
     ids = {i.asset_id for i in inputs}
-    query = select(Asset).where(Asset.owner_id == user.id, Asset.id.in_(ids))
+    query = select(Asset).where(visible_asset(user), Asset.id.in_(ids))
     assets = {a.id: a for a in session.scalars(query)} if ids else {}
     if ids - assets.keys():
         raise RequestError("An attached file no longer exists")

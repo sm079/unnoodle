@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session
 from app.accounts import CurrentUser
 from app.db import SessionDep
 from app.media import AssetOut
-from app.models import Asset, Generation, Project
+from app.models import Asset, Generation, Project, User
+from app.sharing import visible_project
 
 # Outputs shown on a project's card
 COVERS = 3
@@ -28,6 +29,10 @@ class ProjectIn(BaseModel):
 class ProjectOut(BaseModel):
     id: uuid.UUID
     name: str
+    # Shown to everyone; only its owner files generations into it
+    demo: bool
+    # Yours, so you can file generations into it
+    mine: bool
     created_at: datetime
     generation_count: int
     # Its newest outputs, newest first
@@ -42,26 +47,26 @@ def create_project(body: ProjectIn, user: CurrentUser, session: SessionDep) -> P
     project = Project(owner_id=user.id, name=body.name)
     session.add(project)
     session.commit()
-    return ProjectOut(id=project.id, name=project.name, created_at=project.created_at, generation_count=0, covers=[])
+    return describe(session, user, [project])[0]
 
 
 @router.get("/projects")
 def list_projects(user: CurrentUser, session: SessionDep) -> list[ProjectOut]:
-    """Your projects, newest first."""
-    query = select(Project).where(Project.owner_id == user.id).order_by(Project.id.desc())
-    return describe(session, session.scalars(query).all())
+    """Demo projects, then yours, newest first."""
+    query = select(Project).where(visible_project(user)).order_by(Project.is_demo.desc(), Project.id.desc())
+    return describe(session, user, session.scalars(query).all())
 
 
 @router.get("/projects/{project_id}", responses={404: {"description": "No such project"}})
 def get_project(project_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> ProjectOut:
     project = session.get(Project, project_id)
-    # Someone else's is as missing as one that never existed
-    if project is None or project.owner_id != user.id:
+    # Someone else's is as missing as one that never existed, unless it's a demo
+    if project is None or not (project.owner_id == user.id or project.is_demo):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such project")
-    return describe(session, [project])[0]
+    return describe(session, user, [project])[0]
 
 
-def describe(session: Session, projects: Sequence[Project]) -> list[ProjectOut]:
+def describe(session: Session, user: User, projects: Sequence[Project]) -> list[ProjectOut]:
     """The projects with their counts and covers, in two queries however many there are."""
     ids = [p.id for p in projects]
     if not ids:
@@ -93,6 +98,8 @@ def describe(session: Session, projects: Sequence[Project]) -> list[ProjectOut]:
         ProjectOut(
             id=p.id,
             name=p.name,
+            demo=p.is_demo,
+            mine=p.owner_id == user.id,
             created_at=p.created_at,
             generation_count=counts.get(p.id, 0),
             covers=covers[p.id],

@@ -139,8 +139,8 @@ export interface paths {
     };
     /**
      * Get Media
-     * @description A stored file or a video's poster, for its owner. Anyone else gets the same 404 as for a file that doesn't
-     *     exist, so whether it exists isn't given away either.
+     * @description A stored file or a video's poster, for its owner, or anyone for a demo's. Anyone else gets the same 404 as for
+     *     a file that doesn't exist, so whether it exists isn't given away either.
      */
     get: operations['get_media_media__key__get'];
     put?: never;
@@ -160,8 +160,8 @@ export interface paths {
     };
     /**
      * List Generations
-     * @description Your generations, newest first: all of them (My generations), or one project's. For the next page, pass the id
-     *     of the last one received as before.
+     * @description Newest first: all of yours (My generations), or one project's, a demo's included. For the next page, pass the
+     *     id of the last one received as before.
      */
     get: operations['list_generations_generations_get'];
     put?: never;
@@ -202,7 +202,7 @@ export interface paths {
     };
     /**
      * List Projects
-     * @description Your projects, newest first.
+     * @description Demo projects, then yours, newest first.
      */
     get: operations['list_projects_projects_get'];
     put?: never;
@@ -454,6 +454,10 @@ export interface components {
       id: string;
       /** Name */
       name: string;
+      /** Demo */
+      demo: boolean;
+      /** Mine */
+      mine: boolean;
       /**
        * Created At
        * Format: date-time

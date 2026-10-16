@@ -6,12 +6,14 @@ from collections.abc import Iterator
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, text
 
 from app.main import create_app
 from app.settings import Settings
 from tests.catalogue import catalogue
 from tests.conftest import sign_up
 from tests.test_generations import edit_request, image_request, upload
+from tests.test_projects import finish_with_outputs
 
 # Everything else needs an account
 PUBLIC = {
@@ -96,3 +98,40 @@ def test_nothing_can_be_filed_in_someone_elses_project(mine: TestClient, theirs:
     response = theirs.post("/generations", json=image_request(project_id=project_id))
     assert (response.status_code, response.json()["detail"]) == (422, "That project no longer exists")
     assert mine.get(f"/projects/{project_id}").json()["generation_count"] == 0
+
+
+def make_demo(engine: Engine, project_id: str) -> None:
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE projects SET is_demo = true WHERE id = :id"), {"id": project_id})
+
+
+def test_a_demo_is_shown_to_everyone_and_its_files_can_be_reused(
+    mine: TestClient, theirs: TestClient, engine: Engine
+) -> None:
+    project_id = mine.post("/projects", json={"name": "Demo"}).json()["id"]
+    photo = upload(mine)
+    edit = edit_request([{"asset_id": photo, "role": "reference"}]) | {"project_id": project_id}
+    generation_id = mine.post("/generations", json=edit).json()[0]["id"]
+    [output] = finish_with_outputs(engine, generation_id, 1)
+    make_demo(engine, project_id)
+
+    [listed] = theirs.get("/projects").json()
+    assert (listed["name"], listed["demo"], listed["mine"], listed["generation_count"]) == ("Demo", True, False, 1)
+    assert mine.get(f"/projects/{project_id}").json()["mine"] is True
+    assert [g["id"] for g in theirs.get("/generations", params={"project_id": project_id}).json()] == [generation_id]
+    shown = theirs.get(f"/generations/{generation_id}").json()
+    # Its inputs are served too, and its outputs can be used as inputs
+    assert theirs.get(shown["inputs"][0]["asset"]["url"]).status_code == 200
+    reuse = theirs.post("/generations", json=edit_request([{"asset_id": output, "role": "reference"}]))
+    assert reuse.status_code == 201
+    # It isn't theirs, so it stays out of their own lists
+    assert [g["id"] for g in theirs.get("/generations").json()] == [reuse.json()[0]["id"]]
+    assert theirs.get("/assets").json() == []
+
+
+def test_only_its_owner_adds_to_a_demo(mine: TestClient, theirs: TestClient, engine: Engine) -> None:
+    project_id = mine.post("/projects", json={"name": "Demo"}).json()["id"]
+    make_demo(engine, project_id)
+    response = theirs.post("/generations", json=image_request(project_id=project_id))
+    assert (response.status_code, response.json()["detail"]) == (422, "Only the demo's owner can add to it")
+    assert mine.post("/generations", json=image_request(project_id=project_id)).status_code == 201

@@ -243,7 +243,8 @@ export const generations: Generation[] = [
 /** A project as the API describes it, from the generations filed in it. */
 function project(id: string, name: string, created_at: string): Project {
   const filed = generations.filter(g => g.project_id === id);
-  return { id, name, created_at, generation_count: filed.length, covers: filed.flatMap(g => g.outputs).slice(0, 3) };
+  const covers = filed.flatMap(g => g.outputs).slice(0, 3);
+  return { id, name, demo: false, mine: true, created_at, generation_count: filed.length, covers };
 }
 
 /** Newest first, the order the API returns them in. */

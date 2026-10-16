@@ -337,7 +337,7 @@
     "/media/{key}": {
       "get": {
         "summary": "Get Media",
-        "description": "A stored file or a video's poster, for its owner. Anyone else gets the same 404 as for a file that doesn't\nexist, so whether it exists isn't given away either.",
+        "description": "A stored file or a video's poster, for its owner, or anyone for a demo's. Anyone else gets the same 404 as for\na file that doesn't exist, so whether it exists isn't given away either.",
         "operationId": "get_media_media__key__get",
         "parameters": [
           {
@@ -441,7 +441,7 @@
       },
       "get": {
         "summary": "List Generations",
-        "description": "Your generations, newest first: all of them (My generations), or one project's. For the next page, pass the id\nof the last one received as before.",
+        "description": "Newest first: all of yours (My generations), or one project's, a demo's included. For the next page, pass the\nid of the last one received as before.",
         "operationId": "list_generations_generations_get",
         "parameters": [
           {
@@ -649,7 +649,7 @@
       },
       "get": {
         "summary": "List Projects",
-        "description": "Your projects, newest first.",
+        "description": "Demo projects, then yours, newest first.",
         "operationId": "list_projects_projects_get",
         "parameters": [
           {
@@ -1417,6 +1417,14 @@
             "type": "string",
             "title": "Name"
           },
+          "demo": {
+            "type": "boolean",
+            "title": "Demo"
+          },
+          "mine": {
+            "type": "boolean",
+            "title": "Mine"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -1438,6 +1446,8 @@
         "required": [
           "id",
           "name",
+          "demo",
+          "mine",
           "created_at",
           "generation_count",
           "covers"
