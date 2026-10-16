@@ -289,6 +289,149 @@ export interface paths {
     patch: operations['update_preferences_preferences_patch'];
     trace?: never;
   };
+  '/admin/generations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Generations
+     * @description Everyone's, newest first. For the next page, pass the id of the last one received as before.
+     */
+    get: operations['list_generations_admin_generations_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/generations/{generation_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete Generation
+     * @description Deletes a generation with its outputs and their files, and the photos and clips uploaded for it that nothing
+     *     else uses. Credits it took stay taken.
+     */
+    delete: operations['delete_generation_admin_generations__generation_id__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/users': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Users
+     * @description Everyone, newest first, with their balance.
+     */
+    get: operations['list_users_admin_users_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/users/{user_id}/credits': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Grant
+     * @description Gives someone credits, or takes them back with a negative amount.
+     */
+    post: operations['grant_admin_users__user_id__credits_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/invite-codes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Invite Codes
+     * @description Newest first, with how many people have used each.
+     */
+    get: operations['list_invite_codes_admin_invite_codes_get'];
+    put?: never;
+    /** Create Invite Code */
+    post: operations['create_invite_code_admin_invite_codes_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/banned-words': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Banned Words
+     * @description In the order they were added.
+     */
+    get: operations['list_banned_words_admin_banned_words_get'];
+    put?: never;
+    /**
+     * Add Banned Word
+     * @description Adds a word or phrase, and returns the list. Adding one already there changes nothing.
+     */
+    post: operations['add_banned_word_admin_banned_words_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/banned-words/{word}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove Banned Word */
+    delete: operations['remove_banned_word_admin_banned_words__word__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -299,6 +442,63 @@ export interface components {
       media_type: components['schemas']['MediaType'];
       /** Most */
       most: number;
+    };
+    /** AdminGenerationOut */
+    AdminGenerationOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      status: components['schemas']['GenerationStatus'];
+      capability: components['schemas']['Capability'];
+      /** Workflow Id */
+      workflow_id: string;
+      /** Prompt */
+      prompt: string;
+      /** Project Id */
+      project_id: string | null;
+      params: components['schemas']['ParamsOut'];
+      /** Inputs */
+      inputs: components['schemas']['GenerationInputOut'][];
+      /** Outputs */
+      outputs: components['schemas']['AssetOut'][];
+      /** Progress */
+      progress: number | null;
+      /** Error */
+      error: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Started At */
+      started_at: string | null;
+      /** Finished At */
+      finished_at: string | null;
+      /** Owner Email */
+      owner_email: string;
+    };
+    /** AdminUserOut */
+    AdminUserOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Email */
+      email: string;
+      /** Is Admin */
+      is_admin: boolean;
+      /** Balance */
+      balance: number;
+      /** Generation Count */
+      generation_count: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /** AssetOut */
     AssetOut: {
@@ -409,6 +609,13 @@ export interface components {
      * @enum {string}
      */
     GenerationStatus: 'queued' | 'running' | 'failed' | 'done';
+    /** GrantIn */
+    GrantIn: {
+      /** Amount */
+      amount: number;
+      /** Note */
+      note?: string | null;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -444,6 +651,35 @@ export interface components {
      * @enum {string}
      */
     InputRole: 'reference';
+    /** InviteIn */
+    InviteIn: {
+      /** Code */
+      code: string;
+      /** Credits */
+      credits: number;
+      /** Max Uses */
+      max_uses: number;
+      /** Days */
+      days?: number | null;
+    };
+    /** InviteOut */
+    InviteOut: {
+      /** Code */
+      code: string;
+      /** Credits */
+      credits: number;
+      /** Max Uses */
+      max_uses: number;
+      /** Uses */
+      uses: number;
+      /** Expires At */
+      expires_at: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
     /**
      * MediaType
      * @enum {string}
@@ -576,6 +812,11 @@ export interface components {
       input?: unknown;
       /** Context */
       ctx?: Record<string, never>;
+    };
+    /** WordIn */
+    WordIn: {
+      /** Word */
+      word: string;
     };
     /** WorkflowOut */
     WorkflowOut: {
@@ -1285,6 +1526,325 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_generations_admin_generations_get: {
+    parameters: {
+      query?: {
+        before?: string | null;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminGenerationOut'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_generation_admin_generations__generation_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        generation_id: string;
+      };
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_users_admin_users_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminUserOut'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  grant_admin_users__user_id__credits_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['GrantIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminUserOut'];
+        };
+      };
+      /** @description No such account */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_invite_codes_admin_invite_codes_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InviteOut'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  create_invite_code_admin_invite_codes_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InviteIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InviteOut'];
+        };
+      };
+      /** @description Code taken */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_banned_words_admin_banned_words_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': string[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  add_banned_word_admin_banned_words_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['WordIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': string[];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  remove_banned_word_admin_banned_words__word__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        word: string;
+      };
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': string[];
+        };
       };
       /** @description Validation Error */
       422: {

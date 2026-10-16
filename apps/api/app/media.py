@@ -53,6 +53,9 @@ class MediaStore:
             temporary.write(data)
         os.replace(temporary.name, target)
 
+    def delete(self, key: str) -> None:
+        self.path(key).unlink(missing_ok=True)
+
     @contextmanager
     def writing(self, key: str) -> Iterator[Path]:
         """A temporary path for a tool such as ffmpeg to write to, which becomes the file at key once the block

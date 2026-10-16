@@ -117,6 +117,18 @@ class UserSession(Base):
     user: Mapped[User] = relationship(lazy="joined")
 
 
+class BannedWord(Base):
+    """A word or phrase prompts may not contain (app.moderation). Admins keep the list."""
+
+    __tablename__ = "banned_words"
+
+    # As the admin typed it, lowercased
+    word: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (CheckConstraint("word = lower(word) AND btrim(word) <> ''", name="word_lowercase"),)
+
+
 class FailedSignIn(Base):
     """A wrong password, kept for a while so guessing one can be slowed down (app.accounts)."""
 
