@@ -40,6 +40,7 @@ def generation(**changes: object) -> Generation:
         "aspect_ratio": "16:9",
         "duration_s": 5.0,
         "seed": 42,
+        "estimated_s": 200.0,
     }
     return Generation(**(fields | changes))
 

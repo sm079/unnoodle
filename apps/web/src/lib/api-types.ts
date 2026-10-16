@@ -142,6 +142,24 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/preferences': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Preferences */
+    get: operations['get_preferences_preferences_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update Preferences */
+    patch: operations['update_preferences_preferences_patch'];
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -322,6 +340,16 @@ export interface components {
       duration_s?: number | null;
       /** Seed */
       seed: number;
+    };
+    /** PreferencesIn */
+    PreferencesIn: {
+      /** Smart Queue */
+      smart_queue?: boolean | null;
+    };
+    /** PreferencesOut */
+    PreferencesOut: {
+      /** Smart Queue */
+      smart_queue: boolean;
     };
     /** ProjectIn */
     ProjectIn: {
@@ -690,6 +718,59 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_preferences_preferences_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PreferencesOut'];
+        };
+      };
+    };
+  };
+  update_preferences_preferences_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PreferencesIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PreferencesOut'];
+        };
       };
       /** @description Validation Error */
       422: {

@@ -113,6 +113,26 @@ Builder = Callable[[Job], Graph]
 
 
 @dataclass(frozen=True)
+class Work:
+    """What a request asks of a workflow, for estimating how long it runs before any file reaches ComfyUI."""
+
+    # The output's (width, height) in pixels
+    size: tuple[int, int]
+    # Videos only
+    frames: int | None
+    photos: int
+    # (width, height, seconds) of each attached clip
+    clips: tuple[tuple[int, int, float], ...] = ()
+
+
+Estimate = Callable[[Work], float]
+
+
+def about_a_minute(_: Work) -> float:
+    return 60.0
+
+
+@dataclass(frozen=True)
 class Workflow:
     id: str
     capabilities: frozenset[Capability]
@@ -135,6 +155,8 @@ class Workflow:
     sound: bool = False
     # Runs when a request names no model. Needed when several workflows share a capability.
     default: bool = False
+    # Seconds it takes on the GPU, roughly. Smart Queue runs quick ones first by it; only the order matters.
+    estimate: Estimate = about_a_minute
 
     @property
     def media_type(self) -> MediaType:

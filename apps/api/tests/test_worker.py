@@ -129,6 +129,45 @@ def test_a_released_generation_goes_back_without_using_an_attempt(client: TestCl
     assert (released.status, released.attempts, released.started_at) == (GenerationStatus.QUEUED, 0, None)
 
 
+def queue_estimated(client: TestClient, engine: Engine, prompt: str, estimated_s: float, queued_s_ago: float) -> str:
+    generation_id = queue_image(client, prompt)
+    created_at = queue.now() - timedelta(seconds=queued_s_ago)
+    set_fields(engine, generation_id, estimated_s=estimated_s, created_at=created_at)
+    return generation_id
+
+
+def claimed_first(engine: Engine) -> str:
+    claim = queue.claim_next(engine)
+    assert claim is not None
+    return str(claim.generation_id)
+
+
+def test_without_smart_queue_a_long_generation_keeps_its_place(client: TestClient, engine: Engine) -> None:
+    video = queue_estimated(client, engine, "video", estimated_s=300, queued_s_ago=60)
+    queue_estimated(client, engine, "picture", estimated_s=6, queued_s_ago=30)
+    assert claimed_first(engine) == video
+
+
+def test_smart_queue_lets_a_quick_generation_go_first(client: TestClient, engine: Engine) -> None:
+    assert client.patch("/preferences", json={"smart_queue": True}).json() == {"smart_queue": True}
+    queue_estimated(client, engine, "video", estimated_s=300, queued_s_ago=60)
+    picture = queue_estimated(client, engine, "picture", estimated_s=6, queued_s_ago=30)
+    assert claimed_first(engine) == picture
+
+
+def test_smart_queue_holds_a_long_generation_back_ten_minutes_at_most(client: TestClient, engine: Engine) -> None:
+    client.patch("/preferences", json={"smart_queue": True})
+    # Counts as queued 10 minutes later than it was, not 40
+    video = queue_estimated(client, engine, "video", estimated_s=2400, queued_s_ago=11 * 60)
+    queue_estimated(client, engine, "picture", estimated_s=6, queued_s_ago=30)
+    assert claimed_first(engine) == video
+
+
+def test_queued_generations_carry_their_workflows_estimate(client: TestClient, engine: Engine) -> None:
+    # The test catalogue's workflows have no estimate of their own
+    assert load(engine, queue_image(client)).estimated_s == 60
+
+
 def test_a_worker_that_lost_its_lease_changes_nothing(client: TestClient, engine: Engine) -> None:
     generation_id = queue_image(client)
     claim = queue.claim_next(engine)

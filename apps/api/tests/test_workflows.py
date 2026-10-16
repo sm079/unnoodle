@@ -8,7 +8,7 @@ from app.catalogues import real
 from app.main import create_app
 from app.models import Capability, InputRole, MediaType, Quality
 from app.settings import Settings
-from app.workflows import Job, JobInput, WorkflowError, check_catalogue, load_workflows, ratio_of, size_for
+from app.workflows import Job, JobInput, Work, WorkflowError, check_catalogue, load_workflows, ratio_of, size_for
 from tests.catalogue import IMAGE, VIDEO, catalogue, node_of
 
 PHOTO, CLIP = MediaType.IMAGE, MediaType.VIDEO
@@ -186,3 +186,20 @@ def test_minimax_scales_down_clips_bigger_than_uploads_are_cut_to(
 def test_minimax_from_a_prompt_alone_has_no_references() -> None:
     node = node_of(real.minimax_h3(job(size=(480, 864), frames=124)).nodes, "MiniMaxH3ReferenceToVideo")
     assert not any(key.startswith("ref_") and key != "ref_image_size" for key in node)
+
+
+def test_estimates_put_pictures_before_edits_before_videos() -> None:
+    picture = real.krea2_seconds(Work(size=(1024, 1024), frames=None, photos=0))
+    edit = real.klein_seconds(Work(size=(1024, 1024), frames=None, photos=3))
+    video = real.minimax_seconds(Work(size=(384, 672), frames=real.MINIMAX_FRAMES[5], photos=0))
+    assert picture < edit < video
+
+
+def test_a_video_estimate_grows_with_its_length_and_clips() -> None:
+    short = Work(size=(480, 864), frames=real.MINIMAX_FRAMES[5], photos=0)
+    longer = replace(short, frames=real.MINIMAX_FRAMES[10])
+    with_clip = replace(short, clips=((480, 864, 6.0),))
+    # Clips count at most at the size they are cut to, so a bigger one costs the same
+    with_big_clip = replace(short, clips=((1080, 1920, 6.0),))
+    assert real.minimax_seconds(short) < real.minimax_seconds(with_clip) == real.minimax_seconds(with_big_clip)
+    assert real.minimax_seconds(short) < real.minimax_seconds(longer)

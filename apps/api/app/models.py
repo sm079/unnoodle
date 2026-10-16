@@ -136,6 +136,8 @@ class Generation(Base):
     duration_s: Mapped[float | None]
     # Chosen when the request is accepted, so running the job again gives the same result
     seed: Mapped[int] = mapped_column(BigInteger)
+    # Roughly how long it runs on the GPU, from the workflow's estimate when it was queued; Smart Queue orders by it
+    estimated_s: Mapped[float]
 
     # 0 to 1 while running
     progress: Mapped[float | None]
@@ -164,6 +166,18 @@ class Generation(Base):
         # A project's generations, newest first
         Index("ix_generations_project_id", "project_id", "id"),
     )
+
+
+class Preferences(Base):
+    """Settings for the whole app, in one row. They move to each person once there are accounts."""
+
+    __tablename__ = "preferences"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    # Lets quick generations go ahead of long ones in the queue (see app.worker.queue)
+    smart_queue: Mapped[bool] = mapped_column(default=False)
+
+    __table_args__ = (CheckConstraint("id = 1", name="one_row"),)
 
 
 class GenerationInput(Base):
