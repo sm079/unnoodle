@@ -2,11 +2,22 @@
 
 import { useState, type ComponentType, type ReactNode } from 'react';
 import { m } from 'motion/react';
-import { ArchiveIcon, ChevronRightIcon, HeartIcon, HouseIcon, MenuIcon, PanelLeftIcon, PlusIcon, SparklesIcon, XIcon } from 'lucide-react';
+import {
+  ArchiveIcon,
+  ChevronRightIcon,
+  HeartIcon,
+  HouseIcon,
+  MenuIcon,
+  PanelLeftIcon,
+  PlusIcon,
+  SparklesIcon,
+  XIcon,
+  ZapIcon
+} from 'lucide-react';
 import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
 import { NewProjectForm } from '@/components/new-project';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { useProjects } from '@/lib/data';
+import { usePreferences, useProjects } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { allProjects, folder, home, sameView, type View } from '@/lib/views';
 
@@ -222,7 +233,53 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
           className={cn(label, 'size-5 text-[#8a8a8a] transition-[translate,opacity,display] group-hover/row:translate-x-0.5')}
         />
       </button>
+
+      <SmartQueueSwitch />
     </div>
+  );
+}
+
+/** Lets quick generations go ahead of long ones in the queue. Off until turned on. */
+function SmartQueueSwitch() {
+  const { data, update } = usePreferences();
+  const on = data?.smart_queue ?? false;
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-describedby="smart-queue-hint"
+      title={`Smart Queue: ${on ? 'on' : 'off'}`}
+      disabled={data === undefined}
+      onClick={() => void update({ smart_queue: !on }).catch(() => undefined)}
+      className={cn(rowClass, 'mt-[3px] h-auto py-1.5 disabled:opacity-60 lg:h-auto')}
+    >
+      <IconTile className="bg-linear-to-b from-[#f5d76e] to-[#c48a12]">
+        <ZapIcon className="size-4.5 fill-white/25 text-white lg:size-4" />
+      </IconTile>
+      <span className={cn(collapsible, 'flex min-w-0 flex-1 flex-col text-left')}>
+        <span className="truncate">Smart Queue</span>
+        <span id="smart-queue-hint" className="truncate text-xs font-normal text-[#828282]">
+          Quick ones go first
+        </span>
+      </span>
+      <span
+        aria-hidden
+        className={cn(
+          collapsible,
+          'relative h-6 w-10 shrink-0 rounded-full transition-colors duration-200',
+          on ? 'bg-lime' : 'bg-[#3a3a3c]'
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-[translate] duration-300 ease-spring',
+            on && 'translate-x-4'
+          )}
+        />
+      </span>
+    </button>
   );
 }
 

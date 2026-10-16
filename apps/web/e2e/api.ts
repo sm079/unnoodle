@@ -29,6 +29,12 @@ export async function mockApi(page: Page) {
     return route.fulfill({ json: project === null ? all : all.filter(g => g.project_id === project) });
   });
 
+  let preferences = { smart_queue: false };
+  await page.route('**/api/preferences', async route => {
+    if (route.request().method() === 'PATCH') preferences = { ...preferences, ...route.request().postDataJSON() };
+    return route.fulfill({ json: preferences });
+  });
+
   await page.route('**/api/projects', async route => {
     if (route.request().method() === 'GET') return route.fulfill({ json: [...createdProjects, ...projects] });
     const { name } = route.request().postDataJSON() as { name: string };

@@ -1,6 +1,6 @@
 // Calls to the API, which the web app passes through under /api (see next.config.ts).
 
-import type { Asset, Generation, GenerationRequest, Project } from './types';
+import type { Asset, Generation, GenerationRequest, Preferences, Project } from './types';
 
 /** A failed call. The message is fit to show: the API's own reason when it gave one. */
 export class ApiError extends Error {
@@ -54,6 +54,15 @@ export const api = {
     });
   },
 
+  /** Changes the settings given and returns them all. */
+  updatePreferences(changes: Partial<Preferences>): Promise<Preferences> {
+    return request('/preferences', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(changes)
+    });
+  },
+
   createProject(name: string): Promise<Project> {
     return request('/projects', {
       method: 'POST',
@@ -64,7 +73,13 @@ export const api = {
 };
 
 // Paths the data hooks read, which also name their cache entries
-export const paths = { workflows: '/workflows', uploads: '/assets', generations: '/generations', projects: '/projects' } as const;
+export const paths = {
+  workflows: '/workflows',
+  uploads: '/assets',
+  generations: '/generations',
+  projects: '/projects',
+  preferences: '/preferences'
+} as const;
 
 /** The generations in one project, or every generation (My generations) for null. */
 export const generationsIn = (projectId: string | null) =>

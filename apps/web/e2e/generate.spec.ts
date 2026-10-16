@@ -147,3 +147,14 @@ test('a generation made in a new project is in it and in My generations', async 
   await expect(page.getByRole('heading', { name: 'My generations' })).toBeVisible();
   await expect(newTile(page)).toBeVisible();
 });
+
+test('Smart Queue is off until switched on in the menu', async ({ page }) => {
+  await page.goto('/generate');
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  const smartQueue = page.getByRole('dialog', { name: 'Menu' }).getByRole('switch', { name: /Smart Queue/ });
+  await expect(smartQueue).not.toBeChecked();
+  const sent = page.waitForRequest(request => request.url().endsWith('/api/preferences') && request.method() === 'PATCH');
+  await smartQueue.click();
+  expect((await sent).postDataJSON()).toEqual({ smart_queue: true });
+  await expect(smartQueue).toBeChecked();
+});

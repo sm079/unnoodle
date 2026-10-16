@@ -27,3 +27,5 @@ export type Workflow = Schemas['WorkflowOut'];
  * and one made in a project is in both.
  */
 export type Project = Schemas['ProjectOut'];
+/** Settings for the whole app, until there are accounts. */
+export type Preferences = Schemas['PreferencesOut'];
