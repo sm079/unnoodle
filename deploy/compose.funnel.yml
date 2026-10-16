@@ -1,0 +1,19 @@
+# Serving the API from a machine on a Tailscale tailnet, with Funnel in front instead of Caddy:
+#
+#   docker compose -f compose.yml -f compose.funnel.yml up -d
+#   tailscale funnel --bg --https=8443 http://127.0.0.1:18400
+#
+# The API listens on this machine's loopback only, so nothing but Funnel reaches it from outside, and Funnel brings the
+# HTTPS certificate. Postgres isn't published at all.
+
+# Its own name, so it never shares containers or volumes with the local development database's compose project
+name: unnoodle-hosted
+
+services:
+  api:
+    ports:
+      - '127.0.0.1:${API_PORT:-18400}:8000'
+
+  # Funnel does its job; API_HOST in .env is then only the Funnel name, for reference
+  caddy:
+    profiles: [caddy]
