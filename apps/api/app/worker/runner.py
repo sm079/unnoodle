@@ -165,7 +165,14 @@ def finish(engine: Engine, claim: queue.Claim, outputs: list[Stored]) -> Outcome
             )
             return "lost"
         for output in outputs:
-            session.add(Asset(source=AssetSource.GENERATION, generation_id=generation.id, **output.fields()))
+            session.add(
+                Asset(
+                    owner_id=generation.owner_id,
+                    source=AssetSource.GENERATION,
+                    generation_id=generation.id,
+                    **output.fields(),
+                )
+            )
         queue.end(generation, GenerationStatus.DONE)
     return "done"
 

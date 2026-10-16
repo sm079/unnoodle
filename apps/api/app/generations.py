@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 
+from app.accounts import CurrentUser
 from app.db import SessionDep
 from app.media import AssetOut
 from app.models import (
@@ -21,6 +22,7 @@ from app.models import (
     MediaType,
     Project,
     Quality,
+    User,
 )
 from app.routing import RoutingError, capability_for, route
 from app.worker import queue
@@ -130,15 +132,19 @@ router = APIRouter()
 
 
 @router.post("/generations", status_code=status.HTTP_201_CREATED, responses={422: {"description": "Can't be run"}})
-def create_generation(body: GenerationIn, session: SessionDep, workflows: WorkflowsDep) -> list[GenerationOut]:
+def create_generation(
+    body: GenerationIn, user: CurrentUser, session: SessionDep, workflows: WorkflowsDep
+) -> list[GenerationOut]:
     """Queues count generations, oldest first in the answer."""
     try:
-        assets = attached_assets(session, body.inputs)
+        assets = attached_assets(session, user, body.inputs)
         attached = [(i.role, assets[i.asset_id].media_type) for i in body.inputs]
         workflow = route(workflows.values(), body.media_type, attached, body.model)
         check_params(workflow, body.params, attached=len(body.inputs))
-        if body.project_id is not None and session.get(Project, body.project_id) is None:
-            raise RequestError("That project no longer exists")
+        if body.project_id is not None:
+            project = session.get(Project, body.project_id)
+            if project is None or project.owner_id != user.id:
+                raise RequestError("That project no longer exists")
     except (RoutingError, RequestError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
@@ -147,6 +153,7 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
     seeds = [p.seed + n if p.seed is not None else secrets.randbelow(PICKED_SEEDS) for n in range(p.count)]
     generations = [
         Generation(
+            owner_id=user.id,
             capability=capability_for(body.media_type, attached),
             workflow_id=workflow.id,
             prompt=body.prompt,
@@ -170,11 +177,17 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
 
 @router.get("/generations")
 def list_generations(
-    session: SessionDep, before: uuid.UUID | None = None, limit: int = 30, project_id: uuid.UUID | None = None
+    user: CurrentUser,
+    session: SessionDep,
+    before: uuid.UUID | None = None,
+    limit: int = 30,
+    project_id: uuid.UUID | None = None,
 ) -> list[GenerationOut]:
-    """Newest first: all of them (My generations), or one project's. For the next page, pass the id of the last one
-    received as before."""
-    query = select(Generation).order_by(Generation.id.desc()).limit(min(limit, 100))
+    """Your generations, newest first: all of them (My generations), or one project's. For the next page, pass the id
+    of the last one received as before."""
+    query = (
+        select(Generation).where(Generation.owner_id == user.id).order_by(Generation.id.desc()).limit(min(limit, 100))
+    )
     if before is not None:
         # Ids are time-ordered, so "older than" is "smaller id"
         query = query.where(Generation.id < before)
@@ -184,9 +197,9 @@ def list_generations(
 
 
 @router.get("/generations/{generation_id}", responses={404: {"description": "No such generation"}})
-def get_generation(generation_id: uuid.UUID, session: SessionDep) -> GenerationOut:
+def get_generation(generation_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> GenerationOut:
     generation = session.get(Generation, generation_id)
-    if generation is None:
+    if generation is None or generation.owner_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such generation")
     return GenerationOut.of(generation)
 
@@ -223,9 +236,11 @@ def estimate(workflow: Workflow, params: Params, attached: list[Asset]) -> float
     return workflow.estimate(work)
 
 
-def attached_assets(session: SessionDep, inputs: list[InputIn]) -> dict[uuid.UUID, Asset]:
+def attached_assets(session: SessionDep, user: User, inputs: list[InputIn]) -> dict[uuid.UUID, Asset]:
+    """The attached assets by id. Someone else's count as missing, so their ids can't be used to borrow them."""
     ids = {i.asset_id for i in inputs}
-    assets = {a.id: a for a in session.scalars(select(Asset).where(Asset.id.in_(ids)))} if ids else {}
+    query = select(Asset).where(Asset.owner_id == user.id, Asset.id.in_(ids))
+    assets = {a.id: a for a in session.scalars(query)} if ids else {}
     if ids - assets.keys():
         raise RequestError("An attached file no longer exists")
     return assets

@@ -1,4 +1,4 @@
-"""Projects: folders the user makes for generations. My generations, the default folder, holds every generation and
+"""Projects: folders people make for their generations. My generations, the default folder, holds every generation and
 isn't stored; a generation made in a project is in both."""
 
 import uuid
@@ -12,6 +12,7 @@ from pydantic import BaseModel, StringConstraints
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.accounts import CurrentUser
 from app.db import SessionDep
 from app.media import AssetOut
 from app.models import Asset, Generation, Project
@@ -37,23 +38,25 @@ router = APIRouter()
 
 
 @router.post("/projects", status_code=status.HTTP_201_CREATED)
-def create_project(body: ProjectIn, session: SessionDep) -> ProjectOut:
-    project = Project(name=body.name)
+def create_project(body: ProjectIn, user: CurrentUser, session: SessionDep) -> ProjectOut:
+    project = Project(owner_id=user.id, name=body.name)
     session.add(project)
     session.commit()
     return ProjectOut(id=project.id, name=project.name, created_at=project.created_at, generation_count=0, covers=[])
 
 
 @router.get("/projects")
-def list_projects(session: SessionDep) -> list[ProjectOut]:
-    """Newest first."""
-    return describe(session, session.scalars(select(Project).order_by(Project.id.desc())).all())
+def list_projects(user: CurrentUser, session: SessionDep) -> list[ProjectOut]:
+    """Your projects, newest first."""
+    query = select(Project).where(Project.owner_id == user.id).order_by(Project.id.desc())
+    return describe(session, session.scalars(query).all())
 
 
 @router.get("/projects/{project_id}", responses={404: {"description": "No such project"}})
-def get_project(project_id: uuid.UUID, session: SessionDep) -> ProjectOut:
+def get_project(project_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> ProjectOut:
     project = session.get(Project, project_id)
-    if project is None:
+    # Someone else's is as missing as one that never existed
+    if project is None or project.owner_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such project")
     return describe(session, [project])[0]
 

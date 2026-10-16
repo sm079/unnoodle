@@ -21,6 +21,7 @@ from app.worker.runner import Outcome, run_job
 from app.workflows import Workflow
 from tests.catalogue import catalogue, node_of
 from tests.clips import clip, needs_ffmpeg
+from tests.conftest import make_admin, sign_up
 
 
 @pytest.fixture
@@ -31,6 +32,7 @@ def workflows() -> dict[str, Workflow]:
 @pytest.fixture
 def client(settings: Settings, workflows: dict[str, Workflow]) -> Iterator[TestClient]:
     with TestClient(create_app(settings, workflows)) as client:
+        sign_up(client)
         yield client
 
 
@@ -149,6 +151,7 @@ def test_without_smart_queue_a_long_generation_keeps_its_place(client: TestClien
 
 
 def test_smart_queue_lets_a_quick_generation_go_first(client: TestClient, engine: Engine) -> None:
+    make_admin(engine, client.get("/auth/me").json()["id"])
     assert client.patch("/preferences", json={"smart_queue": True}).json() == {"smart_queue": True}
     queue_estimated(client, engine, "video", estimated_s=300, queued_s_ago=60)
     picture = queue_estimated(client, engine, "picture", estimated_s=6, queued_s_ago=30)

@@ -21,6 +21,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/auth/sign-up': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Sign Up */
+    post: operations['sign_up_auth_sign_up_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/sign-in': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Sign In */
+    post: operations['sign_in_auth_sign_in_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/sign-out': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Sign Out */
+    post: operations['sign_out_auth_sign_out_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/auth/me': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Me */
+    get: operations['me_auth_me_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/workflows': {
     parameters: {
       query?: never;
@@ -47,7 +115,7 @@ export interface paths {
     };
     /**
      * List Uploads
-     * @description Uploads, newest first: the library the composer attaches from.
+     * @description Your uploads, newest first: the library the composer attaches from.
      */
     get: operations['list_uploads_assets_get'];
     put?: never;
@@ -56,6 +124,27 @@ export interface paths {
      * @description Stores an uploaded photo or video clip, to attach to generations. Clips are cut to their first 15 seconds.
      */
     post: operations['upload_asset_assets_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/media/{key}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Media
+     * @description A stored file or a video's poster, for its owner. Anyone else gets the same 404 as for a file that doesn't
+     *     exist, so whether it exists isn't given away either.
+     */
+    get: operations['get_media_media__key__get'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -71,8 +160,8 @@ export interface paths {
     };
     /**
      * List Generations
-     * @description Newest first: all of them (My generations), or one project's. For the next page, pass the id of the last one
-     *     received as before.
+     * @description Your generations, newest first: all of them (My generations), or one project's. For the next page, pass the id
+     *     of the last one received as before.
      */
     get: operations['list_generations_generations_get'];
     put?: never;
@@ -113,7 +202,7 @@ export interface paths {
     };
     /**
      * List Projects
-     * @description Newest first.
+     * @description Your projects, newest first.
      */
     get: operations['list_projects_projects_get'];
     put?: never;
@@ -381,6 +470,32 @@ export interface components {
      * @enum {string}
      */
     Quality: 'low' | 'medium' | 'high';
+    /** SignInIn */
+    SignInIn: {
+      /** Email */
+      email: string;
+      /** Password */
+      password: string;
+    };
+    /** SignUpIn */
+    SignUpIn: {
+      /** Email */
+      email: string;
+      /** Password */
+      password: string;
+    };
+    /** UserOut */
+    UserOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Email */
+      email: string;
+      /** Is Admin */
+      is_admin: boolean;
+    };
     /** ValidationError */
     ValidationError: {
       /** Location */
@@ -455,6 +570,153 @@ export interface operations {
       };
     };
   };
+  sign_up_auth_sign_up_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SignUpIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserOut'];
+        };
+      };
+      /** @description Email taken */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  sign_in_auth_sign_in_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SignInIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserOut'];
+        };
+      };
+      /** @description Wrong email or password */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  sign_out_auth_sign_out_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  me_auth_me_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserOut'];
+        };
+      };
+      /** @description Not signed in */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   list_workflows_workflows_get: {
     parameters: {
       query?: never;
@@ -482,7 +744,9 @@ export interface operations {
       };
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody?: never;
     responses: {
@@ -511,7 +775,9 @@ export interface operations {
       query?: never;
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody: {
       content: {
@@ -537,6 +803,44 @@ export interface operations {
       };
     };
   };
+  get_media_media__key__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such file */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   list_generations_generations_get: {
     parameters: {
       query?: {
@@ -546,7 +850,9 @@ export interface operations {
       };
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody?: never;
     responses: {
@@ -575,7 +881,9 @@ export interface operations {
       query?: never;
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody: {
       content: {
@@ -608,7 +916,9 @@ export interface operations {
       path: {
         generation_id: string;
       };
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody?: never;
     responses: {
@@ -644,7 +954,9 @@ export interface operations {
       query?: never;
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody?: never;
     responses: {
@@ -657,6 +969,15 @@ export interface operations {
           'application/json': components['schemas']['ProjectOut'][];
         };
       };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
   };
   create_project_projects_post: {
@@ -664,7 +985,9 @@ export interface operations {
       query?: never;
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody: {
       content: {
@@ -699,7 +1022,9 @@ export interface operations {
       path: {
         project_id: string;
       };
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody?: never;
     responses: {
@@ -735,7 +1060,9 @@ export interface operations {
       query?: never;
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody?: never;
     responses: {
@@ -748,6 +1075,15 @@ export interface operations {
           'application/json': components['schemas']['PreferencesOut'];
         };
       };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
   };
   update_preferences_preferences_patch: {
@@ -755,7 +1091,9 @@ export interface operations {
       query?: never;
       header?: never;
       path?: never;
-      cookie?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
     };
     requestBody: {
       content: {
@@ -771,6 +1109,13 @@ export interface operations {
         content: {
           'application/json': components['schemas']['PreferencesOut'];
         };
+      };
+      /** @description Not an admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {

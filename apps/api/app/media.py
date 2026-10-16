@@ -1,4 +1,4 @@
-"""Stored media: uploads and generation outputs, kept on local disk and served under /media.
+"""Stored media: uploads and generation outputs, kept on local disk and served under /media to their owners only.
 
 Files are stored under keys like "uploads/<asset id>.png". The key goes in the database, so moving the files later
 (to object storage, for instance) changes how keys turn into URLs, not the rows.
@@ -16,11 +16,13 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app import video
+from app.accounts import CurrentUser
 from app.db import SessionDep
 from app.models import Asset, AssetSource, MediaType, new_id
 
@@ -184,7 +186,7 @@ router = APIRouter()
 
 
 @router.post("/assets", status_code=status.HTTP_201_CREATED, responses={422: {"description": "A clip too short"}})
-def upload_asset(file: UploadFile, session: SessionDep, store: MediaStoreDep) -> AssetOut:
+def upload_asset(file: UploadFile, user: CurrentUser, session: SessionDep, store: MediaStoreDep) -> AssetOut:
     """Stores an uploaded photo or video clip, to attach to generations. Clips are cut to their first 15 seconds."""
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
@@ -202,14 +204,35 @@ def upload_asset(file: UploadFile, session: SessionDep, store: MediaStoreDep) ->
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"Clips need to be at least {video.SHORTEST_CLIP_S:g} seconds long",
         ) from error
-    asset = Asset(id=asset_id, source=AssetSource.UPLOAD, **stored.fields())
+    asset = Asset(id=asset_id, owner_id=user.id, source=AssetSource.UPLOAD, **stored.fields())
     session.add(asset)
     session.commit()
     return AssetOut.of(asset)
 
 
 @router.get("/assets")
-def list_uploads(session: SessionDep, limit: int = 60) -> list[AssetOut]:
-    """Uploads, newest first: the library the composer attaches from."""
-    query = select(Asset).where(Asset.source == AssetSource.UPLOAD).order_by(Asset.id.desc()).limit(min(limit, 200))
+def list_uploads(user: CurrentUser, session: SessionDep, limit: int = 60) -> list[AssetOut]:
+    """Your uploads, newest first: the library the composer attaches from."""
+    query = (
+        select(Asset)
+        .where(Asset.owner_id == user.id, Asset.source == AssetSource.UPLOAD)
+        .order_by(Asset.id.desc())
+        .limit(min(limit, 200))
+    )
     return [AssetOut.of(asset) for asset in session.scalars(query)]
+
+
+@router.get(MEDIA_URL + "/{key:path}", response_class=FileResponse, responses={404: {"description": "No such file"}})
+def get_media(key: str, user: CurrentUser, session: SessionDep, store: MediaStoreDep) -> FileResponse:
+    """A stored file or a video's poster, for its owner. Anyone else gets the same 404 as for a file that doesn't
+    exist, so whether it exists isn't given away either."""
+    asset = session.scalars(
+        select(Asset).where(Asset.owner_id == user.id, or_(Asset.storage_key == key, Asset.poster_key == key))
+    ).first()
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such file")
+    media_type = asset.mime_type if key == asset.storage_key else "image/jpeg"
+    # A key is never reused for other content, so the browser can keep it, but only for this person (private)
+    return FileResponse(
+        store.path(key), media_type=media_type, headers={"Cache-Control": "private, max-age=31536000, immutable"}
+    )

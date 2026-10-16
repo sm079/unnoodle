@@ -7,23 +7,27 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from app.main import create_app
-from app.models import Asset, AssetSource, MediaType
+from app.models import Asset, AssetSource, Generation, MediaType
 from app.settings import Settings
 from tests.catalogue import catalogue
+from tests.conftest import sign_up
 from tests.test_generations import image_request
 
 
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
     with TestClient(create_app(settings, catalogue())) as client:
+        sign_up(client)
         yield client
 
 
 def finish_with_outputs(engine: Engine, generation_id: str, count: int) -> list[str]:
     """Stores outputs for a generation, as the worker would, and returns their ids oldest first."""
     with Session(engine) as session:
+        generation = session.get_one(Generation, uuid.UUID(generation_id))
         outputs = [
             Asset(
+                owner_id=generation.owner_id,
                 media_type=MediaType.IMAGE,
                 source=AssetSource.GENERATION,
                 storage_key=f"outputs/{generation_id}/{n}.png",

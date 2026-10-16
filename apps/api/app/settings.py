@@ -21,7 +21,11 @@ class Settings(BaseSettings):
     # needs a ComfyUI with the models, such as one on a rented GPU
     workflows: Literal["dev", "real"] = "dev"
 
-    # Uploads and outputs, served under /media
+    # Marks the sign-in cookie Secure, so browsers send it over HTTPS only. On wherever the app is served over HTTPS;
+    # off for plain http on this machine.
+    secure_cookies: bool = False
+
+    # Uploads and outputs, served under /media to their owners
     media_dir: Path = REPO_ROOT / "apps" / "api" / "media"
 
     # Where the worker runs workflows. 8189 is the dev ComfyUI (see the README); a regular install listens on 8188.
