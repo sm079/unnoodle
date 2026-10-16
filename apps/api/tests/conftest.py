@@ -1,17 +1,21 @@
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401  (registers the tables on Base.metadata)
 from app.db import Base, make_engine
 from app.main import create_app
+from app.models import CreditEntry, CreditKind
 from app.settings import ENV_FILE, Settings
 
 API_DIR = Path(__file__).resolve().parents[1]
@@ -78,12 +82,23 @@ def client(settings: Settings) -> Iterator[TestClient]:
         yield client
 
 
-def sign_up(client: TestClient, email: str = "me@example.com", password: str = "correct horse") -> str:
-    """Signs the client up (and so in) as a new account, and returns its id."""
+def sign_up(
+    client: TestClient, email: str = "me@example.com", password: str = "correct horse", credits: int = 1000
+) -> str:
+    """Signs the client up (and so in) as a new account with some credits to spend, and returns its id."""
     response = client.post("/auth/sign-up", json={"email": email, "password": password})
     assert response.status_code == 201, response.text
     user_id: str = response.json()["id"]
+    if credits:
+        app: FastAPI = client.app  # type: ignore[assignment]
+        grant(app.state.engine, user_id, credits)
     return user_id
+
+
+def grant(engine: Engine, user_id: str, amount: int) -> None:
+    with Session(engine) as session:
+        session.add(CreditEntry(user_id=uuid.UUID(user_id), amount=amount, kind=CreditKind.GRANT))
+        session.commit()
 
 
 def make_admin(engine: Engine, user_id: str) -> None:

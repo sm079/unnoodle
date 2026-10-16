@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import ColumnElement, Engine, func, or_, select, text, update
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
+from app import credits
 from app.models import Generation, GenerationStatus, Preferences
 
 STALE_AFTER = timedelta(seconds=60)
@@ -57,7 +58,12 @@ def claim_next(engine: Engine) -> Claim | None:
         )
         while (generation := session.scalars(query).first()) is not None:
             if generation.attempts >= MAX_ATTEMPTS:
-                end(generation, GenerationStatus.FAILED, "The worker stopped while running this, too many times")
+                end(
+                    session,
+                    generation,
+                    GenerationStatus.FAILED,
+                    "The worker stopped while running this, too many times",
+                )
                 session.flush()
                 continue
             generation.status = GenerationStatus.RUNNING
@@ -112,7 +118,10 @@ def lock_held(session: Session, claim: Claim) -> Generation | None:
     return session.scalars(query).first()
 
 
-def end(generation: Generation, status: GenerationStatus, error: str | None = None) -> None:
+def end(session: Session, generation: Generation, status: GenerationStatus, error: str | None = None) -> None:
+    """Finishes a generation. A failed one gets its credits back, in the same transaction."""
+    if status is GenerationStatus.FAILED:
+        credits.refund(session, generation)
     generation.status = status
     generation.error = error
     generation.progress = None

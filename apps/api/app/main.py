@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app import accounts, generations, health, media, preferences, projects, workflows
+from app import accounts, credits, generations, health, media, preferences, projects, workflows
 from app.db import make_engine
 from app.settings import Settings
 
@@ -27,6 +27,7 @@ def create_app(settings: Settings | None = None, catalogue: dict[str, workflows.
 
     app.include_router(health.router)
     app.include_router(accounts.router)
+    app.include_router(credits.router)
     app.include_router(workflows.router)
     app.include_router(media.router)
     app.include_router(generations.router)

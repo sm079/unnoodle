@@ -46,6 +46,19 @@ class InputRole(StrEnum):
     REFERENCE = "reference"
 
 
+class CreditKind(StrEnum):
+    """Why a credit entry moved someone's balance."""
+
+    # Given by an admin, or taken back with a negative amount
+    GRANT = "grant"
+    # From redeeming an invite code
+    INVITE = "invite"
+    # Taken when a generation is queued
+    CHARGE = "charge"
+    # Given back when a generation fails
+    REFUND = "refund"
+
+
 class Quality(StrEnum):
     """How big an output is: each workflow maps these to its own sizes and the person never sees pixels."""
 
@@ -181,6 +194,8 @@ class Generation(Base):
     seed: Mapped[int] = mapped_column(BigInteger)
     # Roughly how long it runs on the GPU, from the workflow's estimate when it was queued; Smart Queue orders by it
     estimated_s: Mapped[float]
+    # Credits taken when it was queued, and given back if it fails (app.credits)
+    cost: Mapped[int] = mapped_column(default=0, server_default="0")
 
     # 0 to 1 while running
     progress: Mapped[float | None]
@@ -223,6 +238,69 @@ class Preferences(Base):
     smart_queue: Mapped[bool] = mapped_column(default=False)
 
     __table_args__ = (CheckConstraint("id = 1", name="one_row"),)
+
+
+class InviteCode(Base):
+    """A code that gives credits to whoever redeems it, once each, up to max_uses people."""
+
+    __tablename__ = "invite_codes"
+
+    # Stored uppercased; redeeming ignores case
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    credits: Mapped[int]
+    max_uses: Mapped[int]
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("code = upper(code)", name="code_uppercase"),
+        CheckConstraint("credits > 0", name="credits_positive"),
+        CheckConstraint("max_uses > 0", name="max_uses_positive"),
+    )
+
+
+class CreditEntry(Base):
+    """One movement of someone's credits. Rows are only ever added, never changed, so a balance is the sum of its
+    entries and every change to it can be traced."""
+
+    __tablename__ = "credit_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Positive adds credits, negative takes them
+    amount: Mapped[int]
+    kind: Mapped[CreditKind] = mapped_column(string_enum(CreditKind, "kind"))
+    # Charges and refunds: the generation they were for
+    generation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("generations.id", ondelete="SET NULL"))
+    # Invites: the code redeemed
+    invite_code: Mapped[str | None] = mapped_column(ForeignKey("invite_codes.code", ondelete="SET NULL"))
+    # Grants: why, as the admin put it
+    note: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # Charges take; invites and refunds give; a grant can do either
+        CheckConstraint("kind = 'grant' OR (kind = 'charge') = (amount < 0)", name="sign_follows_kind"),
+        CheckConstraint("amount <> 0", name="amount_not_zero"),
+        # A balance is summed from someone's entries
+        Index("ix_credit_entries_user_id", "user_id"),
+        # One charge and at most one refund per generation, however often the worker retries
+        Index(
+            "uq_credit_entries_generation_kind",
+            "generation_id",
+            "kind",
+            unique=True,
+            postgresql_where=text("generation_id IS NOT NULL"),
+        ),
+        # Each person redeems a code once
+        Index(
+            "uq_credit_entries_user_invite",
+            "user_id",
+            "invite_code",
+            unique=True,
+            postgresql_where=text("invite_code IS NOT NULL"),
+        ),
+    )
 
 
 class GenerationInput(Base):

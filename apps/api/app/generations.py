@@ -7,8 +7,9 @@ from typing import Annotated, cast
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from app import credits
 from app.accounts import CurrentUser
 from app.db import SessionDep
 from app.media import AssetOut
@@ -23,6 +24,7 @@ from app.models import (
     Project,
     Quality,
     User,
+    new_id,
 )
 from app.routing import RoutingError, capability_for, route
 from app.sharing import visible_asset, visible_generation
@@ -36,6 +38,8 @@ MAX_SEED = 2**53 - 1
 
 # How many one request can queue. Each is its own run with one output, so a GPU only ever makes one thing at a time.
 MAX_QUEUED = 4
+# How many one person can have waiting or running at once, so nobody fills the queue for everyone else
+MAX_WAITING = 8
 
 
 class InputIn(BaseModel):
@@ -132,7 +136,15 @@ class RequestError(ValueError):
 router = APIRouter()
 
 
-@router.post("/generations", status_code=status.HTTP_201_CREATED, responses={422: {"description": "Can't be run"}})
+@router.post(
+    "/generations",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        402: {"description": "Not enough credits"},
+        422: {"description": "Can't be run"},
+        429: {"description": "Too many waiting"},
+    },
+)
 def create_generation(
     body: GenerationIn, user: CurrentUser, session: SessionDep, workflows: WorkflowsDep
 ) -> list[GenerationOut]:
@@ -152,10 +164,33 @@ def create_generation(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
     p = body.params
-    estimated_s = estimate(workflow, p, [assets[i.asset_id] for i in body.inputs])
+    attached_assets_in_order = [assets[i.asset_id] for i in body.inputs]
+    estimated_s = estimate(workflow, p, attached_assets_in_order)
+    clips = sum(a.media_type is MediaType.VIDEO for a in attached_assets_in_order)
+    cost = credits.cost_of(workflow.media_type, p.quality, p.duration_s, clips)
+
+    # Locks the account first, so two requests at once are counted one after the other
+    have = credits.locked_balance(session, user.id)
+    waiting = session.scalar(
+        select(func.count()).where(
+            Generation.owner_id == user.id,
+            Generation.status.in_([GenerationStatus.QUEUED, GenerationStatus.RUNNING]),
+        )
+    )
+    if (waiting or 0) + p.count > MAX_WAITING:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"You can have up to {MAX_WAITING} waiting at once. Let some finish first.",
+        )
+    if cost * p.count > have:
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED, f"This needs {cost * p.count} credits and you have {have}"
+        )
     seeds = [p.seed + n if p.seed is not None else secrets.randbelow(PICKED_SEEDS) for n in range(p.count)]
     generations = [
         Generation(
+            # Set here rather than on insert, so the charges can name it
+            id=new_id(),
             owner_id=user.id,
             capability=capability_for(body.media_type, attached),
             workflow_id=workflow.id,
@@ -166,6 +201,7 @@ def create_generation(
             duration_s=p.duration_s,
             seed=seed,
             estimated_s=estimated_s,
+            cost=cost,
             inputs=[
                 GenerationInput(position=n, role=i.role, asset=assets[i.asset_id]) for n, i in enumerate(body.inputs)
             ],
@@ -173,6 +209,10 @@ def create_generation(
         for seed in seeds
     ]
     session.add_all(generations)
+    # Inserted before the charges that refer to them
+    session.flush()
+    for generation in generations:
+        credits.charge(session, generation)
     queue.notify_queued(session)
     session.commit()
     return [GenerationOut.of(g) for g in generations]

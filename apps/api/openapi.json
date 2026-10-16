@@ -203,6 +203,116 @@
         }
       }
     },
+    "/credits": {
+      "get": {
+        "summary": "Get Credits",
+        "description": "Your balance, and what things cost.",
+        "operationId": "get_credits_credits_get",
+        "parameters": [
+          {
+            "name": "unnoodle_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unnoodle Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/credits/redeem": {
+      "post": {
+        "summary": "Redeem",
+        "description": "Adds an invite code's credits to your balance.",
+        "operationId": "redeem_credits_redeem_post",
+        "parameters": [
+          {
+            "name": "unnoodle_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unnoodle Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditsOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such code"
+          },
+          "409": {
+            "description": "Already redeemed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workflows": {
       "get": {
         "summary": "List Workflows",
@@ -434,8 +544,14 @@
               }
             }
           },
+          "402": {
+            "description": "Not enough credits"
+          },
           "422": {
             "description": "Can't be run"
+          },
+          "429": {
+            "description": "Too many waiting"
           }
         }
       },
@@ -975,6 +1091,23 @@
         ],
         "title": "Capability"
       },
+      "CreditsOut": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          },
+          "prices": {
+            "$ref": "#/components/schemas/Prices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance",
+          "prices"
+        ],
+        "title": "CreditsOut"
+      },
       "GenerationIn": {
         "properties": {
           "media_type": {
@@ -1391,6 +1524,41 @@
         ],
         "title": "PreferencesOut"
       },
+      "Prices": {
+        "properties": {
+          "image": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Quality"
+            },
+            "type": "object",
+            "title": "Image"
+          },
+          "video_per_5s": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Quality"
+            },
+            "type": "object",
+            "title": "Video Per 5S"
+          },
+          "per_clip": {
+            "type": "integer",
+            "title": "Per Clip"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image",
+          "video_per_5s",
+          "per_clip"
+        ],
+        "title": "Prices"
+      },
       "ProjectIn": {
         "properties": {
           "name": {
@@ -1463,6 +1631,21 @@
         ],
         "title": "Quality",
         "description": "How big an output is: each workflow maps these to its own sizes and the person never sees pixels."
+      },
+      "RedeemIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "RedeemIn"
       },
       "SignInIn": {
         "properties": {
