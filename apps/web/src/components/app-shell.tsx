@@ -8,6 +8,7 @@ import {
   ChevronRightIcon,
   HeartIcon,
   HouseIcon,
+  LogInIcon,
   LogOutIcon,
   MenuIcon,
   PanelLeftIcon,
@@ -23,6 +24,7 @@ import { NewProjectForm } from '@/components/new-project';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { api } from '@/lib/api';
 import { useCredits, useMe, usePreferences, useProjects } from '@/lib/data';
+import { useDemo } from '@/lib/demo';
 import { cn } from '@/lib/utils';
 import { allProjects, folder, home, sameView, type View } from '@/lib/views';
 
@@ -123,6 +125,7 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
   const { data: projects = [] } = useProjects();
   const { data: me } = useMe();
   const [creating, setCreating] = useState(false);
+  const demo = useDemo();
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 pt-2.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] group-data-[collapsed=true]/sidebar:px-2.5">
@@ -165,7 +168,7 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
           <button
             type="button"
             aria-label="New project"
-            onClick={() => setCreating(true)}
+            onClick={() => (demo ? demo('project') : setCreating(true))}
             className="group/new flex size-8 items-center justify-center rounded-lg text-[#9a9a9a] transition-[color,background-color,scale] duration-200 ease-spring hover:bg-sidebar-accent hover:text-foreground active:scale-90"
           >
             <PlusIcon className="size-4.5 transition-[rotate] duration-500 ease-spring-bouncy group-hover/new:rotate-90 lg:size-4" />
@@ -252,7 +255,27 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
         </>
       )}
       {me && <Account email={me.email} />}
+      {demo && <DemoAccount />}
     </div>
+  );
+}
+
+/** In the demo, where nobody is signed in: the way in. */
+function DemoAccount() {
+  return (
+    <Link
+      href={`/sign-in?next=${encodeURIComponent('/generate')}`}
+      title="Sign in"
+      className={cn(rowClass, 'mt-[3px] h-auto py-1.5 lg:h-auto')}
+    >
+      <IconTile className="bg-linear-to-b from-[#ff8763] to-brand">
+        <LogInIcon className="size-4 text-white lg:size-3.5" />
+      </IconTile>
+      <span className={cn(collapsible, 'flex min-w-0 flex-1 flex-col text-left')}>
+        <span className="truncate">Sign in</span>
+        <span className="truncate text-xs font-normal text-[#828282]">{"You're looking around the demo"}</span>
+      </span>
+    </Link>
   );
 }
 

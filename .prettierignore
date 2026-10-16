@@ -1,2 +1,4 @@
 pnpm-lock.yaml
 apps/api/
+# Written by the API (python -m app.snapshot)
+apps/web/src/lib/demo-snapshot.json

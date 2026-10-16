@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { FolderPlusIcon, SparklesIcon } from 'lucide-react';
 import { NewProjectForm } from '@/components/new-project';
 import { useGenerations, useProjects } from '@/lib/data';
+import { useDemo } from '@/lib/demo';
 import { cn } from '@/lib/utils';
 import { folder, type View } from '@/lib/views';
 import type { Asset } from '@/lib/types';
@@ -18,6 +19,7 @@ export function ProjectGrid({ onView }: { onView: (view: View) => void }) {
   const { data: projects = [] } = useProjects();
   const { data: everything = [] } = useGenerations(null);
   const [creating, setCreating] = useState(false);
+  const demo = useDemo();
 
   return (
     <section aria-labelledby="projects-title" className="flex flex-col gap-4">
@@ -52,7 +54,7 @@ export function ProjectGrid({ onView }: { onView: (view: View) => void }) {
           ) : (
             <button
               type="button"
-              onClick={() => setCreating(true)}
+              onClick={() => (demo ? demo('project') : setCreating(true))}
               className={cn(
                 cardClass,
                 pressClass,
