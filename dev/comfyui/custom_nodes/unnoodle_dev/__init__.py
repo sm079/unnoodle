@@ -1,7 +1,8 @@
 """A development-only ComfyUI node for running unnoodle's fake workflows.
 
 Core image nodes finish in milliseconds and report no progress, so on their own they can't exercise a generation's
-running and failed states. This node works through timed steps, reporting each one as progress, and fails like an
+running and failed states. This node waits out a set-up time without reporting anything, as a model loading does, then
+works through timed steps, reporting each one as progress, and fails like an
 out-of-memory GPU when the prompt contains FAIL_MARKER. It also tints every image by the seed and writes the prompt
 on it, so each output visibly matches the request that made it.
 
@@ -37,22 +38,33 @@ class DevSteps(io.ComfyNode):
                 io.String.Input("prompt", multiline=True, default=""),
                 io.Int.Input("seed", default=0, min=0, max=0xFFFFFFFFFFFFFFFF),
                 io.Int.Input("steps", default=8, min=1, max=1000),
-                io.Float.Input("step_seconds", default=0.25, min=0.0, max=60.0, step=0.05),
+                io.Float.Input("step_seconds", default=0.25, min=0.0, max=600.0, step=0.05),
+                io.Float.Input("setup_seconds", default=0.0, min=0.0, max=3600.0, step=0.5),
             ],
             outputs=[io.Image.Output()],
         )
 
     @classmethod
-    def execute(cls, images: torch.Tensor, prompt: str, seed: int, steps: int, step_seconds: float) -> io.NodeOutput:
+    def execute(
+        cls, images: torch.Tensor, prompt: str, seed: int, steps: int, step_seconds: float, setup_seconds: float
+    ) -> io.NodeOutput:
+        wait(setup_seconds)
         bar = comfy.utils.ProgressBar(steps)
         for step in range(1, steps + 1):
-            # Lets POST /interrupt cancel a run part-way, as it does a sampler
-            comfy.model_management.throw_exception_if_processing_interrupted()
-            time.sleep(step_seconds)
+            wait(step_seconds)
             if FAIL_MARKER in prompt and step > steps // 2:
                 raise torch.cuda.OutOfMemoryError(f"CUDA out of memory (simulated: the prompt contains {FAIL_MARKER})")
             bar.update(1)
         return io.NodeOutput(stamp(images, prompt, seed))
+
+
+def wait(seconds: float) -> None:
+    # In short sleeps, so POST /interrupt can cancel a run part-way, as it does a sampler
+    end = time.monotonic() + seconds
+    while (left := end - time.monotonic()) > 0:
+        comfy.model_management.throw_exception_if_processing_interrupted()
+        time.sleep(min(left, 0.25))
+    comfy.model_management.throw_exception_if_processing_interrupted()
 
 
 def stamp(images: torch.Tensor, prompt: str, seed: int) -> torch.Tensor:

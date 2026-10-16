@@ -50,8 +50,9 @@ python <path-to-ComfyUI>/main.py --base-directory dev/comfyui --port 8189 --cpu 
 
 It then loads only the development node in `dev/comfyui/custom_nodes`, and keeps its inputs, outputs and settings in
 `dev/comfyui` (git-ignored), so an existing ComfyUI install is left as it was. The node stands in for a model: it
-reports progress step by step, tints each image by the seed and writes the prompt on it, and fails like a GPU out of
-memory when the prompt contains `#oom`. Port 8189 keeps it clear of a normal ComfyUI on 8188.
+takes as long as the real model would on an RTX 5090 (a set-up with no progress, then steps), tints each image by the
+seed and writes the prompt on it. It fails like a GPU out of memory when the prompt contains `#oom`, and finishes in a
+few seconds when it contains `#quick`. Port 8189 keeps it clear of a normal ComfyUI on 8188.
 
 Workflows are code: each one builds its ComfyUI graph for every request, with one image chain per attached photo
 (`app/workflows.py` describes the contract). `app/catalogues/dev.py` holds stand-ins that run on this ComfyUI, and

@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.catalogues import real
+from app.catalogues import dev, real
 from app.main import create_app
 from app.models import Capability, InputRole, MediaType, Quality
 from app.settings import Settings
@@ -203,3 +203,16 @@ def test_a_video_estimate_grows_with_its_length_and_clips() -> None:
     with_big_clip = replace(short, clips=((1080, 1920, 6.0),))
     assert real.minimax_seconds(short) < real.minimax_seconds(with_clip) == real.minimax_seconds(with_big_clip)
     assert real.minimax_seconds(short) < real.minimax_seconds(longer)
+
+
+def dev_pacing(job: Job) -> dict[str, Any]:
+    steps = node_of(dev.image(job).nodes, "UnnoodleDevSteps")
+    return {key: steps[key] for key in ("setup_seconds", "steps", "step_seconds")}
+
+
+def test_dev_stand_ins_take_as_long_as_the_real_model_would() -> None:
+    job = Job(prompt="a fox", seed=1, megapixels=1, size=(64, 64), frames=None, inputs=(), filename_prefix="t")
+    assert dev_pacing(replace(job, estimated_s=100)) == {"setup_seconds": 40, "steps": 8, "step_seconds": 7.5}
+    # Without an estimate, or asked to be quick, a few seconds
+    assert dev_pacing(job)["setup_seconds"] == 0
+    assert dev_pacing(replace(job, prompt="a fox #quick", estimated_s=100))["setup_seconds"] == 0

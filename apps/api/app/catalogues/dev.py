@@ -1,8 +1,9 @@
 """Stand-ins for the real workflows that run on the dev ComfyUI without any models (see the README).
 
 They take the same inputs and offer the same settings as the real ones, and use the dev node in
-dev/comfyui/custom_nodes to take a few seconds, report progress, fail on demand ("#oom" in the prompt) and write the
-prompt on the result, so the whole app can be tried on a laptop.
+dev/comfyui/custom_nodes to take as long as the real model would, report progress, fail on demand ("#oom" in the
+prompt) and write the prompt on the result, so the whole app can be tried on a laptop. "#quick" in the prompt makes a
+run take a few seconds instead.
 """
 
 from dataclasses import replace
@@ -19,10 +20,23 @@ from app.graph import Graph, Link
 from app.models import Capability, InputRole, MediaType
 from app.workflows import Accepts, Job, Work, Workflow
 
+QUICK_MARKER = "#quick"
+
+# Of the runs on an RTX 5090, about this much of the time went by before the first step reported progress: loading,
+# and encoding the prompt and the references
+SETUP_SHARE = 0.4
+
 
 def stamp(g: Graph, images: Link, job: Job, prompt: str) -> Link:
-    """The dev node: steps through for a few seconds, then writes the prompt on the images."""
-    return g.add("UnnoodleDevSteps", images=images, prompt=prompt, seed=job.seed, steps=12, step_seconds=0.25)[0]
+    """The dev node: sets up and steps through for as long as the real model would, then writes the prompt on the
+    images."""
+    if job.estimated_s is None or QUICK_MARKER in job.prompt:
+        pacing = {"steps": 12, "step_seconds": 0.25, "setup_seconds": 0.0}
+    else:
+        steps = 8
+        setup_s = SETUP_SHARE * job.estimated_s
+        pacing = {"steps": steps, "step_seconds": (job.estimated_s - setup_s) / steps, "setup_seconds": setup_s}
+    return g.add("UnnoodleDevSteps", images=images, prompt=prompt, seed=job.seed, **pacing)[0]
 
 
 def paste_small(g: Graph, picture: Link, small: Link, n: int) -> Link:
