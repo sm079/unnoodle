@@ -11,7 +11,7 @@ yet. They must all have one owner, who then owns the project and is the only one
 import argparse
 import sys
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.db import make_engine
@@ -39,7 +39,8 @@ def main(argv: list[str] | None = None) -> None:
             session.add(project)
         project.is_demo = True
         session.flush()
-        moved = session.execute(update(Generation).where(*finished).values(project_id=project.id)).rowcount
+        moved = session.scalar(select(func.count()).where(*finished))
+        session.execute(update(Generation).where(*finished).values(project_id=project.id))
         session.commit()
     print(f"{moved} generations are in the demo project {args.name!r}")
 
