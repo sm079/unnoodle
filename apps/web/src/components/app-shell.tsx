@@ -215,7 +215,7 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
                 className={cn(rowClass, 'w-full')}
               >
                 <IconTile className="bg-[#232426]">
-                  <NoodleGlyph className="size-5 text-[#5c5d60] transition-colors duration-200 group-hover/row:text-[#a0a1a3] group-aria-[current=page]/row:text-lime" />
+                  <NoodleGlyph className="size-5 text-[#5c5d60] transition-colors duration-200 group-hover/row:text-[#a0a1a3] group-aria-[current=page]/row:text-brand" />
                 </IconTile>
                 <span className="truncate">{project.name}</span>
               </m.button>
@@ -327,7 +327,7 @@ function SmartQueueSwitch() {
         className={cn(
           collapsible,
           'relative h-6 w-10 shrink-0 rounded-full transition-colors duration-200',
-          on ? 'bg-lime' : 'bg-[#3a3a3c]'
+          on ? 'bg-brand' : 'bg-[#3a3a3c]'
         )}
       >
         <span

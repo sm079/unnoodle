@@ -92,7 +92,7 @@ function Result({ generation, onUseAsInput }: { generation: Generation; onUseAsI
                 aria-label={`Output ${index + 1} of ${generation.outputs.length}`}
                 aria-pressed={index === shown}
                 onClick={() => setShown(index)}
-                className="relative size-12 shrink-0 overflow-hidden rounded-lg opacity-50 transition-[opacity,scale] duration-200 ease-spring active:scale-90 aria-pressed:opacity-100 aria-pressed:ring-2 aria-pressed:ring-lime"
+                className="relative size-12 shrink-0 overflow-hidden rounded-lg opacity-50 transition-[opacity,scale] duration-200 ease-spring active:scale-90 aria-pressed:opacity-100 aria-pressed:ring-2 aria-pressed:ring-brand"
               >
                 <Image src={asset.thumbnail_url} alt="" fill sizes="48px" className="object-cover" />
               </button>
@@ -106,7 +106,7 @@ function Result({ generation, onUseAsInput }: { generation: Generation; onUseAsI
           <button
             type="button"
             onClick={() => onUseAsInput(output)}
-            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-[14px] bg-lime text-sm font-bold text-[#191b04] transition-[scale,filter] duration-200 ease-spring hover:brightness-105 active:scale-[0.97]"
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-sm font-bold text-white transition-[scale,filter] duration-200 ease-spring hover:brightness-105 active:scale-[0.97]"
           >
             <ImagePlusIcon className="size-4" />
             Use as input
@@ -167,7 +167,9 @@ function Prompt({ text, handles }: { text: string; handles: string[] }) {
 }
 
 function Handle({ children }: { children: ReactNode }) {
-  return <span className="rounded-md bg-lime/12 px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap text-lime">{children}</span>;
+  return (
+    <span className="rounded-md bg-brand/12 px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap text-brand">{children}</span>
+  );
 }
 
 function Detail({ term, children }: { term: string; children: ReactNode }) {

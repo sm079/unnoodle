@@ -35,7 +35,7 @@ export function PipelineMenu({ capability, models, value, note, onChange, classN
   if (!value || !doing || models.length < 2) {
     return (
       <p className="flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-3 text-sm font-semibold whitespace-nowrap">
-        <NoodleGlyph className={cn('size-4', value ? 'text-lime' : 'text-[#e8a33d]')} />
+        <NoodleGlyph className={cn('size-4', value ? 'text-brand' : 'text-[#e8a33d]')} />
         <RollingValue value={value && doing ? doing : (note ?? '')} className={cn(!value && 'text-[#e8a33d]')} />
       </p>
     );
@@ -50,7 +50,7 @@ export function PipelineMenu({ capability, models, value, note, onChange, classN
         render={<m.button initial={false} animate={open ? 'straight' : 'tangled'} whileHover="straight" />}
         className={cn('group', className)}
       >
-        <NoodleGlyph className="text-lime" />
+        <NoodleGlyph className="text-brand" />
         <RollingValue value={label} className="max-w-64" />
         <ChevronRightIcon className="text-[#8a8b8c] transition-[rotate] duration-300 ease-spring group-data-[popup-open]:-rotate-90" />
       </PopoverTrigger>
@@ -87,7 +87,7 @@ export function PipelineMenu({ capability, models, value, note, onChange, classN
                       <NoodleGlyph
                         className={cn(
                           'size-5 transition-colors duration-200',
-                          selected ? 'text-lime' : 'text-[#8a8b8c] group-hover/item:text-white'
+                          selected ? 'text-brand' : 'text-[#8a8b8c] group-hover/item:text-white'
                         )}
                       />
                     </span>
@@ -102,7 +102,7 @@ export function PipelineMenu({ capability, models, value, note, onChange, classN
                       </span>
                       <span className="truncate text-[0.8125rem] text-[#8a8b8c]">{pipeline.description}</span>
                     </span>
-                    {selected && <CheckIcon className="size-5 shrink-0 text-lime" />}
+                    {selected && <CheckIcon className="size-5 shrink-0 text-brand" />}
                   </m.button>
                 </li>
               );

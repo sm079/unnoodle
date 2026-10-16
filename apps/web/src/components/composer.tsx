@@ -315,7 +315,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
                                 type="button"
                                 aria-label={`Mention ${handle} in the prompt`}
                                 onClick={() => mention(handle)}
-                                className="rounded-md bg-lime/12 px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap text-lime transition-[background-color,scale] duration-150 ease-spring outline-none hover:bg-lime/20 focus-visible:ring-2 focus-visible:ring-lime/40 active:scale-90"
+                                className="rounded-md bg-brand/12 px-1.5 py-0.5 text-[0.8125rem] font-semibold whitespace-nowrap text-brand transition-[background-color,scale] duration-150 ease-spring outline-none hover:bg-brand/20 focus-visible:ring-2 focus-visible:ring-brand/40 active:scale-90"
                               >
                                 {handle}
                               </button>
@@ -491,7 +491,7 @@ function GenerateButton({ disabled, busy, cost }: { disabled: boolean; busy: boo
       type="submit"
       aria-disabled={disabled}
       aria-busy={busy}
-      className="group/generate relative mb-[3px] flex h-11 min-w-[6.5rem] flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[14px] bg-linear-to-b from-[#d8ff17] via-[#f4ff1f] to-[#ffff17] text-[#191b04] shadow-[0_3px_0_var(--color-lime-edge),0_10px_20px_rgb(0_0_0/0.45)] transition-[translate,box-shadow,filter,opacity] duration-300 ease-spring hover:shadow-[0_3px_0_var(--color-lime-edge),0_10px_28px_rgb(220_255_23/0.2)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-lime-edge),0_4px_10px_rgb(0_0_0/0.4)] active:duration-75 active:ease-out aria-disabled:pointer-events-none aria-disabled:opacity-40 sm:ml-auto sm:w-44 sm:flex-none lg:h-24 lg:w-40 lg:gap-1.5"
+      className="group/generate relative mb-[3px] flex h-11 min-w-[6.5rem] flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[14px] bg-linear-to-b from-[#ff6a45] via-[#ff5b3a] to-[#f24a2a] text-white shadow-[0_3px_0_var(--color-brand-edge),0_10px_20px_rgb(0_0_0/0.45)] transition-[translate,box-shadow,filter,opacity] duration-300 ease-spring hover:shadow-[0_3px_0_var(--color-brand-edge),0_10px_28px_rgb(255_91_58/0.3)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-brand-edge),0_4px_10px_rgb(0_0_0/0.4)] active:duration-75 active:ease-out aria-disabled:pointer-events-none aria-disabled:opacity-40 sm:ml-auto sm:w-44 sm:flex-none lg:h-24 lg:w-40 lg:gap-1.5"
     >
       {/* A glint crosses the button as the pointer arrives */}
       <span

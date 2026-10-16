@@ -159,8 +159,8 @@
   --color-panel: var(--panel);
   --color-panel-raised: var(--panel-raised);
   --color-chip: var(--chip);
-  --color-lime: var(--lime);
-  --color-lime-edge: var(--lime-edge);
+  --color-brand: var(--brand);
+  --color-brand-edge: var(--brand-edge);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -271,8 +271,8 @@
   --panel: #1c1e20;
   --panel-raised: #28292b;
   --chip: #333436;
-  --lime: #dcff17;
-  --lime-edge: #869e21;
+  --brand: #ff5b3a;
+  --brand-edge: #a8341f;
 }
 
 @layer base {
@@ -328,11 +328,11 @@
     }
   }
 
-  /* One headline word: a vertical white-to-grey fill with a lime glint that sweeps across once after it arrives */
+  /* One headline word: a vertical white-to-grey fill with a coral glint that sweeps across once after it arrives */
   .hero-word {
     display: inline-block;
     background-image:
-      linear-gradient(105deg, transparent 42%, rgb(236 255 140 / 0.95) 50%, transparent 58%), linear-gradient(to bottom, #fff, #8d8d8e);
+      linear-gradient(105deg, transparent 42%, rgb(255 190 170 / 0.95) 50%, transparent 58%), linear-gradient(to bottom, #fff, #8d8d8e);
     background-size:
       250% 100%,
       100% 100%;

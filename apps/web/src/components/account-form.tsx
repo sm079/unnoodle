@@ -101,7 +101,7 @@ export function AccountForm({ mode }: { mode: keyof typeof copy }) {
         <button
           type="submit"
           disabled={sending}
-          className="mt-2 rounded-xl bg-lime px-4 py-3 font-medium text-black transition-opacity disabled:opacity-60"
+          className="mt-2 rounded-xl bg-brand px-4 py-3 font-medium text-white transition-opacity disabled:opacity-60"
         >
           {sending ? text.sending : text.submit}
         </button>

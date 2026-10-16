@@ -41,7 +41,7 @@ type Tab = (typeof tabs)[number]['id'];
 const field =
   'h-11 min-w-0 rounded-xl bg-white/[0.06] px-3.5 text-base outline-none placeholder:text-[#7c7d7f] focus-visible:ring-2 focus-visible:ring-white/20 aria-invalid:ring-2 aria-invalid:ring-[#e8a33d]/60 disabled:opacity-60';
 const primary =
-  'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-lime px-4 text-sm font-bold text-[#191b04] transition-[scale,opacity] duration-200 ease-spring active:scale-95 disabled:opacity-40';
+  'flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-bold text-white transition-[scale,opacity] duration-200 ease-spring active:scale-95 disabled:opacity-40';
 const quiet =
   'flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-3 text-sm font-semibold text-white transition-[background-color,scale] duration-200 ease-spring hover:bg-[#3b3c3e] active:scale-95 disabled:opacity-40';
 
@@ -279,7 +279,7 @@ function DeleteSheet({
             type="button"
             onClick={() => void remove()}
             disabled={busy}
-            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-[#e5484d] text-sm font-bold text-white transition-[scale,opacity] duration-200 ease-spring active:scale-95 disabled:opacity-60"
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-[#4a1a22] text-sm font-bold text-[#ff9aa6] transition-[scale,opacity] duration-200 ease-spring active:scale-95 disabled:opacity-60"
           >
             <Trash2Icon className="size-4" />
             {busy ? 'Deleting…' : 'Delete'}
@@ -397,7 +397,7 @@ function GrantSheet({
                 type="button"
                 aria-pressed={value === n}
                 onClick={() => setAmount(String(n))}
-                className="h-11 rounded-xl bg-panel-raised text-sm font-semibold text-[#c8c9cb] transition-[background-color,color,scale] duration-200 ease-spring active:scale-95 aria-pressed:bg-lime aria-pressed:text-[#191b04]"
+                className="h-11 rounded-xl bg-panel-raised text-sm font-semibold text-[#c8c9cb] transition-[background-color,color,scale] duration-200 ease-spring active:scale-95 aria-pressed:bg-brand aria-pressed:text-white"
               >
                 +{n}
               </button>
@@ -577,9 +577,9 @@ function InviteCard({ invite }: { invite: Invite }) {
           }}
           className="flex size-7 items-center justify-center rounded-lg text-[#8a8b8c] transition-colors hover:text-white"
         >
-          {copied ? <CheckIcon className="size-4 text-lime" /> : <CopyIcon className="size-4" />}
+          {copied ? <CheckIcon className="size-4 text-brand" /> : <CopyIcon className="size-4" />}
         </button>
-        <CreditAmount value={invite.credits} className="ml-auto text-sm font-semibold text-lime" />
+        <CreditAmount value={invite.credits} className="ml-auto text-sm font-semibold text-brand" />
       </div>
       <div
         className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]"
@@ -589,7 +589,7 @@ function InviteCard({ invite }: { invite: Invite }) {
         aria-valuemax={invite.max_uses}
         aria-valuenow={invite.uses}
       >
-        <m.div className="h-full origin-left rounded-full bg-lime" initial={{ scaleX: 0 }} animate={{ scaleX: share }} />
+        <m.div className="h-full origin-left rounded-full bg-brand" initial={{ scaleX: 0 }} animate={{ scaleX: share }} />
       </div>
       <p className="text-xs text-[#828282]">
         {invite.uses} of {invite.max_uses} used ·{' '}

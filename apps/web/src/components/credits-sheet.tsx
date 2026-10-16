@@ -42,7 +42,7 @@ export function CreditsSheet({ open, onOpenChange, cost, balance, onContinue }: 
         className="mx-auto max-h-[94dvh] max-w-lg gap-0 overflow-y-auto overscroll-contain rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:bottom-6 lg:rounded-[28px]"
       >
         <div className="flex items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-b from-[#e6ff3d] to-lime text-[#191b04] shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-b from-[#ff8763] to-brand text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]">
             <CreditGlyph className="size-5" />
           </span>
           <div className="flex min-w-0 flex-col">
@@ -67,7 +67,7 @@ export function CreditsSheet({ open, onOpenChange, cost, balance, onContinue }: 
               initial={{ opacity: 0, scale: 0.94 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="mt-5 flex h-13 w-full items-center justify-center gap-3 rounded-[16px] bg-linear-to-b from-[#d8ff17] via-[#f4ff1f] to-[#ffff17] text-[#191b04] shadow-[0_3px_0_var(--color-lime-edge)] transition-[translate,box-shadow] duration-75 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-lime-edge)]"
+              className="mt-5 flex h-13 w-full items-center justify-center gap-3 rounded-[16px] bg-linear-to-b from-[#ff6a45] via-[#ff5b3a] to-[#f24a2a] text-white shadow-[0_3px_0_var(--color-brand-edge)] transition-[translate,box-shadow] duration-75 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-brand-edge)]"
             >
               <span className="font-display text-base font-extrabold tracking-[0.02em] uppercase font-stretch-[88%]">Generate</span>
               <CreditAmount value={cost} className="text-sm font-semibold opacity-75" />
@@ -85,7 +85,7 @@ export function CreditsSheet({ open, onOpenChange, cost, balance, onContinue }: 
                     aria-disabled
                     className="relative flex flex-col items-center gap-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-panel-raised px-2 pt-4 pb-3 text-center"
                   >
-                    <CreditAmount value={pack.credits} className="text-lg font-bold text-white [&_svg]:text-lime" />
+                    <CreditAmount value={pack.credits} className="text-lg font-bold text-white [&_svg]:text-brand" />
                     <span className="text-xs text-[#828282]">{pack.name}</span>
                     <span className="mt-1.5 rounded-full bg-white/[0.06] px-2 py-0.5 text-[0.6875rem] font-semibold text-[#a0a1a3]">
                       Coming soon
@@ -117,7 +117,9 @@ function Shortfall({ cost, balance }: { cost: number; balance: number }) {
         </div>
         <div className="flex flex-col items-end">
           <span className="text-xs text-[#828282]">You have</span>
-          <span className={cn('inline-flex items-center gap-[0.2em] text-2xl font-bold tabular-nums', enough ? 'text-lime' : 'text-white')}>
+          <span
+            className={cn('inline-flex items-center gap-[0.2em] text-2xl font-bold tabular-nums', enough ? 'text-brand' : 'text-white')}
+          >
             <CreditGlyph />
             <RollingValue value={balance} />
           </span>
@@ -132,7 +134,7 @@ function Shortfall({ cost, balance }: { cost: number; balance: number }) {
         aria-valuenow={Math.min(balance, cost)}
       >
         <m.div
-          className={cn('h-full origin-left rounded-full', enough ? 'bg-lime' : 'bg-[#e8a33d]')}
+          className={cn('h-full origin-left rounded-full', enough ? 'bg-brand' : 'bg-[#e8a33d]')}
           initial={{ scaleX: 0 }}
           animate={{ scaleX: share }}
           transition={{ type: 'spring', bounce: 0.15, visualDuration: 0.6, delay: 0.15 }}
@@ -238,7 +240,7 @@ function CodeEntry({ balance }: { balance: number }) {
         ) : (
           <m.p key="link" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-sm text-[#828282]">
             {added !== null ? (
-              <span role="status" className="text-lime">
+              <span role="status" className="text-brand">
                 <CreditAmount value={added} className="font-semibold" /> added.{' '}
               </span>
             ) : (
