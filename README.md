@@ -12,7 +12,7 @@ a GPU render server (the renderer) and stores what it makes.
 
 ## Layout
 
-- `apps/web`: Next.js (App Router), Tailwind and shadcn/ui. `/` is a placeholder landing page; `/generate` is the app.
+- `apps/web`: Next.js (App Router), Tailwind and shadcn/ui. `/` is the landing page for people who are signed out (signed-in visitors go to `/generate`, the app). Its pictures and videos are copies of Demo outputs in `apps/web/public/showcase`.
 - `apps/api`: FastAPI, SQLAlchemy 2, Alembic and Postgres.
 
 ## Running it

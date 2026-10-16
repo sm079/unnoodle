@@ -9,12 +9,15 @@ const SESSION_COOKIE = 'unnoodle_session';
  * sends the person to sign in too (lib/api.ts).
  */
 export function proxy(request: NextRequest) {
-  if (request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
+  const signedIn = request.cookies.has(SESSION_COOKIE);
+  // The landing page is for people who haven't signed in; everyone else goes to the studio
+  if (request.nextUrl.pathname === '/') return signedIn ? NextResponse.redirect(new URL('/generate', request.url)) : NextResponse.next();
+  if (signedIn) return NextResponse.next();
   const url = new URL('/sign-in', request.url);
   url.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search);
   return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: ['/generate/:path*', '/admin/:path*']
+  matcher: ['/', '/generate/:path*', '/admin/:path*']
 };
