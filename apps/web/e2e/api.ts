@@ -1,5 +1,5 @@
 import type { Page, Route } from '@playwright/test';
-import { generations, projects, uploads, workflows } from '../src/lib/fixtures';
+import { generations, projects, uploads, pipelines } from '../src/lib/fixtures';
 import type { Asset, Generation, GenerationRequest, Project } from '../src/lib/types';
 
 /**
@@ -26,7 +26,7 @@ export async function mockApi(page: Page, { signedIn = true, credits = 1000 } = 
     return route.fulfill({ json: { balance, prices } });
   });
 
-  await page.route('**/api/workflows', route => route.fulfill({ json: workflows }));
+  await page.route('**/api/pipelines', route => route.fulfill({ json: pipelines }));
 
   await page.route('**/api/assets', async route => {
     if (route.request().method() === 'GET') return route.fulfill({ json: uploads });
@@ -69,12 +69,12 @@ export async function mockApi(page: Page, { signedIn = true, credits = 1000 } = 
   function queue(route: Route): Generation {
     const body = route.request().postDataJSON() as GenerationRequest;
     const capability = body.media_type === 'image' ? 'image.generate' : 'video.generate';
-    const workflow = workflows.find(w => w.default_for.includes(capability))!;
+    const pipeline = pipelines.find(w => w.default_for.includes(capability))!;
     const generation: Generation = {
       id: `gen_new_${created.length}`,
       status: 'queued',
       capability,
-      workflow_id: workflow.id,
+      pipeline_id: pipeline.id,
       prompt: body.prompt,
       project_id: body.project_id ?? null,
       params: {

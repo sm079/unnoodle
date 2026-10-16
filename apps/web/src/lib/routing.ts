@@ -1,8 +1,8 @@
-// Which workflow a request runs on, worked out in the composer so it can show the route before anything is sent. The
+// Which pipeline a request runs on, worked out in the composer so it can show the route before anything is sent. The
 // API decides for real (apps/api/app/routing.py); this follows the same rules with the same messages, and
 // routing.test.ts runs the same cases as the API's tests.
 
-import type { Capability, InputRole, MediaType, Workflow } from './types';
+import type { Capability, InputRole, MediaType, Pipeline } from './types';
 
 /** An attachment, as routing sees it: its role and whether it is a photo or a clip. */
 export type Attached = [role: InputRole, mediaType: MediaType];
@@ -17,10 +17,10 @@ const doing: Record<Capability, string> = {
   'video.reference': 'Making a video'
 };
 
-export function route(workflows: Workflow[], mediaType: MediaType, inputs: Attached[], model: string | null): Routed<Workflow> {
+export function route(pipelines: Pipeline[], mediaType: MediaType, inputs: Attached[], model: string | null): Routed<Pipeline> {
   const capability = capabilityFor(mediaType, inputs);
   if (!capability.ok) return capability;
-  const chosen = chooseWorkflow(workflows, capability.value, model);
+  const chosen = choosePipeline(pipelines, capability.value, model);
   if (!chosen.ok) return chosen;
   for (const [[role, kind], count] of counted(inputs)) {
     const most = chosen.value.accepts.find(a => a.role === role && a.media_type === kind)?.most ?? 0;
@@ -39,12 +39,12 @@ export function capabilityFor(mediaType: MediaType, inputs: Attached[]): Routed<
   return { ok: true, value: attached ? 'video.reference' : 'video.generate' };
 }
 
-export function chooseWorkflow(workflows: Workflow[], capability: Capability, model: string | null): Routed<Workflow> {
-  const offering = workflows.filter(w => w.capabilities.includes(capability));
+export function choosePipeline(pipelines: Pipeline[], capability: Capability, model: string | null): Routed<Pipeline> {
+  const offering = pipelines.filter(w => w.capabilities.includes(capability));
   if (offering.length === 0) return failed(`${doing[capability]} isn't available yet`);
-  const workflow =
+  const pipeline =
     model === null ? (offering.find(w => w.default_for.includes(capability)) ?? offering[0]) : offering.find(w => w.model === model);
-  return workflow ? { ok: true, value: workflow } : failed(`${doing[capability]} isn't available with that model`);
+  return pipeline ? { ok: true, value: pipeline } : failed(`${doing[capability]} isn't available with that model`);
 }
 
 /** Counts each kind of attachment, in the order they first appear, as the API's messages list them. */

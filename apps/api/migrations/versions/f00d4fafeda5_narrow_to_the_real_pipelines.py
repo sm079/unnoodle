@@ -1,4 +1,4 @@
-"""narrow to the real workflows
+"""narrow to the real pipelines
 
 Revision ID: f00d4fafeda5
 Revises: ffca2f469778
@@ -31,7 +31,7 @@ OLD_ROLES = "'start_frame', 'end_frame', 'keyframe', 'reference', 'edit_target',
 
 
 def upgrade() -> None:
-    # Only the capabilities and roles the real workflows serve remain. Rows using the others would fail the new
+    # Only the capabilities and roles the real pipelines serve remain. Rows using the others would fail the new
     # checks, which is the point: nothing ever ran them.
     op.drop_constraint(op.f("ck_generations_capability"), "generations", type_="check")
     op.create_check_constraint(op.f("ck_generations_capability"), "generations", f"capability IN ({CAPABILITIES})")
@@ -40,7 +40,7 @@ def upgrade() -> None:
     op.drop_constraint(op.f("ck_generation_inputs_role"), "generation_inputs", type_="check")
     op.create_check_constraint(op.f("ck_generation_inputs_role"), "generation_inputs", f"role IN ({ROLES})")
 
-    # Sizes are a quality now, which each workflow maps to its own sizes; "1K" and "2K" were the only labels used
+    # Sizes are a quality now, which each pipeline maps to its own sizes; "1K" and "2K" were the only labels used
     op.add_column("generations", sa.Column("quality", sa.String(length=32), nullable=True))
     op.execute("UPDATE generations SET quality = CASE resolution WHEN '2K' THEN 'high' ELSE 'medium' END")
     op.alter_column("generations", "quality", nullable=False)
@@ -48,7 +48,7 @@ def upgrade() -> None:
     op.drop_column("generations", "resolution")
     # An edit takes its shape from the photo
     op.alter_column("generations", "aspect_ratio", existing_type=sa.String(length=8), nullable=True)
-    # Whether a video has sound is up to its workflow
+    # Whether a video has sound is up to its pipeline
     op.drop_column("generations", "audio")
 
 

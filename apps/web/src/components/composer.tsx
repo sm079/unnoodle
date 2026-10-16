@@ -7,7 +7,7 @@ import { ClockIcon, FocusIcon, GemIcon, ImageIcon, LoaderCircleIcon, MinusIcon, 
 import { CreditGlyph } from '@/components/credit-glyph';
 import { CreditsSheet } from '@/components/credits-sheet';
 import { RollingValue } from '@/components/rolling-value';
-import { WorkflowMenu } from '@/components/workflow-menu';
+import { PipelineMenu } from '@/components/pipeline-menu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,12 +20,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { api, messageOf } from '@/lib/api';
 import { qualityLabels, shapeLabels } from '@/lib/capabilities';
 import { costOf } from '@/lib/credits';
-import { useAddToCache, useCredits, useUploads, useWorkflows } from '@/lib/data';
+import { useAddToCache, useCredits, useUploads, usePipelines } from '@/lib/data';
 import { handleOf } from '@/lib/mentions';
 import { menuItemClass, menuItemDelay, shake } from '@/lib/motion';
 import { capabilityFor, route, type Attached, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
-import type { AspectRatio, Asset, Generation, InputRole, MediaType, Quality, Workflow } from '@/lib/types';
+import type { AspectRatio, Asset, Generation, InputRole, MediaType, Quality, Pipeline } from '@/lib/types';
 
 /** What the rest of the screen can do to the composer. */
 export interface ComposerHandle {
@@ -53,7 +53,7 @@ interface DraftInput {
 /** A shape, or the shape of the first attachment. */
 type Shape = AspectRatio | 'first';
 
-/** What the user picked. Each render fits it to the settings the routed workflow offers. */
+/** What the user picked. Each render fits it to the settings the routed pipeline offers. */
 interface Settings {
   quality: Quality;
   aspect_ratio: Shape;
@@ -98,7 +98,7 @@ const initialDrafts: Record<MediaType, Draft> = {
   }
 };
 
-// The most any workflow takes: a video's references
+// The most any pipeline takes: a video's references
 const MAX_INPUTS = 12;
 // The API's upload limit, checked here first to save sending a file that will be refused
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -107,7 +107,7 @@ let lastInputKey = 0;
 const nextKey = () => `input-${++lastInputKey}`;
 
 export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
-  const workflows = useWorkflows();
+  const pipelines = usePipelines();
   const { data: library = [] } = useUploads();
   const addToCache = useAddToCache();
   const [mode, setMode] = useState<MediaType>('image');
@@ -123,22 +123,22 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
   const draft = drafts[mode];
   const kinds = draft.inputs.map(i => i.asset.media_type);
   const attached = draft.inputs.map((i): Attached => [i.role, i.asset.media_type]);
-  const routed: Routed<Workflow> | null = workflows.data ? route(workflows.data, mode, attached, draft.model) : null;
-  const workflow = routed?.ok ? routed.value : null;
-  const capability = workflow ? capabilityFor(mode, attached) : null;
-  const settings = workflow ? fitSettings(draft.settings, workflow, mode, draft.inputs.length > 0) : draft.settings;
+  const routed: Routed<Pipeline> | null = pipelines.data ? route(pipelines.data, mode, attached, draft.model) : null;
+  const pipeline = routed?.ok ? routed.value : null;
+  const capability = pipeline ? capabilityFor(mode, attached) : null;
+  const settings = pipeline ? fitSettings(draft.settings, pipeline, mode, draft.inputs.length > 0) : draft.settings;
   const first = draft.inputs[0];
   // Until an upload is stored its size isn't known
   const firstShape = first && first.asset.width > 0 ? `${first.asset.width}:${first.asset.height}` : '1:1';
   const full = draft.inputs.length >= MAX_INPUTS;
   const uploading = draft.inputs.some(i => i.uploading);
   // Inputs that route nowhere say why on the route line, with Generate disabled. The line under the composer is
-  // only for what went wrong: an upload or a request the API refused, or the workflows not loading.
-  const status = problem ?? (workflows.error ? workflows.error.message : null);
+  // only for what went wrong: an upload or a request the API refused, or the pipelines not loading.
+  const status = problem ?? (pipelines.error ? pipelines.error.message : null);
   const { data: credits } = useCredits();
   const clips = draft.inputs.filter(i => i.asset.media_type === 'video').length;
   const cost =
-    credits && workflow
+    credits && pipeline
       ? costOf(credits.prices, mode, settings.quality, mode === 'video' ? settings.duration_s : null, clips) * settings.count
       : null;
   const short = credits !== undefined && cost !== null && cost > credits.balance;
@@ -157,7 +157,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
   }
 
   function setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
-    // Fitted values are kept too, so a later change of workflow starts from what was on screen
+    // Fitted values are kept too, so a later change of pipeline starts from what was on screen
     update({ settings: { ...settings, [key]: value } });
   }
 
@@ -239,7 +239,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!workflow || uploading || sending) return;
+    if (!pipeline || uploading || sending) return;
     if (draft.prompt.trim() === '') {
       promptRef.current?.focus();
       shake(promptRef.current);
@@ -357,15 +357,15 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
                 <PlusIcon />
               </button>
               <LibraryPicker assets={library} disabled={full} onPick={asset => attach([asset])} />
-              <WorkflowMenu
+              <PipelineMenu
                 capability={capability?.ok ? capability.value : null}
-                models={capability?.ok ? (workflows.data ?? []).filter(w => w.capabilities.includes(capability.value)) : []}
-                value={workflow}
-                note={routed?.ok === false ? routed.error : workflows.data ? null : 'Loading…'}
+                models={capability?.ok ? (pipelines.data ?? []).filter(w => w.capabilities.includes(capability.value)) : []}
+                value={pipeline}
+                note={routed?.ok === false ? routed.error : pipelines.data ? null : 'Loading…'}
                 onChange={next => update({ model: next.model })}
                 className={cn(chipClass, 'px-3')}
               />
-              {workflow && (
+              {pipeline && (
                 <>
                   <OptionChip
                     label="Quality"
@@ -379,17 +379,17 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
                     label="Shape"
                     icon={<AspectIcon ratio={settings.aspect_ratio === 'first' ? firstShape : settings.aspect_ratio} />}
                     value={settings.aspect_ratio}
-                    options={[...(first ? ['first'] : []), ...workflow.aspect_ratios]}
+                    options={[...(first ? ['first'] : []), ...pipeline.aspect_ratios]}
                     labels={{ ...shapeLabels, first: first ? `Same as ${handleOf(kinds, 0)}` : '' }}
                     onChange={value => setSetting('aspect_ratio', value as Shape)}
                   />
-                  {workflow.durations_s.length > 0 && (
+                  {pipeline.durations_s.length > 0 && (
                     <OptionChip
                       label="Length"
                       icon={<ClockIcon strokeWidth={2.5} />}
                       value={String(settings.duration_s)}
-                      options={workflow.durations_s.map(String)}
-                      labels={Object.fromEntries(workflow.durations_s.map(s => [s, `${s} sec`]))}
+                      options={pipeline.durations_s.map(String)}
+                      labels={Object.fromEntries(pipeline.durations_s.map(s => [s, `${s} sec`]))}
                       onChange={value => setSetting('duration_s', Number(value))}
                       className={enterClass}
                     />
@@ -402,7 +402,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
 
           <div className="@container flex flex-wrap items-center gap-2 lg:contents">
             <ModeToggle mode={mode} onChange={setMode} layout="row" className="lg:hidden" />
-            <GenerateButton disabled={!workflow || uploading || sending} busy={sending} cost={cost} />
+            <GenerateButton disabled={!pipeline || uploading || sending} busy={sending} cost={cost} />
           </div>
         </div>
 
@@ -520,16 +520,16 @@ const enterClass = 'motion-safe:animate-rise [--rise-blur:3px] [--rise-distance:
 const menuClass =
   'rounded-2xl border border-white/[0.07] bg-[#25282c]/90 p-1.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-0 backdrop-blur-xl';
 
-/** The picked settings, moved to the nearest ones the workflow offers. */
-export function fitSettings(settings: Settings, workflow: Workflow, mode: MediaType, attached: boolean): Settings {
-  // Nothing offered keeps the value, so it's still there for the next workflow that does offer it
+/** The picked settings, moved to the nearest ones the pipeline offers. */
+export function fitSettings(settings: Settings, pipeline: Pipeline, mode: MediaType, attached: boolean): Settings {
+  // Nothing offered keeps the value, so it's still there for the next pipeline that does offer it
   const pick = <T,>(value: T, allowed: T[]) => (allowed.length === 0 || allowed.includes(value) ? value : allowed[0]);
   // With nothing attached there's no first attachment to take the shape of
   const shape = settings.aspect_ratio === 'first' && !attached ? defaultShapes[mode] : settings.aspect_ratio;
   return {
     quality: settings.quality,
-    aspect_ratio: shape === 'first' ? shape : pick(shape, workflow.aspect_ratios),
-    duration_s: pick(settings.duration_s, workflow.durations_s),
+    aspect_ratio: shape === 'first' ? shape : pick(shape, pipeline.aspect_ratios),
+    duration_s: pick(settings.duration_s, pipeline.durations_s),
     count: settings.count
   };
 }

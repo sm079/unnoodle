@@ -8,16 +8,16 @@ import httpx
 # The repo root: dev/metrics/<run>/scripts/ is four levels down
 REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "apps" / "api"))
-from app.catalogues.real import WORKFLOWS  # noqa: E402
+from app.catalogues.real import PIPELINES  # noqa: E402
 from app.models import InputRole, MediaType  # noqa: E402
-from app.workflows import Job, JobInput  # noqa: E402
+from app.pipelines import Job, JobInput  # noqa: E402
 
 info = httpx.get("http://127.0.0.1:8288/object_info", timeout=60).json()
 photos = tuple(JobInput(InputRole.REFERENCE, MediaType.IMAGE, f"unnoodle/p{n}.png") for n in range(3))
 clips = tuple(JobInput(InputRole.REFERENCE, MediaType.VIDEO, f"unnoodle/c{n}.mp4") for n in range(2))
 cases = {"krea2-turbo": (), "flux2-klein-edit": photos, "minimax-h3": photos + clips}
 
-for w in WORKFLOWS:
+for w in PIPELINES:
     job = Job(prompt="@photo1 and @clip1", seed=1, megapixels=1, size=(1024, 1024), frames=124 if w.frames else None,
               inputs=cases[w.id], filename_prefix="unnoodle/x")
     graph = w.build(job).nodes

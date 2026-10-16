@@ -1,7 +1,7 @@
 """The worker: python -m app.worker
 
-Takes queued generations one at a time and runs them on ComfyUI. Several workers can share a queue (and a ComfyUI each,
-or one between them); the claim in app.worker.queue keeps them from taking the same job.
+Takes queued generations one at a time and runs them on the renderer. Several workers can share a queue (and a renderer
+each, or one between them); the claim in app.worker.queue keeps them from taking the same job.
 """
 
 import logging
@@ -14,17 +14,17 @@ from sqlalchemy.engine import make_url
 
 from app.db import make_engine
 from app.media import MediaStore
+from app.pipelines import load_pipelines
 from app.settings import Settings
 from app.worker import queue
-from app.worker.comfy import ComfyClient
+from app.worker.renderer import RendererClient
 from app.worker.runner import run_job
-from app.workflows import load_workflows
 
 logger = logging.getLogger("app.worker")
 
 # Fallback for missed notifications, and how often stale leases are looked for
 POLL_S = 5
-# How long to wait before trying an unreachable ComfyUI again
+# How long to wait before trying an unreachable renderer again
 BACKOFF_S = 5
 
 
@@ -45,14 +45,14 @@ def wake_on_queued(database_url: str) -> Iterator[Callable[[float], None]]:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    # One line per request to ComfyUI would bury the worker's own
+    # One line per request to the renderer would bury the worker's own
     logging.getLogger("httpx").setLevel(logging.WARNING)
     settings = Settings()
     engine = make_engine(settings.database_url)
-    workflows = load_workflows(settings.workflows)
+    pipelines = load_pipelines(settings.pipelines)
     store = MediaStore(settings.media_dir)
-    comfy = ComfyClient(settings.comfyui_url)
-    logger.info("Started with %d workflows; ComfyUI at %s", len(workflows), settings.comfyui_url)
+    renderer = RendererClient(settings.renderer_url)
+    logger.info("Started with %d pipelines; renderer at %s", len(pipelines), settings.renderer_url)
 
     with wake_on_queued(settings.database_url) as wait:
         while True:
@@ -63,7 +63,7 @@ def main() -> None:
             logger.info("Running generation %s (attempt %d)", claim.generation_id, claim.attempt)
             started = time.monotonic()
             try:
-                outcome = run_job(engine, claim, workflows, store, comfy)
+                outcome = run_job(engine, claim, pipelines, store, renderer)
             except KeyboardInterrupt:
                 # Back in the queue for the next worker rather than waiting out a stale lease
                 queue.release(engine, claim)

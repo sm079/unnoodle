@@ -1,6 +1,6 @@
 // pnpm serve: runs the whole app on this machine, with a production build of the web app, for using it from a phone
 // (through Tailscale; see the README). In order: Postgres (with docker compose, if nothing answers yet), the
-// migrations, ComfyUI (the dev one, when UNNOODLE_DEV_COMFYUI_MAIN says where it is), the API and the worker, then
+// migrations, the renderer (the dev one, when UNNOODLE_DEV_RENDERER_MAIN says where it is), the API and the worker, then
 // next build and next start. Each line of output starts with the name of the process it came from, and Ctrl+C stops
 // all of them.
 //
@@ -31,9 +31,9 @@ try {
 // The same defaults as next.config.ts and the API's settings
 const apiUrl = new URL(process.env.API_URL ?? 'http://127.0.0.1:8000');
 const databaseUrl = new URL(process.env.UNNOODLE_DATABASE_URL ?? 'postgresql+psycopg://unnoodle:unnoodle@127.0.0.1:5432/unnoodle');
-const comfyUrl = new URL(process.env.UNNOODLE_COMFYUI_URL ?? 'http://127.0.0.1:8189');
-const comfyMain = process.env.UNNOODLE_DEV_COMFYUI_MAIN;
-const comfyPython = process.env.UNNOODLE_DEV_COMFYUI_PYTHON ?? 'python';
+const rendererUrl = new URL(process.env.UNNOODLE_RENDERER_URL ?? 'http://127.0.0.1:8189');
+const rendererMain = process.env.UNNOODLE_DEV_RENDERER_MAIN;
+const rendererPython = process.env.UNNOODLE_DEV_RENDERER_PYTHON ?? 'python';
 // A high port, clear of the blocks Hyper-V and WSL reserve on Windows (netsh interface ipv4 show excludedportrange
 // protocol=tcp), so the port tailscale serve forwards to is still free after a reboot
 const webPort = Number(process.env.UNNOODLE_WEB_PORT ?? 18300);
@@ -48,7 +48,7 @@ const colors = {
   serve: 'bold',
   postgres: 'blue',
   migrate: 'blue',
-  comfyui: 'magenta',
+  renderer: 'magenta',
   api: 'cyan',
   worker: 'yellow',
   build: 'green',
@@ -255,42 +255,44 @@ function tailscale(...args) {
 }
 
 async function main() {
-  // A ComfyUI that already answers is used as it is: it takes a while to start, and it may be a real one
-  const comfyStats = new URL('/system_stats', comfyUrl).href;
-  const comfyRunning = await answers(comfyStats);
-  const startComfy = !comfyRunning && comfyMain !== undefined;
+  // A renderer that already answers is used as it is: it takes a while to start, and it may be a real one
+  const rendererStats = new URL('/system_stats', rendererUrl).href;
+  const rendererRunning = await answers(rendererStats);
+  const startRenderer = !rendererRunning && rendererMain !== undefined;
 
   // An API or web app that is already running may be older code, so they aren't reused
   await checkPorts([
     { what: 'the API', host: apiUrl.hostname, port: portOf(apiUrl), setting: 'API_URL' },
     { what: 'the web app', host: '127.0.0.1', port: webPort, setting: 'UNNOODLE_WEB_PORT' },
-    ...(startComfy ? [{ what: 'ComfyUI', host: comfyUrl.hostname, port: portOf(comfyUrl), setting: 'UNNOODLE_COMFYUI_URL' }] : [])
+    ...(startRenderer
+      ? [{ what: 'the renderer', host: rendererUrl.hostname, port: portOf(rendererUrl), setting: 'UNNOODLE_RENDERER_URL' }]
+      : [])
   ]);
   await postgres();
   await run('migrate', 'uv', ['run', 'alembic', 'upgrade', 'head'], apiDir);
 
-  if (comfyRunning) say(`Using the ComfyUI already running at ${comfyUrl.origin}`);
-  else if (startComfy) {
-    keepRunning('comfyui', comfyPython, [
+  if (rendererRunning) say(`Using the renderer already running at ${rendererUrl.origin}`);
+  else if (startRenderer) {
+    keepRunning('renderer', rendererPython, [
       '-s',
-      comfyMain,
+      rendererMain,
       '--base-directory',
-      path.join(root, 'dev', 'comfyui'),
+      path.join(root, 'dev', 'renderer'),
       '--listen',
-      comfyUrl.hostname,
+      rendererUrl.hostname,
       '--port',
-      String(portOf(comfyUrl)),
+      String(portOf(rendererUrl)),
       '--cpu',
       '--disable-auto-launch',
-      // The dev workflows need neither the paid API nodes nor the asset database
+      // The dev pipelines need neither the paid API nodes nor the asset database
       '--disable-partner-nodes',
       '--disable-assets'
     ]);
-    report('ComfyUI', comfyStats, 120);
+    report('The renderer', rendererStats, 120);
   } else {
     say(
-      `Nothing answers at ${comfyUrl.origin}, so generations wait in the queue until ComfyUI is up.\n` +
-        'Set UNNOODLE_DEV_COMFYUI_MAIN to start the dev one from here.'
+      `Nothing answers at ${rendererUrl.origin}, so generations wait in the queue until the renderer is up.\n` +
+        'Set UNNOODLE_DEV_RENDERER_MAIN to start the dev one from here.'
     );
   }
   keepRunning('api', 'uv', ['run', 'uvicorn', 'app.main:app', '--host', apiUrl.hostname, '--port', String(portOf(apiUrl))], apiDir);

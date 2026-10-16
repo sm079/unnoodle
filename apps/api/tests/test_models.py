@@ -48,7 +48,7 @@ def generation(**changes: object) -> Generation:
     fields: dict[str, object] = {
         "owner_id": OWNER,
         "capability": Capability.VIDEO_REFERENCE,
-        "workflow_id": "minimax-h3",
+        "pipeline_id": "minimax-h3",
         "prompt": "she turns towards the camera",
         "quality": Quality.MEDIUM,
         "aspect_ratio": "16:9",

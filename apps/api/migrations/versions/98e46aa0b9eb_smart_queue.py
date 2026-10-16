@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.CheckConstraint("id = 1", name=op.f("ck_preferences_one_row")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_preferences")),
     )
-    # Generations queued before there were estimates count as a minute, the estimate a workflow gets without one
+    # Generations queued before there were estimates count as a minute, the estimate a pipeline gets without one
     op.add_column("generations", sa.Column("estimated_s", sa.Double(), server_default="60", nullable=False))
     op.alter_column("generations", "estimated_s", server_default=None)
 

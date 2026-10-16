@@ -4,11 +4,11 @@
 
 import useSWR, { useSWRConfig } from 'swr';
 import { api, generationsIn, paths, request } from './api';
-import type { Asset, Credits, Generation, Preferences, Project, User, Workflow } from './types';
+import type { Asset, Credits, Generation, Preferences, Project, User, Pipeline } from './types';
 
-export function useWorkflows() {
+export function usePipelines() {
   // They only change when the API restarts
-  return useSWR(paths.workflows, path => request<Workflow[]>(path), { revalidateOnFocus: false });
+  return useSWR(paths.pipelines, path => request<Pipeline[]>(path), { revalidateOnFocus: false });
 }
 
 export function useUploads() {

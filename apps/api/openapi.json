@@ -316,10 +316,10 @@
         }
       }
     },
-    "/workflows": {
+    "/pipelines": {
       "get": {
-        "summary": "List Workflows",
-        "operationId": "list_workflows_workflows_get",
+        "summary": "List Pipelines",
+        "operationId": "list_pipelines_pipelines_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -327,10 +327,10 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/WorkflowOut"
+                    "$ref": "#/components/schemas/PipelineOut"
                   },
                   "type": "array",
-                  "title": "Response List Workflows Workflows Get"
+                  "title": "Response List Pipelines Pipelines Get"
                 }
               }
             }
@@ -1544,9 +1544,9 @@
           "capability": {
             "$ref": "#/components/schemas/Capability"
           },
-          "workflow_id": {
+          "pipeline_id": {
             "type": "string",
-            "title": "Workflow Id"
+            "title": "Pipeline Id"
           },
           "prompt": {
             "type": "string",
@@ -1642,7 +1642,7 @@
           "id",
           "status",
           "capability",
-          "workflow_id",
+          "pipeline_id",
           "prompt",
           "project_id",
           "params",
@@ -1860,7 +1860,7 @@
           "params"
         ],
         "title": "GenerationIn",
-        "description": "What the composer sends. It names no workflow: the inputs' roles decide one."
+        "description": "What the composer sends. It names no pipeline: the inputs' roles decide one."
       },
       "GenerationInputOut": {
         "properties": {
@@ -1891,9 +1891,9 @@
           "capability": {
             "$ref": "#/components/schemas/Capability"
           },
-          "workflow_id": {
+          "pipeline_id": {
             "type": "string",
-            "title": "Workflow Id"
+            "title": "Pipeline Id"
           },
           "prompt": {
             "type": "string",
@@ -1985,7 +1985,7 @@
           "id",
           "status",
           "capability",
-          "workflow_id",
+          "pipeline_id",
           "prompt",
           "project_id",
           "params",
@@ -2099,7 +2099,7 @@
           "reference"
         ],
         "title": "InputRole",
-        "description": "What an attached asset is for. The output type plus the roles of the inputs decide the capability.\n\nThere is one role while every workflow treats its inputs alike; start and end frames would be others."
+        "description": "What an attached asset is for. The output type plus the roles of the inputs decide the capability.\n\nThere is one role while every pipeline treats its inputs alike; start and end frames would be others."
       },
       "InviteIn": {
         "properties": {
@@ -2309,6 +2309,89 @@
         ],
         "title": "ParamsOut"
       },
+      "PipelineOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "default_for": {
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            },
+            "type": "array",
+            "title": "Default For"
+          },
+          "aspect_ratios": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "1:1",
+                "2:3",
+                "3:2",
+                "3:4",
+                "4:3",
+                "9:16",
+                "16:9",
+                "21:9"
+              ]
+            },
+            "type": "array",
+            "title": "Aspect Ratios"
+          },
+          "durations_s": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Durations S"
+          },
+          "sound": {
+            "type": "boolean",
+            "title": "Sound"
+          },
+          "accepts": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptsOut"
+            },
+            "type": "array",
+            "title": "Accepts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "capabilities",
+          "model",
+          "model_name",
+          "description",
+          "default_for",
+          "aspect_ratios",
+          "durations_s",
+          "sound",
+          "accepts"
+        ],
+        "title": "PipelineOut"
+      },
       "PreferencesIn": {
         "properties": {
           "smart_queue": {
@@ -2445,7 +2528,7 @@
           "high"
         ],
         "title": "Quality",
-        "description": "How big an output is: each workflow maps these to its own sizes and the person never sees pixels."
+        "description": "How big an output is: each pipeline maps these to its own sizes and the person never sees pixels."
       },
       "RedeemIn": {
         "properties": {
@@ -2581,89 +2664,6 @@
           "word"
         ],
         "title": "WordIn"
-      },
-      "WorkflowOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "capabilities": {
-            "items": {
-              "$ref": "#/components/schemas/Capability"
-            },
-            "type": "array",
-            "title": "Capabilities"
-          },
-          "model": {
-            "type": "string",
-            "title": "Model"
-          },
-          "model_name": {
-            "type": "string",
-            "title": "Model Name"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description"
-          },
-          "default_for": {
-            "items": {
-              "$ref": "#/components/schemas/Capability"
-            },
-            "type": "array",
-            "title": "Default For"
-          },
-          "aspect_ratios": {
-            "items": {
-              "type": "string",
-              "enum": [
-                "1:1",
-                "2:3",
-                "3:2",
-                "3:4",
-                "4:3",
-                "9:16",
-                "16:9",
-                "21:9"
-              ]
-            },
-            "type": "array",
-            "title": "Aspect Ratios"
-          },
-          "durations_s": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Durations S"
-          },
-          "sound": {
-            "type": "boolean",
-            "title": "Sound"
-          },
-          "accepts": {
-            "items": {
-              "$ref": "#/components/schemas/AcceptsOut"
-            },
-            "type": "array",
-            "title": "Accepts"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "capabilities",
-          "model",
-          "model_name",
-          "description",
-          "default_for",
-          "aspect_ratios",
-          "durations_s",
-          "sound",
-          "accepts"
-        ],
-        "title": "WorkflowOut"
       }
     }
   }

@@ -1,7 +1,7 @@
-"""Stand-ins for the real workflows that run on the dev ComfyUI without any models (see the README).
+"""Stand-ins for the real pipelines that run on the dev renderer without any models (see the README).
 
 They take the same inputs and offer the same settings as the real ones, and use the dev node in
-dev/comfyui/custom_nodes to take as long as the real model would, report progress, fail on demand ("#oom" in the
+dev/renderer/custom_nodes to take as long as the real model would, report progress, fail on demand ("#oom" in the
 prompt) and write the prompt on the result, so the whole app can be tried on a laptop. "#quick" in the prompt makes a
 run take a few seconds instead.
 """
@@ -18,7 +18,7 @@ from app.catalogues.real import (
 )
 from app.graph import Graph, Link
 from app.models import Capability, InputRole, MediaType
-from app.workflows import Accepts, Job, Work, Workflow
+from app.pipelines import Accepts, Job, Pipeline, Work
 
 QUICK_MARKER = "#quick"
 
@@ -111,8 +111,8 @@ def video_seconds(work: Work) -> float:
     return minimax_seconds(replace(work, frames=MINIMAX_FRAMES[work.frames // DEV_VIDEO_FPS]))
 
 
-WORKFLOWS = [
-    Workflow(
+PIPELINES = [
+    Pipeline(
         id="dev-image",
         capabilities=frozenset({Capability.IMAGE_GENERATE}),
         model="dev",
@@ -123,7 +123,7 @@ WORKFLOWS = [
         # The real models' estimates, so Smart Queue orders the stand-ins as it would the real thing
         estimate=krea2_seconds,
     ),
-    Workflow(
+    Pipeline(
         id="dev-edit",
         capabilities=frozenset({Capability.IMAGE_EDIT}),
         model="dev",
@@ -134,7 +134,7 @@ WORKFLOWS = [
         accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
         estimate=klein_seconds,
     ),
-    Workflow(
+    Pipeline(
         id="dev-video",
         capabilities=frozenset({Capability.VIDEO_GENERATE, Capability.VIDEO_REFERENCE}),
         model="dev",

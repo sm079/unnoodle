@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { capabilityFor, chooseWorkflow, route, type Attached } from './routing';
-import type { Capability, MediaType, Workflow } from './types';
+import { capabilityFor, choosePipeline, route, type Attached } from './routing';
+import type { Capability, MediaType, Pipeline } from './types';
 
 // The same cases as the API's tests/test_routing.py, which decides for real
 
@@ -21,7 +21,7 @@ describe('capabilityFor', () => {
   });
 });
 
-function workflow(id: string, capabilities: Capability[], fields: Partial<Workflow> = {}): Workflow {
+function pipeline(id: string, capabilities: Capability[], fields: Partial<Pipeline> = {}): Pipeline {
   return {
     id,
     capabilities,
@@ -38,10 +38,10 @@ function workflow(id: string, capabilities: Capability[], fields: Partial<Workfl
 }
 
 const catalogue = [
-  workflow('t2i', ['image.generate']),
-  workflow('other', ['image.generate'], { model: 'other', default_for: [] }),
-  workflow('edit', ['image.edit'], { accepts: [{ role: 'reference', media_type: 'image', most: 3 }] }),
-  workflow('video', ['video.generate', 'video.reference'], {
+  pipeline('t2i', ['image.generate']),
+  pipeline('other', ['image.generate'], { model: 'other', default_for: [] }),
+  pipeline('edit', ['image.edit'], { accepts: [{ role: 'reference', media_type: 'image', most: 3 }] }),
+  pipeline('video', ['video.generate', 'video.reference'], {
     durations_s: [5, 10],
     accepts: [
       { role: 'reference', media_type: 'image', most: 2 },
@@ -50,32 +50,32 @@ const catalogue = [
   })
 ];
 
-describe('chooseWorkflow', () => {
+describe('choosePipeline', () => {
   test('a request without a model gets the default', () => {
-    expect(chooseWorkflow(catalogue, 'image.generate', null)).toMatchObject({ value: { id: 't2i' } });
-    expect(chooseWorkflow(catalogue, 'video.reference', null)).toMatchObject({ value: { id: 'video' } });
+    expect(choosePipeline(catalogue, 'image.generate', null)).toMatchObject({ value: { id: 't2i' } });
+    expect(choosePipeline(catalogue, 'video.reference', null)).toMatchObject({ value: { id: 'video' } });
   });
 
-  test('a named model picks its workflow', () => {
-    expect(chooseWorkflow(catalogue, 'image.generate', 'other')).toMatchObject({ value: { id: 'other' } });
+  test('a named model picks its pipeline', () => {
+    expect(choosePipeline(catalogue, 'image.generate', 'other')).toMatchObject({ value: { id: 'other' } });
   });
 
   test('a model that cannot do the capability is refused', () => {
-    expect(chooseWorkflow(catalogue, 'image.edit', 'other')).toEqual({
+    expect(choosePipeline(catalogue, 'image.edit', 'other')).toEqual({
       ok: false,
       error: "Editing an image isn't available with that model"
     });
   });
 
-  test('a capability without workflows is refused', () => {
-    expect(chooseWorkflow(catalogue.slice(0, 1), 'video.generate', null)).toEqual({
+  test('a capability without pipelines is refused', () => {
+    expect(choosePipeline(catalogue.slice(0, 1), 'video.generate', null)).toEqual({
       ok: false,
       error: "Making a video isn't available yet"
     });
   });
 });
 
-test('route checks the inputs fit the workflow', () => {
+test('route checks the inputs fit the pipeline', () => {
   expect(route(catalogue, 'image', [refPhoto, refPhoto, refPhoto], null)).toMatchObject({ value: { id: 'edit' } });
   expect(route(catalogue, 'image', [refPhoto, refPhoto, refPhoto, refPhoto], null)).toEqual({
     ok: false,

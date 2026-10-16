@@ -1,7 +1,7 @@
 """How a reference clip's size and length change MiniMax H3's speed.
 
 Builds the app's own MiniMax graph with one reference clip at several sizes, runs it on the pod, times the sampler's
-steps from ComfyUI's progress events, and interrupts after STEPS steps (the rate is steady after the first).
+steps from the renderer's progress events, and interrupts after STEPS steps (the rate is steady after the first).
 python sweep.py  -> appends to sweep.jsonl
 """
 
@@ -19,8 +19,8 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "apps" / "api"))
 from app.catalogues.real import MINIMAX_FRAMES, minimax_h3  # noqa: E402
 from app.models import InputRole, MediaType  # noqa: E402
-from app.worker.comfy import ComfyClient, ComfyFailed  # noqa: E402
-from app.workflows import Job, JobInput  # noqa: E402
+from app.pipelines import Job, JobInput  # noqa: E402
+from app.worker.renderer import RendererClient, RendererFailed  # noqa: E402
 
 C = "http://127.0.0.1:8288"
 HERE = pathlib.Path(__file__).parent
@@ -55,11 +55,11 @@ def make_clip(size, seconds):
     return path
 
 
-comfy = ComfyClient(C)
+renderer = RendererClient(C)
 for name, out_size, out_s, clip_size, clip_s in RUNS:
     clip = make_clip(clip_size, clip_s)
     t0 = time.monotonic()
-    stored = comfy.upload(clip.read_bytes(), clip.name)
+    stored = renderer.upload(clip.read_bytes(), clip.name)
     upload_s = time.monotonic() - t0
     frames = MINIMAX_FRAMES[out_s]
     job = Job(prompt=PROMPT, seed=7, megapixels=0, size=out_size, frames=frames,
@@ -74,8 +74,8 @@ for name, out_size, out_s, clip_size, clip_s in RUNS:
             httpx.post(f"{C}/interrupt", json={}, timeout=10)
 
     try:
-        comfy.run(graph.nodes, str(uuid.uuid4()), graph.output_node, progress, lambda: None)
-    except ComfyFailed as error:
+        renderer.run(graph.nodes, str(uuid.uuid4()), graph.output_node, progress, lambda: None)
+    except RendererFailed as error:
         if "stopped" not in str(error):
             print(name, "failed:", error)
     steps = [t for t, f in events if abs(f * 8 - round(f * 8)) < 1e-6 and f > 0]

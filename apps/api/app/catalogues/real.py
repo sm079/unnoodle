@@ -1,15 +1,15 @@
-"""The workflows that need models: Krea 2 Turbo makes pictures, FLUX.2 Klein 9B edits photos, and MiniMax H3 makes
+"""The pipelines that need models: Krea 2 Turbo makes pictures, FLUX.2 Klein 9B edits photos, and MiniMax H3 makes
 videos with sound, from a prompt alone or from reference photos and clips.
 
-Each builder follows the graph its model was tested with in ComfyUI, sampler settings included. Only the parts a
+Each builder follows the graph its model was tested with in the renderer, sampler settings included. Only the parts a
 request changes are worked out per request: the prompt, the seed, the size, and one image chain per attached photo.
-Every node is part of ComfyUI itself, so a plain install with the models in place runs them.
+Every node is part of the renderer itself, so a plain install with the models in place runs them.
 """
 
 from app.graph import Graph, Link
 from app.models import Capability, InputRole, MediaType, Quality
+from app.pipelines import Accepts, Job, Pipeline, Work, size_for
 from app.video import CLIP_FPS, CLIP_MEGAPIXELS
-from app.workflows import Accepts, Job, Work, Workflow, size_for
 
 IMAGE_MEGAPIXELS = {Quality.LOW: 0.5, Quality.MEDIUM: 1.0, Quality.HIGH: 2.0}
 VIDEO_MEGAPIXELS = {Quality.LOW: 0.25, Quality.MEDIUM: 0.4, Quality.HIGH: 0.9}
@@ -204,8 +204,8 @@ def minimax_seconds(work: Work) -> float:
     return 20 + load + 8 * (0.095 * load + 0.0007 * load**2)
 
 
-WORKFLOWS = [
-    Workflow(
+PIPELINES = [
+    Pipeline(
         id="krea2-turbo",
         capabilities=frozenset({Capability.IMAGE_GENERATE}),
         model="krea-2",
@@ -215,7 +215,7 @@ WORKFLOWS = [
         megapixels=IMAGE_MEGAPIXELS,
         estimate=krea2_seconds,
     ),
-    Workflow(
+    Pipeline(
         id="flux2-klein-edit",
         capabilities=frozenset({Capability.IMAGE_EDIT}),
         model="flux-2-klein",
@@ -226,7 +226,7 @@ WORKFLOWS = [
         accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
         estimate=klein_seconds,
     ),
-    Workflow(
+    Pipeline(
         id="minimax-h3",
         capabilities=frozenset({Capability.VIDEO_GENERATE, Capability.VIDEO_REFERENCE}),
         model="minimax-h3",

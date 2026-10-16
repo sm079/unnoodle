@@ -129,15 +129,15 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/workflows': {
+  '/pipelines': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /** List Workflows */
-    get: operations['list_workflows_workflows_get'];
+    /** List Pipelines */
+    get: operations['list_pipelines_pipelines_get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -452,8 +452,8 @@ export interface components {
       id: string;
       status: components['schemas']['GenerationStatus'];
       capability: components['schemas']['Capability'];
-      /** Workflow Id */
-      workflow_id: string;
+      /** Pipeline Id */
+      pipeline_id: string;
       /** Prompt */
       prompt: string;
       /** Project Id */
@@ -548,7 +548,7 @@ export interface components {
     };
     /**
      * GenerationIn
-     * @description What the composer sends. It names no workflow: the inputs' roles decide one.
+     * @description What the composer sends. It names no pipeline: the inputs' roles decide one.
      */
     GenerationIn: {
       media_type: components['schemas']['MediaType'];
@@ -579,8 +579,8 @@ export interface components {
       id: string;
       status: components['schemas']['GenerationStatus'];
       capability: components['schemas']['Capability'];
-      /** Workflow Id */
-      workflow_id: string;
+      /** Pipeline Id */
+      pipeline_id: string;
       /** Prompt */
       prompt: string;
       /** Project Id */
@@ -647,7 +647,7 @@ export interface components {
      * InputRole
      * @description What an attached asset is for. The output type plus the roles of the inputs decide the capability.
      *
-     *     There is one role while every workflow treats its inputs alike; start and end frames would be others.
+     *     There is one role while every pipeline treats its inputs alike; start and end frames would be others.
      * @enum {string}
      */
     InputRole: 'reference';
@@ -712,6 +712,29 @@ export interface components {
       /** Seed */
       seed: number;
     };
+    /** PipelineOut */
+    PipelineOut: {
+      /** Id */
+      id: string;
+      /** Capabilities */
+      capabilities: components['schemas']['Capability'][];
+      /** Model */
+      model: string;
+      /** Model Name */
+      model_name: string;
+      /** Description */
+      description: string;
+      /** Default For */
+      default_for: components['schemas']['Capability'][];
+      /** Aspect Ratios */
+      aspect_ratios: ('1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9')[];
+      /** Durations S */
+      durations_s: number[];
+      /** Sound */
+      sound: boolean;
+      /** Accepts */
+      accepts: components['schemas']['AcceptsOut'][];
+    };
     /** PreferencesIn */
     PreferencesIn: {
       /** Smart Queue */
@@ -765,7 +788,7 @@ export interface components {
     };
     /**
      * Quality
-     * @description How big an output is: each workflow maps these to its own sizes and the person never sees pixels.
+     * @description How big an output is: each pipeline maps these to its own sizes and the person never sees pixels.
      * @enum {string}
      */
     Quality: 'low' | 'medium' | 'high';
@@ -817,29 +840,6 @@ export interface components {
     WordIn: {
       /** Word */
       word: string;
-    };
-    /** WorkflowOut */
-    WorkflowOut: {
-      /** Id */
-      id: string;
-      /** Capabilities */
-      capabilities: components['schemas']['Capability'][];
-      /** Model */
-      model: string;
-      /** Model Name */
-      model_name: string;
-      /** Description */
-      description: string;
-      /** Default For */
-      default_for: components['schemas']['Capability'][];
-      /** Aspect Ratios */
-      aspect_ratios: ('1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '9:16' | '16:9' | '21:9')[];
-      /** Durations S */
-      durations_s: number[];
-      /** Sound */
-      sound: boolean;
-      /** Accepts */
-      accepts: components['schemas']['AcceptsOut'][];
     };
   };
   responses: never;
@@ -1113,7 +1113,7 @@ export interface operations {
       };
     };
   };
-  list_workflows_workflows_get: {
+  list_pipelines_pipelines_get: {
     parameters: {
       query?: never;
       header?: never;
@@ -1128,7 +1128,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['WorkflowOut'][];
+          'application/json': components['schemas']['PipelineOut'][];
         };
       };
     };

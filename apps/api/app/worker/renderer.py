@@ -1,4 +1,4 @@
-"""The calls the worker makes to ComfyUI: upload inputs, run a graph while following its progress, fetch outputs."""
+"""The calls the worker makes to the renderer: upload inputs, run a graph and follow its progress, fetch outputs."""
 
 import json
 import logging
@@ -13,20 +13,20 @@ from websockets.sync.client import connect
 
 logger = logging.getLogger(__name__)
 
-# Inputs go into their own folder in ComfyUI's input directory, named after the asset, so uploading again is harmless
+# Inputs go into their own folder in the renderer's input directory, named after the asset, so uploading again is safe
 INPUT_SUBFOLDER = "unnoodle"
 
 
-class ComfyUnavailable(Exception):
-    """ComfyUI couldn't be reached or dropped the connection. The job should wait for it, not fail."""
+class RendererUnavailable(Exception):
+    """The renderer couldn't be reached or dropped the connection. The job should wait for it, not fail."""
 
 
-class ComfyRejected(Exception):
-    """ComfyUI refused the graph before running it: the workflow itself is broken."""
+class RendererRejected(Exception):
+    """The renderer refused the graph before running it: the pipeline itself is broken."""
 
 
-class ComfyFailed(Exception):
-    """The run failed inside ComfyUI."""
+class RendererFailed(Exception):
+    """The run failed inside the renderer."""
 
     def __init__(self, message: str, node_type: str | None = None, exception_type: str | None = None) -> None:
         super().__init__(message)
@@ -41,9 +41,9 @@ class OutputFile:
     type: str
 
 
-class Comfy(Protocol):
+class Renderer(Protocol):
     def upload(self, data: bytes, name: str) -> str:
-        """Puts a file in ComfyUI's input folder and returns the value a LoadImage or LoadVideo node takes."""
+        """Puts a file in the renderer's input folder and returns the value a LoadImage or LoadVideo node takes."""
         ...
 
     def run(
@@ -64,11 +64,11 @@ class Comfy(Protocol):
     def download(self, file: OutputFile) -> bytes: ...
 
     def stop(self, prompt_id: str) -> None:
-        """Stops a run, whether it is running or still waiting in ComfyUI's queue."""
+        """Stops a run, whether it is running or still waiting in the renderer's queue."""
         ...
 
 
-class ComfyClient:
+class RendererClient:
     def __init__(self, base_url: str, quiet_after_s: float = 10) -> None:
         self.http = httpx.Client(base_url=base_url, timeout=httpx.Timeout(30, connect=5))
         self.ws_url = base_url.replace("http", "ws", 1).rstrip("/") + "/ws"
@@ -96,11 +96,11 @@ class ComfyClient:
                 body = {"prompt": graph, "prompt_id": prompt_id, "client_id": client_id}
                 response = self.http.post("/prompt", json=body)
                 if response.status_code == 400:
-                    raise ComfyRejected(rejection(response.json()))
+                    raise RendererRejected(rejection(response.json()))
                 response.raise_for_status()
                 self.follow(ws, prompt_id, on_progress, on_quiet)
         except (OSError, WebSocketException, httpx.TransportError) as error:
-            raise ComfyUnavailable(str(error) or type(error).__name__) from error
+            raise RendererUnavailable(str(error) or type(error).__name__) from error
 
         history = self.request("GET", f"/history/{prompt_id}").json()
         outputs = history[prompt_id]["outputs"].get(output_node, {})
@@ -134,13 +134,13 @@ class ComfyClient:
                 case "execution_success":
                     return
                 case "execution_error":
-                    raise ComfyFailed(
+                    raise RendererFailed(
                         str(data.get("exception_message", "")).strip(),
                         node_type=data.get("node_type"),
                         exception_type=data.get("exception_type"),
                     )
                 case "execution_interrupted":
-                    raise ComfyFailed("This was stopped before it finished")
+                    raise RendererFailed("This was stopped before it finished")
 
     def download(self, file: OutputFile) -> bytes:
         params = {"filename": file.filename, "subfolder": file.subfolder, "type": file.type}
@@ -155,13 +155,13 @@ class ComfyClient:
         try:
             response = self.http.request(method, url, **kwargs)
         except httpx.TransportError as error:
-            raise ComfyUnavailable(str(error) or type(error).__name__) from error
+            raise RendererUnavailable(str(error) or type(error).__name__) from error
         response.raise_for_status()
         return response
 
 
 def rejection(body: dict[str, Any]) -> str:
-    """Summarises why ComfyUI refused a graph, e.g. "node 7 (UnnoodleDevSteps): Required input is missing: seed"."""
+    """Sums up why the renderer refused a graph, e.g. "node 7 (UnnoodleDevSteps): Required input is missing: seed"."""
     parts = []
     for node_id, node in (body.get("node_errors") or {}).items():
         reasons = "; ".join(f"{e.get('message')}: {e.get('details')}" for e in node.get("errors", []))

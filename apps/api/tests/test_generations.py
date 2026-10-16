@@ -17,7 +17,7 @@ from tests.conftest import sign_up
 
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
-    """An app with three workflows: text to image, an edit, and video from a prompt or references."""
+    """An app with three pipelines: text to image, an edit, and video from a prompt or references."""
     with TestClient(create_app(settings, catalogue())) as client:
         sign_up(client)
         yield client
@@ -75,7 +75,7 @@ def queue(client: TestClient, body: dict[str, Any]) -> dict[str, Any]:
 
 def test_a_prompt_alone_queues_text_to_image(client: TestClient) -> None:
     g = queue(client, image_request())
-    assert (g["status"], g["capability"], g["workflow_id"]) == ("queued", "image.generate", "t2i")
+    assert (g["status"], g["capability"], g["pipeline_id"]) == ("queued", "image.generate", "t2i")
     assert (g["params"]["quality"], g["params"]["aspect_ratio"]) == ("high", "3:4")
     assert 0 <= g["params"]["seed"] < 2**32
     assert (g["inputs"], g["outputs"], g["progress"], g["error"]) == ([], [], None, None)
@@ -98,7 +98,7 @@ def test_photos_queue_an_edit_in_the_first_ones_shape(client: TestClient) -> Non
     photo, other = upload(client), upload(client)
     inputs = [{"asset_id": photo, "role": "reference"}, {"asset_id": other, "role": "reference"}]
     g = queue(client, edit_request(inputs))
-    assert (g["capability"], g["workflow_id"], g["params"]["aspect_ratio"]) == ("image.edit", "edit", None)
+    assert (g["capability"], g["pipeline_id"], g["params"]["aspect_ratio"]) == ("image.edit", "edit", None)
     assert [i["asset"]["id"] for i in g["inputs"]] == [photo, other]
 
 
@@ -113,12 +113,12 @@ def test_references_queue_video_from_references(client: TestClient, engine: Engi
         {"asset_id": clip(client, engine), "role": "reference"},
     ]
     g = queue(client, video_request(inputs, duration_s=10))
-    assert (g["capability"], g["workflow_id"], g["params"]["duration_s"]) == ("video.reference", "video", 10)
+    assert (g["capability"], g["pipeline_id"], g["params"]["duration_s"]) == ("video.reference", "video", 10)
 
 
 def test_a_prompt_alone_queues_text_to_video(client: TestClient) -> None:
     g = queue(client, video_request([]))
-    assert (g["capability"], g["workflow_id"]) == ("video.generate", "video")
+    assert (g["capability"], g["pipeline_id"]) == ("video.generate", "video")
 
 
 def test_generations_are_listed_newest_first_a_page_at_a_time(client: TestClient) -> None:

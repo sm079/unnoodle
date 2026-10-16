@@ -63,7 +63,7 @@ test('/generate fits a phone screen and its composer routes by the inputs', asyn
   await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
 });
 
-test('Generate sends the inputs with their roles and lets the API pick the workflow', async ({ page }) => {
+test('Generate sends the inputs with their roles and lets the API pick the pipeline', async ({ page }) => {
   await page.goto('/generate');
   const composer = page.getByRole('form', { name: 'Composer' });
   await composer.getByRole('button', { name: 'Video', exact: true }).click();

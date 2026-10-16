@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     # and trying ::1 first costs every new connection its full connect timeout
     database_url: str = "postgresql+psycopg://unnoodle:unnoodle@127.0.0.1:5432/unnoodle"
 
-    # Which catalogue of workflows to offer (app/catalogues): "dev" runs on the dev ComfyUI without models, "real"
-    # needs a ComfyUI with the models, such as one on a rented GPU
-    workflows: Literal["dev", "real"] = "dev"
+    # Which catalogue of pipelines to offer (app/catalogues): "dev" runs on the dev renderer without models, "real"
+    # needs a renderer with the models, such as one on a rented GPU
+    pipelines: Literal["dev", "real"] = "dev"
 
     # Marks the sign-in cookie Secure, so browsers send it over HTTPS only. On wherever the app is served over HTTPS;
     # off for plain http on this machine.
@@ -28,5 +28,5 @@ class Settings(BaseSettings):
     # Uploads and outputs, served under /media to their owners
     media_dir: Path = REPO_ROOT / "apps" / "api" / "media"
 
-    # Where the worker runs workflows. 8189 is the dev ComfyUI (see the README); a regular install listens on 8188.
-    comfyui_url: str = "http://127.0.0.1:8189"
+    # Where the worker runs pipelines. 8189 is the dev renderer (see the README); a regular install listens on 8188.
+    renderer_url: str = "http://127.0.0.1:8189"

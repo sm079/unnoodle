@@ -15,18 +15,18 @@ import httpx
 # The repo root: dev/metrics/<run>/scripts/ is four levels down
 REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO / "apps" / "api"))
-from app.catalogues.real import WORKFLOWS  # noqa: E402
+from app.catalogues.real import PIPELINES  # noqa: E402
 from app.models import Quality  # noqa: E402
-from app.workflows import ratio_of  # noqa: E402
+from app.pipelines import ratio_of  # noqa: E402
 
 API = "http://127.0.0.1:8000"
-COMFY = "http://127.0.0.1:8288"
+RENDERER = "http://127.0.0.1:8288"
 HERE = pathlib.Path(__file__).parent
 STATE = HERE / "state.json"
 RESULTS = HERE / "results.jsonl"
 INPUTS = HERE / "inputs"
 MEDIA = REPO / "apps" / "api" / "media"
-WF = {w.id: w for w in WORKFLOWS}
+WF = {w.id: w for w in PIPELINES}
 
 api = httpx.Client(base_url=API, timeout=300)
 
@@ -84,12 +84,12 @@ def gen(name, media_type, prompt, inputs=(), quality="medium", aspect=None, dura
     for n, g in zip(names, gs):
         S["gens"][n] = g | {"_inputs": list(inputs)}
     save()
-    log(f"{name}: queued {len(gs)} ({gs[0]['workflow_id']}, seeds {[g['params']['seed'] for g in gs]})")
+    log(f"{name}: queued {len(gs)} ({gs[0]['pipeline_id']}, seeds {[g['params']['seed'] for g in gs]})")
     return names
 
 
 def expected_size(g, inputs):
-    wf = WF[g["workflow_id"]]
+    wf = WF[g["pipeline_id"]]
     p = g["params"]
     ratio = ratio_of(p["aspect_ratio"]) if p["aspect_ratio"] else (asset(inputs[0])["width"], asset(inputs[0])["height"])
     return wf.size(Quality(p["quality"]), ratio)
@@ -118,7 +118,7 @@ def media_path(url):
 
 
 def wait(names, interrupt=None, poll=0.5):
-    """Follows generations to the end. interrupt=(name, after_s): POST /interrupt to ComfyUI that long after it
+    """Follows generations to the end. interrupt=(name, after_s): POST /interrupt to the renderer that long after it
     starts running."""
     pending = list(names)
     prog = {n: [] for n in names}
@@ -131,7 +131,7 @@ def wait(names, interrupt=None, poll=0.5):
                 if g["progress"] is not None and (not prog[n] or prog[n][-1][1] != round(g["progress"], 2)):
                     prog[n].append((round(time.monotonic() - running_since[n], 1), round(g["progress"], 2)))
                 if interrupt and interrupt[0] == n and time.monotonic() - running_since[n] >= interrupt[1]:
-                    httpx.post(f"{COMFY}/interrupt", json={}, timeout=10)
+                    httpx.post(f"{RENDERER}/interrupt", json={}, timeout=10)
                     log(f"{n}: sent /interrupt")
                     interrupt = None
             if g["status"] in ("done", "failed"):
@@ -148,7 +148,7 @@ def secs(a, b):
 
 
 def report(n, g, prog):
-    r = {"name": n, "status": g["status"], "error": g["error"], "workflow": g["workflow_id"],
+    r = {"name": n, "status": g["status"], "error": g["error"], "pipeline": g["pipeline_id"],
          "quality": g["params"]["quality"], "shape": g["params"]["aspect_ratio"] or "same as first",
          "duration_s": g["params"]["duration_s"], "seed": g["params"]["seed"], "inputs": S["gens"][n]["_inputs"],
          "waited_s": secs(g["created_at"], g["started_at"]), "ran_s": secs(g["started_at"], g["finished_at"]),
@@ -258,8 +258,8 @@ def step_wait():
 
 
 def step_history():
-    """What ComfyUI actually ran: each prompt's text as the model got it, its references, status and run time."""
-    hist = httpx.get(f"{COMFY}/history", params={"max_items": 100}, timeout=30).json()
+    """What the renderer actually ran: each prompt's text as the model got it, its references, status and run time."""
+    hist = httpx.get(f"{RENDERER}/history", params={"max_items": 100}, timeout=30).json()
     for pid, h in hist.items():
         nodes = h["prompt"][2]
         texts = [n["inputs"].get("text") or n["inputs"].get("prompt") for n in nodes.values()

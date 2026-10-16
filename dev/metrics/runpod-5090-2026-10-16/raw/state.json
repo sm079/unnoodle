@@ -94,7 +94,7 @@
       "id": "01a14180-4970-72ab-b52f-955b60dfe558",
       "status": "failed",
       "capability": "image.generate",
-      "workflow_id": "krea2-turbo",
+      "pipeline_id": "krea2-turbo",
       "prompt": "a lighthouse on a cliff at dusk",
       "project_id": null,
       "params": {
@@ -116,7 +116,7 @@
       "id": "01a14180-4992-722c-8325-f76bb49eeec8",
       "status": "done",
       "capability": "image.generate",
-      "workflow_id": "krea2-turbo",
+      "pipeline_id": "krea2-turbo",
       "prompt": "a red vintage bicycle leaning on a pale blue wall, soft morning light, photo",
       "project_id": null,
       "params": {
@@ -150,7 +150,7 @@
       "id": "01a14180-4992-722c-8325-f76c48e6285f",
       "status": "done",
       "capability": "image.generate",
-      "workflow_id": "krea2-turbo",
+      "pipeline_id": "krea2-turbo",
       "prompt": "a red vintage bicycle leaning on a pale blue wall, soft morning light, photo",
       "project_id": null,
       "params": {
@@ -184,7 +184,7 @@
       "id": "01a14180-49b7-7366-8329-f39a85a5a3cb",
       "status": "done",
       "capability": "image.generate",
-      "workflow_id": "krea2-turbo",
+      "pipeline_id": "krea2-turbo",
       "prompt": "portrait photo of a young woman in a yellow raincoat, plain grey studio background, looking at the camera",
       "project_id": "01a14180-4951-73f5-9ab1-c88f1649c8d9",
       "params": {
@@ -218,7 +218,7 @@
       "id": "01a14180-49d0-75d2-b270-01c687b1f23b",
       "status": "done",
       "capability": "image.generate",
-      "workflow_id": "krea2-turbo",
+      "pipeline_id": "krea2-turbo",
       "prompt": "a white ceramic teapot painted with a blue fish, product photo on a white table",
       "project_id": null,
       "params": {
@@ -252,7 +252,7 @@
       "id": "01a14180-49eb-7798-b80b-b8c233768023",
       "status": "done",
       "capability": "image.generate",
-      "workflow_id": "krea2-turbo",
+      "pipeline_id": "krea2-turbo",
       "prompt": "a busy night market street in Kathmandu in the rain, lanterns, people with umbrellas",
       "project_id": null,
       "params": {
@@ -286,7 +286,7 @@
       "id": "01a14181-e976-7712-b43a-cc81373e00c3",
       "status": "done",
       "capability": "image.edit",
-      "workflow_id": "flux2-klein-edit",
+      "pipeline_id": "flux2-klein-edit",
       "prompt": "@photo1 wears a black leather jacket instead of the raincoat, same pose and background",
       "project_id": null,
       "params": {
@@ -335,7 +335,7 @@
       "id": "01a14181-e9aa-74ce-abec-0cb157820ffe",
       "status": "done",
       "capability": "image.edit",
-      "workflow_id": "flux2-klein-edit",
+      "pipeline_id": "flux2-klein-edit",
       "prompt": "@photo1 holds the teapot from @photo2 in both hands, in a sunny kitchen",
       "project_id": null,
       "params": {
@@ -398,7 +398,7 @@
       "id": "01a14181-e9d4-7497-9504-a99551a6cc9c",
       "status": "done",
       "capability": "image.edit",
-      "workflow_id": "flux2-klein-edit",
+      "pipeline_id": "flux2-klein-edit",
       "prompt": "@photo1 rides the bicycle from @photo2 down a quiet street, the teapot from @photo3 in the front basket",
       "project_id": null,
       "params": {
@@ -475,7 +475,7 @@
       "id": "01a14181-e9d4-7497-9504-a996d3de670c",
       "status": "done",
       "capability": "image.edit",
-      "workflow_id": "flux2-klein-edit",
+      "pipeline_id": "flux2-klein-edit",
       "prompt": "@photo1 rides the bicycle from @photo2 down a quiet street, the teapot from @photo3 in the front basket",
       "project_id": null,
       "params": {
@@ -552,7 +552,7 @@
       "id": "01a14184-9fde-73ec-aba4-60b282a0708f",
       "status": "done",
       "capability": "video.generate",
-      "workflow_id": "minimax-h3",
+      "pipeline_id": "minimax-h3",
       "prompt": "a street musician plays an acoustic guitar under a lamp on a rainy night and sings softly, rain patters on the pavement",
       "project_id": null,
       "params": {
@@ -586,7 +586,7 @@
       "id": "01a14186-c420-7123-a861-fed0e5414cca",
       "status": "done",
       "capability": "video.reference",
-      "workflow_id": "minimax-h3",
+      "pipeline_id": "minimax-h3",
       "prompt": "@photo1 pours tea from the teapot in @photo2 into a cup, then smiles and says \"cheers\" to the camera",
       "project_id": null,
       "params": {
@@ -649,7 +649,7 @@
       "id": "01a14186-c44b-765f-b632-726216f562b0",
       "status": "queued",
       "capability": "video.reference",
-      "workflow_id": "minimax-h3",
+      "pipeline_id": "minimax-h3",
       "prompt": "the camera moves through the market street from @clip1; the musician from @clip2 rides the bicycle from @photo1 through the crowd, ringing its bell",
       "project_id": null,
       "params": {
@@ -714,7 +714,7 @@
       "id": "01a14192-d372-7134-9cc3-a9e9340684d2",
       "status": "done",
       "capability": "video.generate",
-      "workflow_id": "minimax-h3",
+      "pipeline_id": "minimax-h3",
       "prompt": "the camera moves through a busy night market street in the rain; a musician rides a red bicycle through the crowd, ringing its bell",
       "project_id": null,
       "params": {

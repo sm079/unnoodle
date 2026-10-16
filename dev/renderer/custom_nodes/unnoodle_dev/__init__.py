@@ -1,4 +1,4 @@
-"""A development-only ComfyUI node for running unnoodle's fake workflows.
+"""A development-only renderer node for running unnoodle's fake pipelines.
 
 Core image nodes finish in milliseconds and report no progress, so on their own they can't exercise a generation's
 running and failed states. This node waits out a set-up time without reporting anything, as a model loading does, then
@@ -6,7 +6,7 @@ works through timed steps, reporting each one as progress, and fails like an
 out-of-memory GPU when the prompt contains FAIL_MARKER. It also tints every image by the seed and writes the prompt
 on it, so each output visibly matches the request that made it.
 
-ComfyUI loads it only when started with `--base-directory dev/comfyui`; it is never installed anywhere else.
+The renderer loads it only when started with `--base-directory dev/renderer`; it is never installed anywhere else.
 """
 
 import colorsys

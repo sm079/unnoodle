@@ -9,18 +9,18 @@ import { RollingValue } from '@/components/rolling-value';
 import { capabilityLabels } from '@/lib/capabilities';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import type { Capability, Workflow } from '@/lib/types';
+import type { Capability, Pipeline } from '@/lib/types';
 
-interface WorkflowMenuProps {
+interface PipelineMenuProps {
   /** What the inputs route to, or null when they route nowhere. */
   capability: Capability | null;
-  /** The workflows for that capability: one per model. */
-  models: Workflow[];
+  /** The pipelines for that capability: one per model. */
+  models: Pipeline[];
   /** Where the request goes now, or null when the inputs route nowhere. */
-  value: Workflow | null;
+  value: Pipeline | null;
   /** Why there is no route, or that it is still loading, in its place. */
   note: string | null;
-  onChange: (workflow: Workflow) => void;
+  onChange: (pipeline: Pipeline) => void;
   className?: string;
 }
 
@@ -28,7 +28,7 @@ interface WorkflowMenuProps {
  * Says what the request will do. Only where several models can do it is it a control, naming the model with a menu to
  * pick another; otherwise it is a line of text, so it doesn't look like something to tap.
  */
-export function WorkflowMenu({ capability, models, value, note, onChange, className }: WorkflowMenuProps) {
+export function PipelineMenu({ capability, models, value, note, onChange, className }: PipelineMenuProps) {
   const [open, setOpen] = useState(false);
   const doing = capability ? capabilityLabels[capability] : null;
 
@@ -66,15 +66,15 @@ export function WorkflowMenu({ capability, models, value, note, onChange, classN
             {doing}
           </h3>
           <ul className="flex flex-col gap-1">
-            {models.map((workflow, index) => {
-              const selected = workflow.id === value.id;
+            {models.map((pipeline, index) => {
+              const selected = pipeline.id === value.id;
               return (
-                <li key={workflow.id} style={menuItemDelay(index)} className={menuItemClass}>
+                <li key={pipeline.id} style={menuItemDelay(index)} className={menuItemClass}>
                   <m.button
                     type="button"
                     aria-current={selected}
                     onClick={() => {
-                      onChange(workflow);
+                      onChange(pipeline);
                       setOpen(false);
                     }}
                     // The chosen model's noodle is already straight; the others straighten under the pointer
@@ -93,14 +93,14 @@ export function WorkflowMenu({ capability, models, value, note, onChange, classN
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-sm font-semibold">{workflow.model_name}</span>
-                        {workflowTags(workflow).map(tag => (
+                        <span className="text-sm font-semibold">{pipeline.model_name}</span>
+                        {pipelineTags(pipeline).map(tag => (
                           <span key={tag} className="rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[0.6875rem] leading-none text-[#9a9b9c]">
                             {tag}
                           </span>
                         ))}
                       </span>
-                      <span className="truncate text-[0.8125rem] text-[#8a8b8c]">{workflow.description}</span>
+                      <span className="truncate text-[0.8125rem] text-[#8a8b8c]">{pipeline.description}</span>
                     </span>
                     {selected && <CheckIcon className="size-5 shrink-0 text-lime" />}
                   </m.button>
@@ -114,7 +114,7 @@ export function WorkflowMenu({ capability, models, value, note, onChange, classN
   );
 }
 
-function workflowTags({ durations_s }: Workflow): string[] {
+function pipelineTags({ durations_s }: Pipeline): string[] {
   if (durations_s.length === 0) return [];
   return [durations_s.length > 1 ? `${durations_s[0]}–${durations_s.at(-1)} sec` : `${durations_s[0]} sec`];
 }

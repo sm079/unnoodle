@@ -1,7 +1,7 @@
 // Mock data in the API's shapes (see types.ts), which the end-to-end tests serve in place of the API. There are no mock
 // video files, so video assets point at their poster image.
 
-import type { AspectRatio, Asset, Generation, Project, Workflow } from './types';
+import type { AspectRatio, Asset, Generation, Project, Pipeline } from './types';
 
 const mockFiles = {
   'road-dusk': [1280, 720],
@@ -27,7 +27,7 @@ function video(id: string, poster: MockFile, duration_s: number, source: Asset['
 const allShapes: AspectRatio[] = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'];
 
 /** The real catalogue, as the API lists it. */
-export const workflows: Workflow[] = [
+export const pipelines: Pipeline[] = [
   {
     id: 'krea2-turbo',
     capabilities: ['image.generate'],
@@ -96,7 +96,7 @@ export const generations: Generation[] = [
     id: 'gen_queued',
     status: 'queued',
     capability: 'image.generate',
-    workflow_id: 'krea2-turbo',
+    pipeline_id: 'krea2-turbo',
     project_id: null,
     prompt: 'girl with silver hair on a rain-soaked neon street, looking back over her shoulder',
     params: { ...imageParams, seed: 7 },
@@ -112,7 +112,7 @@ export const generations: Generation[] = [
     id: 'gen_running',
     status: 'running',
     capability: 'video.reference',
-    workflow_id: 'minimax-h3',
+    pipeline_id: 'minimax-h3',
     project_id: 'prj_film',
     prompt: '@photo1 turns towards the camera as the light fades',
     params: { ...videoParams, aspect_ratio: '3:4' },
@@ -128,7 +128,7 @@ export const generations: Generation[] = [
     id: 'gen_failed',
     status: 'failed',
     capability: 'video.reference',
-    workflow_id: 'minimax-h3',
+    pipeline_id: 'minimax-h3',
     project_id: null,
     prompt: 'the room in @photo1 fills with the plants from @photo2 over a year',
     params: { ...videoParams, quality: 'high', duration_s: 15 },
@@ -146,7 +146,7 @@ export const generations: Generation[] = [
     id: 'gen_dance',
     status: 'done',
     capability: 'video.reference',
-    workflow_id: 'minimax-h3',
+    pipeline_id: 'minimax-h3',
     project_id: null,
     prompt: 'the character in @photo1 dances like the dancer in @clip1',
     params: { ...videoParams, aspect_ratio: '9:16', seed: 5521 },
@@ -164,7 +164,7 @@ export const generations: Generation[] = [
     id: 'gen_morph',
     status: 'done',
     capability: 'video.reference',
-    workflow_id: 'minimax-h3',
+    pipeline_id: 'minimax-h3',
     project_id: 'prj_film',
     prompt: 'slow morph from the woman in @photo1 to the character in @photo2',
     params: { ...videoParams, aspect_ratio: '3:4', duration_s: 10, seed: 77 },
@@ -182,7 +182,7 @@ export const generations: Generation[] = [
     id: 'gen_edit',
     status: 'done',
     capability: 'image.edit',
-    workflow_id: 'flux2-klein-edit',
+    pipeline_id: 'flux2-klein-edit',
     project_id: 'prj_mood',
     prompt: 'replace the sofa with a green velvet armchair',
     params: { ...editParams, seed: 3130 },
@@ -197,7 +197,7 @@ export const generations: Generation[] = [
     id: 'gen_road',
     status: 'done',
     capability: 'video.generate',
-    workflow_id: 'minimax-h3',
+    pipeline_id: 'minimax-h3',
     project_id: 'prj_film',
     prompt: 'an old jeep on an empty road at dusk, low angle, film grain',
     params: videoParams,
@@ -212,7 +212,7 @@ export const generations: Generation[] = [
     id: 'gen_greenhouse',
     status: 'done',
     capability: 'image.generate',
-    workflow_id: 'krea2-turbo',
+    pipeline_id: 'krea2-turbo',
     project_id: 'prj_mood',
     prompt: 'overgrown greenhouse, morning light, film photo',
     params: { ...imageParams, aspect_ratio: '1:1', seed: 4410 },
@@ -227,7 +227,7 @@ export const generations: Generation[] = [
     id: 'gen_portrait',
     status: 'done',
     capability: 'image.generate',
-    workflow_id: 'krea2-turbo',
+    pipeline_id: 'krea2-turbo',
     project_id: null,
     prompt: 'portrait of a woman in a red coat, warm backlight',
     params: imageParams,

@@ -10,7 +10,7 @@ export const capabilityLabels: Record<Capability, string> = {
 
 export const qualityLabels: Record<Quality, string> = { low: 'Low', medium: 'Medium', high: 'High' };
 
-/** The shapes in the words ComfyUI's Resolution Selector uses for them. */
+/** The shapes in words. */
 export const shapeLabels: Record<AspectRatio, string> = {
   '1:1': 'Square',
   '2:3': 'Portrait photo',

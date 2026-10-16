@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from app.catalogues import dev, real
 from app.main import create_app
 from app.models import Capability, InputRole, MediaType, Quality
+from app.pipelines import Job, JobInput, PipelineError, Work, check_catalogue, load_pipelines, ratio_of, size_for
 from app.settings import Settings
-from app.workflows import Job, JobInput, Work, WorkflowError, check_catalogue, load_workflows, ratio_of, size_for
 from tests.catalogue import IMAGE, VIDEO, catalogue, node_of
 
 PHOTO, CLIP = MediaType.IMAGE, MediaType.VIDEO
@@ -17,20 +17,20 @@ REFERENCE = InputRole.REFERENCE
 
 @pytest.mark.parametrize("name", ["dev", "real"])
 def test_the_catalogues_load(name: str) -> None:
-    workflows = load_workflows(name)
-    capabilities = {c for w in workflows.values() for c in w.capabilities}
+    pipelines = load_pipelines(name)
+    capabilities = {c for w in pipelines.values() for c in w.capabilities}
     assert {Capability.IMAGE_GENERATE, Capability.IMAGE_EDIT} <= capabilities
 
 
 def test_an_unknown_catalogue_is_refused() -> None:
-    with pytest.raises(WorkflowError, match="no catalogue called 'nope'"):
-        load_workflows("nope")
+    with pytest.raises(PipelineError, match="no catalogue called 'nope'"):
+        load_pipelines("nope")
 
 
 @pytest.mark.parametrize(
     ("megapixels", "aspect_ratio", "multiple", "size"),
     [
-        # As ComfyUI's Resolution Selector gives them
+        # As the renderer expects them
         (1.0, "1:1", 8, (1024, 1024)),
         (0.4, "2:3", 8, (528, 792)),
         (1.0, "16:9", 16, (1360, 768)),
@@ -81,28 +81,28 @@ BROKEN: list[tuple[str, dict[str, Any], str]] = [
 
 
 @pytest.mark.parametrize(("change", "message"), [b[1:] for b in BROKEN], ids=[b[0] for b in BROKEN])
-def test_a_broken_workflow_is_refused_with_the_reason(change: dict[str, Any], message: str) -> None:
-    with pytest.raises(WorkflowError, match=f"^t2i: .*{message}"):
+def test_a_broken_pipeline_is_refused_with_the_reason(change: dict[str, Any], message: str) -> None:
+    with pytest.raises(PipelineError, match=f"^t2i: .*{message}"):
         check_catalogue([replace(IMAGE, **change)])
 
 
-def test_a_video_workflow_needs_lengths() -> None:
-    with pytest.raises(WorkflowError, match="needs the lengths it offers"):
+def test_a_video_pipeline_needs_lengths() -> None:
+    with pytest.raises(PipelineError, match="needs the lengths it offers"):
         check_catalogue([replace(VIDEO, frames={})])
 
 
-def test_a_capability_with_several_workflows_needs_one_default() -> None:
+def test_a_capability_with_several_pipelines_needs_one_default() -> None:
     other = replace(IMAGE, id="other", model="other")
     with pytest.raises(
-        WorkflowError, match=r"image.generate has 2 workflows and needs exactly one default, found \[\]"
+        PipelineError, match=r"image.generate has 2 pipelines and needs exactly one default, found \[\]"
     ):
         check_catalogue([IMAGE, other])
     check_catalogue([IMAGE, replace(other, default=True)])
 
 
-def test_the_api_lists_workflows_with_what_the_composer_offers(settings: Settings) -> None:
+def test_the_api_lists_pipelines_with_what_the_composer_offers(settings: Settings) -> None:
     with TestClient(create_app(settings, catalogue())) as client:
-        listed = {w["id"]: w for w in client.get("/workflows").json()}
+        listed = {w["id"]: w for w in client.get("/pipelines").json()}
     assert listed["t2i"]["aspect_ratios"] == ["1:1", "3:4"]
     assert listed["edit"]["accepts"] == [{"role": "reference", "media_type": "image", "most": 3}]
     video = listed["video"]
@@ -110,7 +110,7 @@ def test_the_api_lists_workflows_with_what_the_composer_offers(settings: Setting
     assert (video["durations_s"], video["sound"]) == ([5, 10], True)
 
 
-# The real builders. Whether ComfyUI accepts their graphs is checked against a real one in test_comfy_live.
+# The real builders. Whether the renderer accepts their graphs is checked against a real one in test_renderer_live.
 
 
 def links(graph: dict[str, Any]) -> list[tuple[str, int]]:
