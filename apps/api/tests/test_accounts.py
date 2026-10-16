@@ -117,10 +117,19 @@ def test_an_account_without_a_password_cannot_sign_in(client: TestClient, engine
     assert sign_in(client, email="owner@unnoodle.local", password="correct horse") == 401
 
 
-def run_users(monkeypatch: pytest.MonkeyPatch, settings: Settings, *args: str, password: str = "") -> None:
+def run_users(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, *args: str, password: str = "", newline: str = "\n"
+) -> None:
     monkeypatch.setenv("UNNOODLE_DATABASE_URL", settings.database_url)
-    monkeypatch.setattr("sys.stdin", io.StringIO(password + "\n"))
+    monkeypatch.setattr("sys.stdin", io.StringIO(password + newline))
     users.main(list(args))
+
+
+def test_the_command_line_takes_a_password_piped_from_windows(
+    client: TestClient, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_users(monkeypatch, settings, "create", "boss@example.com", password="piped password", newline="\r\n")
+    assert sign_in(client, email="boss@example.com", password="piped password") == 200
 
 
 def test_the_command_line_makes_an_admin_and_resets_a_password(
