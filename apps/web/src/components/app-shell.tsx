@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ComponentType, type ReactNode } from 'react';
+import Link from 'next/link';
 import { m } from 'motion/react';
 import {
   ArchiveIcon,
@@ -13,6 +14,7 @@ import {
   PlusIcon,
   SparklesIcon,
   XIcon,
+  ShieldIcon,
   ZapIcon
 } from 'lucide-react';
 import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
@@ -238,7 +240,17 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
         />
       </button>
 
-      {me?.is_admin && <SmartQueueSwitch />}
+      {me?.is_admin && (
+        <>
+          <Link href="/admin" className={cn(rowClass, 'mt-[3px]')}>
+            <IconTile className="bg-linear-to-b from-[#9db4ff] to-[#4a5fd1]">
+              <ShieldIcon className="size-4.5 text-white lg:size-4" />
+            </IconTile>
+            <span className={cn(collapsible, 'flex-1 truncate text-left')}>Admin</span>
+          </Link>
+          <SmartQueueSwitch />
+        </>
+      )}
       {me && <Account email={me.email} />}
     </div>
   );
