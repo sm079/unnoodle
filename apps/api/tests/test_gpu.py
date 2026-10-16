@@ -43,11 +43,12 @@ class FakePods:
         self.deleted: list[str] = []
         self.no_capacity = False
 
-    def create(self, gpu_type: str, public_key: str) -> Pod:
+    def create(self, gpu_types: list[str], public_key: str) -> Pod:
         if self.no_capacity:
             raise NoCapacity("no instances currently available")
-        pod = Pod(f"pod{len(self.created) + 1}", POD_NAME, "RUNNING", 1.19, "203.0.113.7", 22000 + len(self.created))
-        self.created.append((gpu_type, public_key))
+        n = len(self.created)
+        pod = Pod(f"pod{n + 1}", POD_NAME, "RUNNING", 1.19, "203.0.113.7", 22000 + n, gpu_types[0])
+        self.created.append((gpu_types[0], public_key))
         self.pods[pod.id] = pod
         return pod
 
@@ -347,7 +348,7 @@ def test_no_free_gpu_is_waited_for_then_given_up_on(
     pods.no_capacity = True
     manager.tick()
     manager.tick()
-    assert last_session(engine).stop_reason == "No GPU of that type was free"
+    assert last_session(engine).stop_reason == "No GPU of those types was free"
     assert generation(engine, picture).error == gpu.NO_GPU
 
 

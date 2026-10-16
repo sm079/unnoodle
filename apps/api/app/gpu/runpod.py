@@ -31,10 +31,11 @@ class Pod:
     cost_per_hour: float | None
     ip: str | None
     ssh_port: int | None
+    gpu_type: str | None = None
 
 
 class Pods(Protocol):
-    def create(self, gpu_type: str, public_key: str) -> Pod: ...
+    def create(self, gpu_types: list[str], public_key: str) -> Pod: ...
     def get(self, pod_id: str) -> Pod | None: ...
     def list(self) -> list[Pod]: ...
     def delete(self, pod_id: str) -> None: ...
@@ -49,6 +50,7 @@ def pod_of(data: dict[str, Any]) -> Pod:
         cost_per_hour=data.get("costPerHr"),
         ip=data.get("publicIp") or None,
         ssh_port=int(port) if port else None,
+        gpu_type=(data.get("machine") or {}).get("gpuTypeId") or (data.get("gpu") or {}).get("id"),
     )
 
 
@@ -61,11 +63,13 @@ class RunPod:
             timeout=60,
         )
 
-    def create(self, gpu_type: str, public_key: str) -> Pod:
+    def create(self, gpu_types: list[str], public_key: str) -> Pod:
         body = {
             "name": POD_NAME,
             "templateId": TEMPLATE,
-            "gpuTypeIds": [gpu_type],
+            # The first of these that has one free
+            "gpuTypeIds": gpu_types,
+            "gpuTypePriority": "custom",
             "gpuCount": 1,
             # Not shared community hosts: inputs and outputs are people's own
             "cloudType": "SECURE",

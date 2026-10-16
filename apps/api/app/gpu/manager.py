@@ -60,7 +60,7 @@ NO_GPU = "Couldn't get a GPU just now. Your credits are back; try again in a few
 
 @dataclass(frozen=True)
 class Config:
-    gpu_type: str
+    gpu_types: list[str]
     idle_stop: timedelta
     daily_limit: timedelta
     timezone: ZoneInfo
@@ -70,7 +70,7 @@ class Config:
     @classmethod
     def of(cls, settings: Settings, public_key: str) -> Config:
         return cls(
-            gpu_type=settings.gpu_type,
+            gpu_types=settings.gpu_types,
             idle_stop=timedelta(seconds=settings.gpu_idle_stop_s),
             daily_limit=timedelta(seconds=settings.gpu_daily_limit_s),
             timezone=ZoneInfo(settings.gpu_day_timezone),
@@ -314,8 +314,9 @@ class Preparation:
             set_session(
                 m.engine,
                 self.session_id,
+                phase="launching",
                 pod_id=created.id,
-                gpu_type=m.config.gpu_type,
+                gpu_type=created.gpu_type,
                 cost_per_hour=created.cost_per_hour,
                 launched_at=m.now(),
             )
@@ -336,10 +337,11 @@ class Preparation:
         waited = 0.0
         while not self.cancel.is_set():
             try:
-                return m.pods.create(m.config.gpu_type, m.config.public_key)
-            except NoCapacity:
+                return m.pods.create(m.config.gpu_types, m.config.public_key)
+            except NoCapacity as error:
+                logger.info("No GPU free yet: %s", str(error)[:300])
                 if waited >= CAPACITY_WAIT_S:
-                    self.fail(NO_GPU, "No GPU of that type was free")
+                    self.fail(NO_GPU, "No GPU of those types was free")
                     return None
                 set_session(m.engine, self.session_id, phase="waiting-for-gpu")
                 m.sleep(30)

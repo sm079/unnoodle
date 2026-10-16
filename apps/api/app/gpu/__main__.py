@@ -40,7 +40,7 @@ def main() -> None:
     )
     logger.info(
         "Started: %s, idle stop after %ds, %ds a day",
-        settings.gpu_type,
+        ", ".join(settings.gpu_types),
         settings.gpu_idle_stop_s,
         settings.gpu_daily_limit_s,
     )
