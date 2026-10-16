@@ -173,7 +173,7 @@ type Input = { src: string; handle: string; alt: string };
 
 function Inputs({ items }: { items: Input[] }) {
   return (
-    <ul className="flex gap-2" aria-label="Attached">
+    <ul className="flex flex-wrap gap-1.5" aria-label="Attached">
       {items.map(item => (
         <li key={item.handle} className="flex items-center gap-1.5 rounded-xl bg-white/[0.05] py-1 pr-2.5 pl-1">
           <Image src={item.src} alt={item.alt} width={64} height={64} className="size-7 rounded-lg object-cover" />
