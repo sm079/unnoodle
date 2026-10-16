@@ -287,6 +287,33 @@
     /* Controls give their own press feedback */
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Scrollbars: a thin rounded thumb on no track, floating inside the gutter, brighter under the pointer. Firefox has
+     only the standard properties; Chromium ignores the pseudo-elements wherever those are set, so they stay apart. */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.14) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    border-width: 3px;
+    background-color: rgb(255 255 255 / 0.3);
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+    }
+  }
 }
 
 @layer components {

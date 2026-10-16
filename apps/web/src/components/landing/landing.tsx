@@ -106,7 +106,7 @@ function Hero() {
               Look around
             </Link>
           </div>
-          <p className="mt-4 text-sm text-[#8a8b8c]">Invite only for now. Made for your phone.</p>
+          <p className="mt-4 text-sm text-[#8a8b8c]">Invite only for now.</p>
         </div>
 
         {/* Wider screens: the video in a frame, with two of the pictures that went into it beside it */}
@@ -345,7 +345,7 @@ function Details() {
   ];
   return (
     <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6 lg:pt-32" aria-labelledby="details">
-      <SectionTitle id="details" eyebrow="The small things" title="Made for a phone, not a workstation" />
+      <SectionTitle id="details" eyebrow="The small things" title="Plain words, no knobs" />
       <ul className="mt-8 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
         {items.map(({ icon: Icon, title, text }) => (
           <li key={title} className="reveal rounded-[20px] bg-panel p-4 sm:p-5">
@@ -434,7 +434,7 @@ function Pricing() {
   ];
   return (
     <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6 lg:pt-32" aria-labelledby="pricing">
-      <SectionTitle id="pricing" eyebrow="Credits" title="Pay for what you make">
+      <SectionTitle id="pricing" eyebrow="Credits" title="Priced up front">
         Every generation costs a fixed number of credits, shown on Generate before you press it. A failed one gives them back.
       </SectionTitle>
       <ul className="mt-8 grid gap-2.5 sm:grid-cols-3 sm:gap-3">
