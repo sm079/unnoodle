@@ -3,6 +3,9 @@
 Pictures and videos from one prompt. Describe what you want, attach a photo or a clip if you have one, and press
 Generate. No nodes to wire and no settings to learn.
 
+**Stack:** Next.js, TypeScript, Tailwind · FastAPI, SQLAlchemy, Postgres · Docker, GitHub Actions · GPUs rented on
+demand
+
 ![Three videos made in the app, first 5 seconds of each, without their sound](docs/media/videos.webp)
 
 Open image and video models are good now, but running them usually means a canvas of nodes, model files and settings
@@ -11,6 +14,11 @@ what you attach, builds the steps for that one request, and runs them on a GPU t
 
 It runs at [unnoodle-xi.vercel.app](https://unnoodle-xi.vercel.app). New accounts start without credits (for now they
 come with invite codes), and [`/demo`](https://unnoodle-xi.vercel.app/demo) shows the studio without an account.
+
+<p>
+  <img src="docs/media/studio.webp" alt="The studio on a computer: the Demo project's pictures and videos above the prompt box" width="76%">
+  <img src="docs/media/studio-phone.webp" alt="The studio on a phone, with the prompt box docked at the bottom" width="21%">
+</p>
 
 ## What it does
 
