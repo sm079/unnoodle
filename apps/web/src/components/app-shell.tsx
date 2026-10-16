@@ -19,7 +19,9 @@ import {
   ZapIcon
 } from 'lucide-react';
 import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
-import { CreditAmount } from '@/components/credit-glyph';
+import { CreditGlyph } from '@/components/credit-glyph';
+import { CreditsSheet } from '@/components/credits-sheet';
+import { RollingValue } from '@/components/rolling-value';
 import { NewProjectForm } from '@/components/new-project';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { api } from '@/lib/api';
@@ -189,7 +191,7 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
           <span className={label}>My generations</span>
         </button>
 
-        <ul aria-label="Projects" className={cn(collapsible, 'mt-[3px] flex min-h-0 flex-col gap-[3px] overflow-y-auto')}>
+        <ul aria-label="Projects" className={cn(collapsible, 'mt-[3px] no-scrollbar flex min-h-0 flex-col gap-[3px] overflow-y-auto')}>
           {creating && (
             <li className="flex items-start gap-2.5 px-2 py-1">
               <IconTile className="mt-1 border border-white/10 bg-[#29292b] lg:mt-0.5">
@@ -254,6 +256,7 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
           <SmartQueueSwitch />
         </>
       )}
+      {me && <Credits />}
       {me && <Account email={me.email} />}
       {demo && <DemoAccount />}
     </div>
@@ -279,10 +282,46 @@ function DemoAccount() {
   );
 }
 
-/** Who is signed in, their credits, and a way out. */
+/** The balance, and the sheet that says how to get more. */
+function Credits() {
+  const [open, setOpen] = useState(false);
+  const { data: credits } = useCredits();
+
+  return (
+    <>
+      <button
+        type="button"
+        title="Credits"
+        aria-label={credits ? `${credits.balance.toLocaleString('en')} credits. Get more` : 'Credits'}
+        onClick={() => setOpen(true)}
+        className="group/row mt-4 flex items-center gap-2.5 rounded-2xl border border-white/[0.06] bg-panel p-2 text-left transition-[background-color,scale] duration-200 ease-spring group-data-[collapsed=true]/sidebar:border-transparent group-data-[collapsed=true]/sidebar:bg-transparent group-data-[collapsed=true]/sidebar:p-0 group-data-[collapsed=true]/sidebar:pl-2 hover:bg-sidebar-accent active:scale-[0.98]"
+      >
+        <IconTile className="bg-linear-to-b from-[#ff8763] to-brand">
+          <CreditGlyph className="size-4.5 text-white lg:size-4" />
+        </IconTile>
+        <span className={cn(collapsible, 'flex min-w-0 flex-1 flex-col')}>
+          <span className="text-xs text-[#828282]">Credits</span>
+          <span className="text-base leading-tight font-bold tabular-nums">
+            {credits ? <RollingValue value={credits.balance.toLocaleString('en')} /> : '–'}
+          </span>
+        </span>
+        <span
+          className={cn(
+            collapsible,
+            'shrink-0 rounded-[10px] bg-white px-3 py-1.5 text-[0.8125rem] font-semibold text-black transition-[scale] duration-200 ease-spring group-hover/row:scale-105'
+          )}
+        >
+          Get more
+        </span>
+      </button>
+      <CreditsSheet open={open} onOpenChange={setOpen} balance={credits?.balance ?? 0} />
+    </>
+  );
+}
+
+/** Who is signed in, and a way out. */
 function Account({ email }: { email: string }) {
   const [leaving, setLeaving] = useState(false);
-  const { data: credits } = useCredits();
 
   async function signOut() {
     setLeaving(true);
@@ -305,15 +344,7 @@ function Account({ email }: { email: string }) {
       </IconTile>
       <span className={cn(collapsible, 'flex min-w-0 flex-1 flex-col text-left')}>
         <span className="truncate">Sign out</span>
-        <span className="truncate text-xs font-normal text-[#828282]">
-          {credits && (
-            <>
-              <CreditAmount value={credits.balance} className="text-[#c8c9cb]" />
-              {' · '}
-            </>
-          )}
-          {email}
-        </span>
+        <span className="truncate text-xs font-normal text-[#828282]">{email}</span>
       </span>
     </button>
   );
