@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, Enum, ForeignKey, Index, String, Text, func, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -65,6 +66,22 @@ class Quality(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class GpuStatus(StrEnum):
+    """Where a rented GPU is in its life (app.gpu). One session at a time is anything but stopped or failed."""
+
+    # Wanted, by queued work or an admin; the GPU process launches it
+    REQUESTED = "requested"
+    # Rented and starting: waiting for a machine, then for SSH
+    LAUNCHING = "launching"
+    # Setting up the renderer and downloading models; pipelines whose models are in can already run
+    PREPARING = "preparing"
+    # Everything downloaded
+    READY = "ready"
+    STOPPED = "stopped"
+    # Never became usable; stopped too
+    FAILED = "failed"
 
 
 def string_enum[E: StrEnum](enum: type[E], name: str) -> Enum:
@@ -342,3 +359,42 @@ class GenerationInput(Base):
     asset_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("assets.id", ondelete="RESTRICT"), index=True)
 
     asset: Mapped[Asset] = relationship(lazy="selectin")
+
+
+class GpuSession(Base):
+    """One rented GPU, from asking for it to handing it back (app.gpu). Billing runs from launched_at to stopped_at,
+    which is what the daily limit counts."""
+
+    __tablename__ = "gpu_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    status: Mapped[GpuStatus] = mapped_column(string_enum(GpuStatus, "status"))
+    # What it's doing now, for people waiting on it: "launching", "setup", or "models"
+    phase: Mapped[str | None] = mapped_column(String(32))
+    # The pipelines whose models are on it, and when each became ready
+    ready: Mapped[dict[str, str]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    # Who asked: "queue" or an admin's email
+    requested_by: Mapped[str] = mapped_column(String(320))
+    pod_id: Mapped[str | None] = mapped_column(String(64))
+    gpu_type: Mapped[str | None] = mapped_column(String(64))
+    cost_per_hour: Mapped[float | None]
+    ip: Mapped[str | None] = mapped_column(String(64))
+    ssh_port: Mapped[int | None]
+    # Set by an admin; the GPU process stops it
+    stop_requested: Mapped[bool] = mapped_column(server_default=text("false"))
+    stop_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    launched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The last time it ran something, or became ready; the idle stop counts from here
+    active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stopped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        # At most one live session, so two requests can never rent two GPUs
+        Index(
+            "uq_gpu_sessions_live",
+            text("(true)"),
+            unique=True,
+            postgresql_where=text("status NOT IN ('stopped', 'failed')"),
+        ),
+    )
