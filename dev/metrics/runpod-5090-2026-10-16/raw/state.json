@@ -1,0 +1,751 @@
+{
+  "assets": {
+    "sq1": {
+      "id": "01a14178-f4ed-7122-9254-58d2723b9878",
+      "media_type": "image",
+      "source": "upload",
+      "url": "/media/uploads/01a14178-f4ed-7122-9254-58d2723b9878.png",
+      "thumbnail_url": "/media/uploads/01a14178-f4ed-7122-9254-58d2723b9878.png",
+      "width": 512,
+      "height": 512,
+      "duration_s": null,
+      "created_at": "2026-10-15T21:30:08.579898Z"
+    },
+    "sq2": {
+      "id": "01a14178-f57a-7060-a7be-9b45ff210534",
+      "media_type": "image",
+      "source": "upload",
+      "url": "/media/uploads/01a14178-f57a-7060-a7be-9b45ff210534.png",
+      "thumbnail_url": "/media/uploads/01a14178-f57a-7060-a7be-9b45ff210534.png",
+      "width": 512,
+      "height": 512,
+      "duration_s": null,
+      "created_at": "2026-10-15T21:30:08.645240Z"
+    },
+    "sq3": {
+      "id": "01a14178-f597-73f7-b498-9bc635c41445",
+      "media_type": "image",
+      "source": "upload",
+      "url": "/media/uploads/01a14178-f597-73f7-b498-9bc635c41445.png",
+      "thumbnail_url": "/media/uploads/01a14178-f597-73f7-b498-9bc635c41445.png",
+      "width": 512,
+      "height": 512,
+      "duration_s": null,
+      "created_at": "2026-10-15T21:30:08.670848Z"
+    },
+    "sq4": {
+      "id": "01a14178-f5b2-7456-8b29-81958fcfd6dd",
+      "media_type": "image",
+      "source": "upload",
+      "url": "/media/uploads/01a14178-f5b2-7456-8b29-81958fcfd6dd.png",
+      "thumbnail_url": "/media/uploads/01a14178-f5b2-7456-8b29-81958fcfd6dd.png",
+      "width": 512,
+      "height": 512,
+      "duration_s": null,
+      "created_at": "2026-10-15T21:30:08.700425Z"
+    },
+    "clipA": {
+      "id": "01a14178-f78a-712e-b7b8-cce03e5a6f88",
+      "media_type": "video",
+      "source": "upload",
+      "url": "/media/uploads/01a14178-f78a-712e-b7b8-cce03e5a6f88.mp4",
+      "thumbnail_url": "/media/uploads/01a14178-f78a-712e-b7b8-cce03e5a6f88.jpg",
+      "width": 640,
+      "height": 360,
+      "duration_s": 3.0,
+      "created_at": "2026-10-15T21:30:09.697412Z"
+    },
+    "woman.jpg": {
+      "id": "01a14181-d4bf-7326-96ed-75e34ccc7278",
+      "media_type": "image",
+      "source": "upload",
+      "url": "/media/uploads/01a14181-d4bf-7326-96ed-75e34ccc7278.jpg",
+      "thumbnail_url": "/media/uploads/01a14181-d4bf-7326-96ed-75e34ccc7278.jpg",
+      "width": 1184,
+      "height": 1776,
+      "duration_s": null,
+      "created_at": "2026-10-15T21:39:50.087700Z"
+    },
+    "teapot.webp": {
+      "id": "01a14181-d4dc-7436-aec5-7878896b706b",
+      "media_type": "image",
+      "source": "upload",
+      "url": "/media/uploads/01a14181-d4dc-7436-aec5-7878896b706b.webp",
+      "thumbnail_url": "/media/uploads/01a14181-d4dc-7436-aec5-7878896b706b.webp",
+      "width": 1024,
+      "height": 1024,
+      "duration_s": null,
+      "created_at": "2026-10-15T21:39:50.117239Z"
+    },
+    "market.mp4": {
+      "id": "01a14181-d50b-7635-aa37-fa95b8cff0dc",
+      "media_type": "video",
+      "source": "upload",
+      "url": "/media/uploads/01a14181-d50b-7635-aa37-fa95b8cff0dc.mp4",
+      "thumbnail_url": "/media/uploads/01a14181-d50b-7635-aa37-fa95b8cff0dc.jpg",
+      "width": 768,
+      "height": 1366,
+      "duration_s": 6.0,
+      "created_at": "2026-10-15T21:39:51.463322Z"
+    }
+  },
+  "gens": {
+    "K0-interrupt": {
+      "id": "01a14180-4970-72ab-b52f-955b60dfe558",
+      "status": "failed",
+      "capability": "image.generate",
+      "workflow_id": "krea2-turbo",
+      "prompt": "a lighthouse on a cliff at dusk",
+      "project_id": null,
+      "params": {
+        "quality": "medium",
+        "aspect_ratio": "1:1",
+        "duration_s": null,
+        "seed": 1142981422
+      },
+      "inputs": [],
+      "outputs": [],
+      "progress": null,
+      "error": "This was stopped before it finished",
+      "created_at": "2026-10-15T21:38:08.881820Z",
+      "started_at": "2026-10-15T21:38:08.906483Z",
+      "finished_at": "2026-10-15T21:38:18.002281Z",
+      "_inputs": []
+    },
+    "K1.0": {
+      "id": "01a14180-4992-722c-8325-f76bb49eeec8",
+      "status": "done",
+      "capability": "image.generate",
+      "workflow_id": "krea2-turbo",
+      "prompt": "a red vintage bicycle leaning on a pale blue wall, soft morning light, photo",
+      "project_id": null,
+      "params": {
+        "quality": "low",
+        "aspect_ratio": "3:4",
+        "duration_s": null,
+        "seed": 100
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "01a14180-97f3-7415-b33b-8b45cfdd129f",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+          "width": 624,
+          "height": 832,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:38:28.958257Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:38:08.915283Z",
+      "started_at": "2026-10-15T21:38:18.025862Z",
+      "finished_at": "2026-10-15T21:38:28.974262Z",
+      "_inputs": []
+    },
+    "K1.1": {
+      "id": "01a14180-4992-722c-8325-f76c48e6285f",
+      "status": "done",
+      "capability": "image.generate",
+      "workflow_id": "krea2-turbo",
+      "prompt": "a red vintage bicycle leaning on a pale blue wall, soft morning light, photo",
+      "project_id": null,
+      "params": {
+        "quality": "low",
+        "aspect_ratio": "3:4",
+        "duration_s": null,
+        "seed": 101
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "01a14180-af6f-7253-af10-3ada1bb4e696",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14180-4992-722c-8325-f76c48e6285f/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14180-4992-722c-8325-f76c48e6285f/1-0.png",
+          "width": 624,
+          "height": 832,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:38:34.976613Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:38:08.915283Z",
+      "started_at": "2026-10-15T21:38:29.000820Z",
+      "finished_at": "2026-10-15T21:38:34.987930Z",
+      "_inputs": []
+    },
+    "K2": {
+      "id": "01a14180-49b7-7366-8329-f39a85a5a3cb",
+      "status": "done",
+      "capability": "image.generate",
+      "workflow_id": "krea2-turbo",
+      "prompt": "portrait photo of a young woman in a yellow raincoat, plain grey studio background, looking at the camera",
+      "project_id": "01a14180-4951-73f5-9ab1-c88f1649c8d9",
+      "params": {
+        "quality": "high",
+        "aspect_ratio": "2:3",
+        "duration_s": null,
+        "seed": 2920377009
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "01a14180-f983-7133-9037-650e3e501200",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+          "width": 1184,
+          "height": 1776,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:38:53.943572Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:38:08.948938Z",
+      "started_at": "2026-10-15T21:38:35.011276Z",
+      "finished_at": "2026-10-15T21:38:53.952059Z",
+      "_inputs": []
+    },
+    "K3": {
+      "id": "01a14180-49d0-75d2-b270-01c687b1f23b",
+      "status": "done",
+      "capability": "image.generate",
+      "workflow_id": "krea2-turbo",
+      "prompt": "a white ceramic teapot painted with a blue fish, product photo on a white table",
+      "project_id": null,
+      "params": {
+        "quality": "medium",
+        "aspect_ratio": "1:1",
+        "duration_s": null,
+        "seed": 2566367122
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "01a14181-21a8-74fe-a2b9-5c103134db4f",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+          "width": 1024,
+          "height": 1024,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:39:04.219413Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:38:08.977573Z",
+      "started_at": "2026-10-15T21:38:53.973515Z",
+      "finished_at": "2026-10-15T21:39:04.229710Z",
+      "_inputs": []
+    },
+    "K4": {
+      "id": "01a14180-49eb-7798-b80b-b8c233768023",
+      "status": "done",
+      "capability": "image.generate",
+      "workflow_id": "krea2-turbo",
+      "prompt": "a busy night market street in Kathmandu in the rain, lanterns, people with umbrellas",
+      "project_id": null,
+      "params": {
+        "quality": "medium",
+        "aspect_ratio": "9:16",
+        "duration_s": null,
+        "seed": 3412171510
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "01a14181-6a48-71ea-83b4-8e2ac1c46802",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14180-49eb-7798-b80b-b8c233768023/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14180-49eb-7798-b80b-b8c233768023/1-0.png",
+          "width": 768,
+          "height": 1360,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:39:22.812472Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:38:09.004185Z",
+      "started_at": "2026-10-15T21:39:04.250855Z",
+      "finished_at": "2026-10-15T21:39:22.821984Z",
+      "_inputs": []
+    },
+    "E1": {
+      "id": "01a14181-e976-7712-b43a-cc81373e00c3",
+      "status": "done",
+      "capability": "image.edit",
+      "workflow_id": "flux2-klein-edit",
+      "prompt": "@photo1 wears a black leather jacket instead of the raincoat, same pose and background",
+      "project_id": null,
+      "params": {
+        "quality": "medium",
+        "aspect_ratio": null,
+        "duration_s": null,
+        "seed": 3324589850
+      },
+      "inputs": [
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14180-f983-7133-9037-650e3e501200",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+            "width": 1184,
+            "height": 1776,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:38:53.943572Z"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "01a14182-ca11-7237-a60f-afb23d8f1999",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14181-e976-7712-b43a-cc81373e00c3/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14181-e976-7712-b43a-cc81373e00c3/1-0.png",
+          "width": 832,
+          "height": 1248,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:40:52.864663Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:39:55.378666Z",
+      "started_at": "2026-10-15T21:39:55.418383Z",
+      "finished_at": "2026-10-15T21:40:52.876169Z",
+      "_inputs": ["K2"]
+    },
+    "E2": {
+      "id": "01a14181-e9aa-74ce-abec-0cb157820ffe",
+      "status": "done",
+      "capability": "image.edit",
+      "workflow_id": "flux2-klein-edit",
+      "prompt": "@photo1 holds the teapot from @photo2 in both hands, in a sunny kitchen",
+      "project_id": null,
+      "params": {
+        "quality": "low",
+        "aspect_ratio": "4:3",
+        "duration_s": null,
+        "seed": 2931365458
+      },
+      "inputs": [
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14181-d4bf-7326-96ed-75e34ccc7278",
+            "media_type": "image",
+            "source": "upload",
+            "url": "/media/uploads/01a14181-d4bf-7326-96ed-75e34ccc7278.jpg",
+            "thumbnail_url": "/media/uploads/01a14181-d4bf-7326-96ed-75e34ccc7278.jpg",
+            "width": 1184,
+            "height": 1776,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:39:50.087700Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14181-d4dc-7436-aec5-7878896b706b",
+            "media_type": "image",
+            "source": "upload",
+            "url": "/media/uploads/01a14181-d4dc-7436-aec5-7878896b706b.webp",
+            "thumbnail_url": "/media/uploads/01a14181-d4dc-7436-aec5-7878896b706b.webp",
+            "width": 1024,
+            "height": 1024,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:39:50.117239Z"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "01a14182-fa56-778e-9daa-c490cb04ee8a",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14181-e9aa-74ce-abec-0cb157820ffe/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14181-e9aa-74ce-abec-0cb157820ffe/1-0.png",
+          "width": 832,
+          "height": 624,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:41:05.223666Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:39:55.430975Z",
+      "started_at": "2026-10-15T21:40:52.907735Z",
+      "finished_at": "2026-10-15T21:41:05.235437Z",
+      "_inputs": ["woman.jpg", "teapot.webp"]
+    },
+    "E3.0": {
+      "id": "01a14181-e9d4-7497-9504-a99551a6cc9c",
+      "status": "done",
+      "capability": "image.edit",
+      "workflow_id": "flux2-klein-edit",
+      "prompt": "@photo1 rides the bicycle from @photo2 down a quiet street, the teapot from @photo3 in the front basket",
+      "project_id": null,
+      "params": {
+        "quality": "high",
+        "aspect_ratio": null,
+        "duration_s": null,
+        "seed": 2894082338
+      },
+      "inputs": [
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14180-f983-7133-9037-650e3e501200",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+            "width": 1184,
+            "height": 1776,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:38:53.943572Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14180-97f3-7415-b33b-8b45cfdd129f",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+            "width": 624,
+            "height": 832,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:38:28.958257Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14181-21a8-74fe-a2b9-5c103134db4f",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+            "width": 1024,
+            "height": 1024,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:39:04.219413Z"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "01a14183-9356-73dd-8821-d63389f5fb79",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14181-e9d4-7497-9504-a99551a6cc9c/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14181-e9d4-7497-9504-a99551a6cc9c/1-0.png",
+          "width": 1184,
+          "height": 1776,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:41:44.390569Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:39:55.472281Z",
+      "started_at": "2026-10-15T21:41:05.256153Z",
+      "finished_at": "2026-10-15T21:41:44.402619Z",
+      "_inputs": ["K2", "K1.0", "K3"]
+    },
+    "E3.1": {
+      "id": "01a14181-e9d4-7497-9504-a996d3de670c",
+      "status": "done",
+      "capability": "image.edit",
+      "workflow_id": "flux2-klein-edit",
+      "prompt": "@photo1 rides the bicycle from @photo2 down a quiet street, the teapot from @photo3 in the front basket",
+      "project_id": null,
+      "params": {
+        "quality": "high",
+        "aspect_ratio": null,
+        "duration_s": null,
+        "seed": 360426104
+      },
+      "inputs": [
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14180-f983-7133-9037-650e3e501200",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-49b7-7366-8329-f39a85a5a3cb/1-0.png",
+            "width": 1184,
+            "height": 1776,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:38:53.943572Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14180-97f3-7415-b33b-8b45cfdd129f",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+            "width": 624,
+            "height": 832,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:38:28.958257Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14181-21a8-74fe-a2b9-5c103134db4f",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+            "width": 1024,
+            "height": 1024,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:39:04.219413Z"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "01a14184-21cc-745d-9fc3-d7ef90817736",
+          "media_type": "image",
+          "source": "generation",
+          "url": "/media/outputs/01a14181-e9d4-7497-9504-a996d3de670c/1-0.png",
+          "thumbnail_url": "/media/outputs/01a14181-e9d4-7497-9504-a996d3de670c/1-0.png",
+          "width": 1184,
+          "height": 1776,
+          "duration_s": null,
+          "created_at": "2026-10-15T21:42:20.855470Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:39:55.472281Z",
+      "started_at": "2026-10-15T21:41:44.427719Z",
+      "finished_at": "2026-10-15T21:42:20.873265Z",
+      "_inputs": ["K2", "K1.0", "K3"]
+    },
+    "V1": {
+      "id": "01a14184-9fde-73ec-aba4-60b282a0708f",
+      "status": "done",
+      "capability": "video.generate",
+      "workflow_id": "minimax-h3",
+      "prompt": "a street musician plays an acoustic guitar under a lamp on a rainy night and sings softly, rain patters on the pavement",
+      "project_id": null,
+      "params": {
+        "quality": "low",
+        "aspect_ratio": "16:9",
+        "duration_s": 5,
+        "seed": 3463314065
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "01a14186-7f1b-75b9-9e8e-e5ada5f8388d",
+          "media_type": "video",
+          "source": "generation",
+          "url": "/media/outputs/01a14184-9fde-73ec-aba4-60b282a0708f/1-0.mp4",
+          "thumbnail_url": "/media/outputs/01a14184-9fde-73ec-aba4-60b282a0708f/1-0.jpg",
+          "width": 672,
+          "height": 384,
+          "duration_s": 5.167,
+          "created_at": "2026-10-15T21:44:55.824538Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:42:53.152773Z",
+      "started_at": "2026-10-15T21:44:33.973056Z",
+      "finished_at": "2026-10-15T21:44:55.832727Z",
+      "_inputs": []
+    },
+    "V2": {
+      "id": "01a14186-c420-7123-a861-fed0e5414cca",
+      "status": "done",
+      "capability": "video.reference",
+      "workflow_id": "minimax-h3",
+      "prompt": "@photo1 pours tea from the teapot in @photo2 into a cup, then smiles and says \"cheers\" to the camera",
+      "project_id": null,
+      "params": {
+        "quality": "low",
+        "aspect_ratio": null,
+        "duration_s": 5,
+        "seed": 3812044278
+      },
+      "inputs": [
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14182-ca11-7237-a60f-afb23d8f1999",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14181-e976-7712-b43a-cc81373e00c3/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14181-e976-7712-b43a-cc81373e00c3/1-0.png",
+            "width": 832,
+            "height": 1248,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:40:52.864663Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14181-21a8-74fe-a2b9-5c103134db4f",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-49d0-75d2-b270-01c687b1f23b/1-0.png",
+            "width": 1024,
+            "height": 1024,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:39:04.219413Z"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "01a14188-3a6c-7523-8feb-873ac0ab818a",
+          "media_type": "video",
+          "source": "generation",
+          "url": "/media/outputs/01a14186-c420-7123-a861-fed0e5414cca/1-0.mp4",
+          "thumbnail_url": "/media/outputs/01a14186-c420-7123-a861-fed0e5414cca/1-0.jpg",
+          "width": 416,
+          "height": 640,
+          "duration_s": 5.167,
+          "created_at": "2026-10-15T21:46:49.304280Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:45:13.499205Z",
+      "started_at": "2026-10-15T21:45:13.533090Z",
+      "finished_at": "2026-10-15T21:46:49.320799Z",
+      "_inputs": ["E1", "K3"]
+    },
+    "V3": {
+      "id": "01a14186-c44b-765f-b632-726216f562b0",
+      "status": "queued",
+      "capability": "video.reference",
+      "workflow_id": "minimax-h3",
+      "prompt": "the camera moves through the market street from @clip1; the musician from @clip2 rides the bicycle from @photo1 through the crowd, ringing its bell",
+      "project_id": null,
+      "params": {
+        "quality": "medium",
+        "aspect_ratio": null,
+        "duration_s": 10,
+        "seed": 1543801767
+      },
+      "inputs": [
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14181-d50b-7635-aa37-fa95b8cff0dc",
+            "media_type": "video",
+            "source": "upload",
+            "url": "/media/uploads/01a14181-d50b-7635-aa37-fa95b8cff0dc.mp4",
+            "thumbnail_url": "/media/uploads/01a14181-d50b-7635-aa37-fa95b8cff0dc.jpg",
+            "width": 768,
+            "height": 1366,
+            "duration_s": 6.0,
+            "created_at": "2026-10-15T21:39:51.463322Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14186-7f1b-75b9-9e8e-e5ada5f8388d",
+            "media_type": "video",
+            "source": "generation",
+            "url": "/media/outputs/01a14184-9fde-73ec-aba4-60b282a0708f/1-0.mp4",
+            "thumbnail_url": "/media/outputs/01a14184-9fde-73ec-aba4-60b282a0708f/1-0.jpg",
+            "width": 672,
+            "height": 384,
+            "duration_s": 5.167,
+            "created_at": "2026-10-15T21:44:55.824538Z"
+          }
+        },
+        {
+          "role": "reference",
+          "asset": {
+            "id": "01a14180-97f3-7415-b33b-8b45cfdd129f",
+            "media_type": "image",
+            "source": "generation",
+            "url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+            "thumbnail_url": "/media/outputs/01a14180-4992-722c-8325-f76bb49eeec8/1-0.png",
+            "width": 624,
+            "height": 832,
+            "duration_s": null,
+            "created_at": "2026-10-15T21:38:28.958257Z"
+          }
+        }
+      ],
+      "outputs": [],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:45:13.544447Z",
+      "started_at": null,
+      "finished_at": null,
+      "_inputs": ["market.mp4", "V1", "K1.0"]
+    },
+    "V4-no-clips": {
+      "id": "01a14192-d372-7134-9cc3-a9e9340684d2",
+      "status": "done",
+      "capability": "video.generate",
+      "workflow_id": "minimax-h3",
+      "prompt": "the camera moves through a busy night market street in the rain; a musician rides a red bicycle through the crowd, ringing its bell",
+      "project_id": null,
+      "params": {
+        "quality": "medium",
+        "aspect_ratio": "9:16",
+        "duration_s": 10,
+        "seed": 452252857
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "01a14199-dc2e-7494-bcb4-2cfaffaba4b0",
+          "media_type": "video",
+          "source": "generation",
+          "url": "/media/outputs/01a14192-d372-7134-9cc3-a9e9340684d2/1-0.mp4",
+          "thumbnail_url": "/media/outputs/01a14192-d372-7134-9cc3-a9e9340684d2/1-0.jpg",
+          "width": 480,
+          "height": 864,
+          "duration_s": 10.125,
+          "created_at": "2026-10-15T22:06:04.833325Z"
+        }
+      ],
+      "progress": null,
+      "error": null,
+      "created_at": "2026-10-15T21:58:23.861361Z",
+      "started_at": "2026-10-15T22:01:41.572676Z",
+      "finished_at": "2026-10-15T22:06:04.843857Z",
+      "_inputs": []
+    }
+  },
+  "projects": {
+    "RunPod test": "01a14180-4951-73f5-9ab1-c88f1649c8d9"
+  }
+}
