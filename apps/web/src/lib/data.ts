@@ -4,7 +4,7 @@
 
 import useSWR, { useSWRConfig } from 'swr';
 import { api, generationsIn, paths, request } from './api';
-import type { Asset, Credits, Generation, Preferences, Project, User, Pipeline } from './types';
+import type { Asset, Credits, Generation, Gpu, Preferences, Project, User, Pipeline } from './types';
 
 export function usePipelines() {
   // They only change when the API restarts
@@ -39,6 +39,16 @@ export function useCredits() {
   const { data: generations } = useGenerations();
   return useSWR(paths.credits, path => request<Credits>(path), {
     refreshInterval: generations?.some(isActive) ? 3000 : 0
+  });
+}
+
+/** Where the rented GPU is, for anyone waiting on it. Checked every few seconds while something of theirs waits and
+ * the GPU isn't fully up; otherwise only when asked. */
+export function useGpu() {
+  const { data: generations } = useGenerations();
+  const waiting = generations?.some(isActive) ?? false;
+  return useSWR(paths.gpu, path => request<Gpu>(path), {
+    refreshInterval: gpu => (waiting && gpu?.state !== 'ready' && gpu?.state !== 'off' ? 3000 : 0)
   });
 }
 

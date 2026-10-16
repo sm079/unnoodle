@@ -42,3 +42,7 @@ export type AdminUser = Schemas['AdminUserOut'];
 /** For the admin page: an invite code with how many have used it. */
 export type Invite = Schemas['InviteOut'];
 export type InviteRequest = Schemas['InviteIn'];
+
+export type Gpu = Schemas['GpuOut'];
+export type AdminGpu = Schemas['AdminGpuOut'];
+export type GpuSession = Schemas['GpuSessionOut'];
