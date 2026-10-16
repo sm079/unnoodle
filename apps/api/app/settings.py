@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -30,3 +31,22 @@ class Settings(BaseSettings):
 
     # Where the worker runs pipelines. 8189 is the dev renderer (see the README); a regular install listens on 8188.
     renderer_url: str = "http://127.0.0.1:8189"
+
+    # Renting a GPU when there is work (app.gpu): "off" leaves the renderer to whoever runs it, "runpod" starts one on
+    # RunPod for queued generations and hands it back when it has been idle a while
+    gpu: Literal["off", "runpod"] = "off"
+    runpod_api_key: SecretStr | None = None
+    # For the gated FLUX.2 Klein weights on Hugging Face (its licence accepted with the same account)
+    hf_token: SecretStr | None = None
+    # In order of preference; RunPod rents the first one it has free. All have the 32 GB+ the video model needs.
+    gpu_types: list[str] = [
+        "NVIDIA GeForce RTX 5090",
+        "NVIDIA L40S",
+        "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    ]
+    gpu_idle_stop_s: int = 300
+    # GPU time per day, from launch to stop, after which nothing new starts until the next day begins
+    gpu_daily_limit_s: int = 7200
+    gpu_day_timezone: str = "Asia/Kathmandu"
+    # The SSH key the GPU process makes for itself and gives each pod; nothing else uses it
+    gpu_keys_dir: Path = REPO_ROOT / "apps" / "api" / ".gpu"

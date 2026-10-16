@@ -49,3 +49,6 @@ tmp/
 # What the renderer writes when dev/renderer is its base directory (inputs, outputs, settings)
 /dev/renderer/*
 !/dev/renderer/custom_nodes/
+
+# The SSH key the GPU process makes for itself
+/apps/api/.gpu/

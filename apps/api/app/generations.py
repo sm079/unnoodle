@@ -10,8 +10,9 @@ from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import func, select
 
 from app import credits
-from app.accounts import CurrentUser
+from app.accounts import CurrentUser, SettingsDep
 from app.db import SessionDep
+from app.gpu import api as gpu
 from app.media import AssetOut
 from app.models import (
     Asset,
@@ -145,10 +146,11 @@ router = APIRouter()
         402: {"description": "Not enough credits"},
         422: {"description": "Can't be run"},
         429: {"description": "Too many waiting"},
+        503: {"description": "The GPU is resting"},
     },
 )
 def create_generation(
-    body: GenerationIn, user: CurrentUser, session: SessionDep, pipelines: PipelinesDep
+    body: GenerationIn, user: CurrentUser, session: SessionDep, pipelines: PipelinesDep, settings: SettingsDep
 ) -> list[GenerationOut]:
     """Queues count generations, oldest first in the answer."""
     try:
@@ -167,6 +169,10 @@ def create_generation(
                 raise RequestError("That project no longer exists")
     except (RoutingError, RequestError) as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
+
+    # Refused before anything is charged, rather than failed and refunded once queued
+    if settings.gpu == "runpod" and gpu.resting(session, settings):
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "The GPU is resting until tomorrow")
 
     p = body.params
     attached_assets_in_order = [assets[i.asset_id] for i in body.inputs]

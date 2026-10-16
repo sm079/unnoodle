@@ -12,10 +12,11 @@ it would have.
 """
 
 import uuid
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import ColumnElement, Engine, func, or_, select, text, update
+from sqlalchemy import ColumnElement, Engine, func, or_, select, text, true, update
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app import credits
@@ -46,12 +47,15 @@ def notify_queued(session: Session) -> None:
     session.execute(text(f"NOTIFY {CHANNEL}"))
 
 
-def claim_next(engine: Engine) -> Claim | None:
+def claim_next(engine: Engine, pipelines: Collection[str] | None = None) -> Claim | None:
+    """The next generation to run, of the pipelines given if any are: a rented GPU runs only those whose models are
+    on it so far (app.gpu)."""
     with Session(engine) as session, session.begin():
         stale = (Generation.status == GenerationStatus.RUNNING) & (Generation.heartbeat_at < now() - STALE_AFTER)
         query = (
             select(Generation)
             .where(or_(Generation.status == GenerationStatus.QUEUED, stale))
+            .where(Generation.pipeline_id.in_(pipelines) if pipelines is not None else true())
             .order_by(place(smart=smart_queue_on(session)))
             .limit(1)
             .with_for_update(skip_locked=True)

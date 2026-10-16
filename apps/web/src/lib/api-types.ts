@@ -432,6 +432,80 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/gpu': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Gpu */
+    get: operations['get_gpu_gpu_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/gpu': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Admin Gpu */
+    get: operations['get_admin_gpu_admin_gpu_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/gpu/start': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start Gpu
+     * @description Asks for a GPU now, before anything is queued (it stops again after the idle time).
+     */
+    post: operations['start_gpu_admin_gpu_start_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/admin/gpu/stop': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Stop Gpu
+     * @description Hands the GPU back now. Anything waiting for it fails with its credits back.
+     */
+    post: operations['stop_gpu_admin_gpu_stop_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -478,6 +552,22 @@ export interface components {
       finished_at: string | null;
       /** Owner Email */
       owner_email: string;
+    };
+    /** AdminGpuOut */
+    AdminGpuOut: {
+      /** Enabled */
+      enabled: boolean;
+      gpu: components['schemas']['GpuOut'];
+      /** Used Today S */
+      used_today_s: number;
+      /** Daily Limit S */
+      daily_limit_s: number;
+      /** Idle Stop S */
+      idle_stop_s: number;
+      /** Idle Left S */
+      idle_left_s: number | null;
+      /** Sessions */
+      sessions: components['schemas']['GpuSessionOut'][];
     };
     /** AdminUserOut */
     AdminUserOut: {
@@ -609,6 +699,72 @@ export interface components {
      * @enum {string}
      */
     GenerationStatus: 'queued' | 'running' | 'failed' | 'done';
+    /**
+     * GpuOut
+     * @description off: no GPU is rented here (a renderer is run by hand); asleep: none is up, and the next generation starts one;
+     *     starting: one is being got ready; ready: it runs what's in ready; resting: today's GPU time is used up.
+     */
+    GpuOut: {
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'off' | 'asleep' | 'starting' | 'ready' | 'resting';
+      /** Phase */
+      phase: string | null;
+      /** Ready */
+      ready: string[];
+      /** Eta S */
+      eta_s: {
+        [key: string]: number;
+      };
+    };
+    /** GpuSessionOut */
+    GpuSessionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      status: components['schemas']['GpuStatus'];
+      /** Phase */
+      phase: string | null;
+      /** Ready */
+      ready: {
+        [key: string]: string;
+      };
+      /** Requested By */
+      requested_by: string;
+      /** Gpu Type */
+      gpu_type: string | null;
+      /** Cost Per Hour */
+      cost_per_hour: number | null;
+      /** Stop Reason */
+      stop_reason: string | null;
+      /** Stop Requested */
+      stop_requested: boolean;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Launched At */
+      launched_at: string | null;
+      /** Active At */
+      active_at: string | null;
+      /** Stopped At */
+      stopped_at: string | null;
+      /** Billed S */
+      billed_s: number;
+      /** Cost */
+      cost: number | null;
+    };
+    /**
+     * GpuStatus
+     * @description Where a rented GPU is in its life (app.gpu). One session at a time is anything but stopped or failed.
+     * @enum {string}
+     */
+    GpuStatus: 'requested' | 'launching' | 'preparing' | 'ready' | 'stopped' | 'failed';
     /** GrantIn */
     GrantIn: {
       /** Amount */
@@ -1317,6 +1473,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description The GPU is resting */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   get_generation_generations__generation_id__get: {
@@ -1845,6 +2008,172 @@ export interface operations {
         content: {
           'application/json': string[];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_gpu_gpu_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['GpuOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_admin_gpu_admin_gpu_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminGpuOut'];
+        };
+      };
+      /** @description Not an admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  start_gpu_admin_gpu_start_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminGpuOut'];
+        };
+      };
+      /** @description Not an admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Already up */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+      /** @description Off */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  stop_gpu_admin_gpu_stop_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AdminGpuOut'];
+        };
+      };
+      /** @description Not an admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description None up */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {

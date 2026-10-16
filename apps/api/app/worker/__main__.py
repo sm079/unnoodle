@@ -10,9 +10,12 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
 import psycopg
+from sqlalchemy import Engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
 
 from app.db import make_engine
+from app.gpu.manager import ready_pipelines
 from app.media import MediaStore
 from app.pipelines import load_pipelines
 from app.settings import Settings
@@ -43,6 +46,11 @@ def wake_on_queued(database_url: str) -> Iterator[Callable[[float], None]]:
         yield wait
 
 
+def gpu_pipelines(engine: Engine) -> set[str]:
+    with Session(engine) as session:
+        return ready_pipelines(session) or set()
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # One line per request to the renderer would bury the worker's own
@@ -56,7 +64,9 @@ def main() -> None:
 
     with wake_on_queued(settings.database_url) as wait:
         while True:
-            claim = queue.claim_next(engine)
+            # With a rented GPU, only what its models are in for; nothing while there's none
+            ready = gpu_pipelines(engine) if settings.gpu == "runpod" else None
+            claim = None if ready == set() else queue.claim_next(engine, ready)
             if claim is None:
                 wait(POLL_S)
                 continue
