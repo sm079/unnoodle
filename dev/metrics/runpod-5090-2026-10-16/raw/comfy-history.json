@@ -1,0 +1,3718 @@
+{
+  "4d183e05-b05e-43ba-b6d0-3d46316cbf19": {
+    "prompt": [
+      0,
+      "4d183e05-b05e-43ba-b6d0-3d46316cbf19",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "type": "krea2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "a lighthouse on a cliff at dusk",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "width": 1024,
+            "height": 1024,
+            "batch_size": 1
+          }
+        },
+        "7": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": ["1", 0],
+            "seed": 1142981422,
+            "steps": 8,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": ["4", 0],
+            "negative": ["5", 0],
+            "latent_image": ["6", 0],
+            "denoise": 1.0
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["8", 0],
+            "filename_prefix": "unnoodle/01a14180-4970-72ab-b52f-955b60dfe558"
+          }
+        }
+      },
+      {
+        "client_id": "1d85650d4c5f4153b8a560ea3d9d1c5a",
+        "create_time": 1792100291648
+      },
+      ["9"]
+    ],
+    "outputs": {},
+    "status": {
+      "status_str": "error",
+      "completed": false,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "4d183e05-b05e-43ba-b6d0-3d46316cbf19",
+            "timestamp": 1792100291649
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "4d183e05-b05e-43ba-b6d0-3d46316cbf19",
+            "timestamp": 1792100291652
+          }
+        ],
+        [
+          "execution_interrupted",
+          {
+            "prompt_id": "4d183e05-b05e-43ba-b6d0-3d46316cbf19",
+            "node_id": "6",
+            "node_type": "EmptyLatentImage",
+            "executed": ["3"],
+            "timestamp": 1792100299178
+          }
+        ]
+      ]
+    },
+    "meta": {}
+  },
+  "ed337ccc-6133-49ed-88b7-36cd2df18b96": {
+    "prompt": [
+      1,
+      "ed337ccc-6133-49ed-88b7-36cd2df18b96",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "type": "krea2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "a red vintage bicycle leaning on a pale blue wall, soft morning light, photo",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "width": 624,
+            "height": 832,
+            "batch_size": 1
+          }
+        },
+        "7": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": ["1", 0],
+            "seed": 100,
+            "steps": 8,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": ["4", 0],
+            "negative": ["5", 0],
+            "latent_image": ["6", 0],
+            "denoise": 1.0
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["8", 0],
+            "filename_prefix": "unnoodle/01a14180-4992-722c-8325-f76bb49eeec8"
+          }
+        }
+      },
+      {
+        "client_id": "df9fd71ec9ce4cbd88f5ce3147ed6eae",
+        "create_time": 1792100300701
+      },
+      ["9"]
+    ],
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "01a14180-4992-722c-8325-f76bb49eeec8_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "ed337ccc-6133-49ed-88b7-36cd2df18b96",
+            "timestamp": 1792100300702
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["3"],
+            "prompt_id": "ed337ccc-6133-49ed-88b7-36cd2df18b96",
+            "timestamp": 1792100300704
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "ed337ccc-6133-49ed-88b7-36cd2df18b96",
+            "timestamp": 1792100307517
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "9": {
+        "node_id": "9",
+        "display_node": "9",
+        "parent_node": null,
+        "real_node_id": "9"
+      }
+    }
+  },
+  "913ab6b6-261a-40a2-abd3-bcc79a49fc06": {
+    "prompt": [
+      2,
+      "913ab6b6-261a-40a2-abd3-bcc79a49fc06",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "type": "krea2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "a red vintage bicycle leaning on a pale blue wall, soft morning light, photo",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "width": 624,
+            "height": 832,
+            "batch_size": 1
+          }
+        },
+        "7": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": ["1", 0],
+            "seed": 101,
+            "steps": 8,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": ["4", 0],
+            "negative": ["5", 0],
+            "latent_image": ["6", 0],
+            "denoise": 1.0
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["8", 0],
+            "filename_prefix": "unnoodle/01a14180-4992-722c-8325-f76c48e6285f"
+          }
+        }
+      },
+      {
+        "client_id": "093b35650a074e8e8a0267e4432af4fc",
+        "create_time": 1792100311541
+      },
+      ["9"]
+    ],
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "01a14180-4992-722c-8325-f76c48e6285f_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "913ab6b6-261a-40a2-abd3-bcc79a49fc06",
+            "timestamp": 1792100311542
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6"],
+            "prompt_id": "913ab6b6-261a-40a2-abd3-bcc79a49fc06",
+            "timestamp": 1792100311543
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "913ab6b6-261a-40a2-abd3-bcc79a49fc06",
+            "timestamp": 1792100314925
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "9": {
+        "node_id": "9",
+        "display_node": "9",
+        "parent_node": null,
+        "real_node_id": "9"
+      }
+    }
+  },
+  "405ec39a-8a2d-4957-91fe-2aeedd510f36": {
+    "prompt": [
+      3,
+      "405ec39a-8a2d-4957-91fe-2aeedd510f36",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "type": "krea2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "portrait photo of a young woman in a yellow raincoat, plain grey studio background, looking at the camera",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "width": 1184,
+            "height": 1776,
+            "batch_size": 1
+          }
+        },
+        "7": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": ["1", 0],
+            "seed": 2920377009,
+            "steps": 8,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": ["4", 0],
+            "negative": ["5", 0],
+            "latent_image": ["6", 0],
+            "denoise": 1.0
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["8", 0],
+            "filename_prefix": "unnoodle/01a14180-49b7-7366-8329-f39a85a5a3cb"
+          }
+        }
+      },
+      {
+        "client_id": "87b409fc7fb34ccfbf0c81a17689988d",
+        "create_time": 1792100318023
+      },
+      ["9"]
+    ],
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "01a14180-49b7-7366-8329-f39a85a5a3cb_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "405ec39a-8a2d-4957-91fe-2aeedd510f36",
+            "timestamp": 1792100318026
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3"],
+            "prompt_id": "405ec39a-8a2d-4957-91fe-2aeedd510f36",
+            "timestamp": 1792100318027
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "405ec39a-8a2d-4957-91fe-2aeedd510f36",
+            "timestamp": 1792100328932
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "9": {
+        "node_id": "9",
+        "display_node": "9",
+        "parent_node": null,
+        "real_node_id": "9"
+      }
+    }
+  },
+  "8bea69fa-9b9b-43b9-9b03-2012b4ae80a2": {
+    "prompt": [
+      4,
+      "8bea69fa-9b9b-43b9-9b03-2012b4ae80a2",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "type": "krea2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "a white ceramic teapot painted with a blue fish, product photo on a white table",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "width": 1024,
+            "height": 1024,
+            "batch_size": 1
+          }
+        },
+        "7": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": ["1", 0],
+            "seed": 2566367122,
+            "steps": 8,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": ["4", 0],
+            "negative": ["5", 0],
+            "latent_image": ["6", 0],
+            "denoise": 1.0
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["8", 0],
+            "filename_prefix": "unnoodle/01a14180-49d0-75d2-b270-01c687b1f23b"
+          }
+        }
+      },
+      {
+        "client_id": "bba1182a666f4fbaae6d44446b640fd2",
+        "create_time": 1792100336579
+      },
+      ["9"]
+    ],
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "01a14180-49d0-75d2-b270-01c687b1f23b_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "8bea69fa-9b9b-43b9-9b03-2012b4ae80a2",
+            "timestamp": 1792100336580
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3"],
+            "prompt_id": "8bea69fa-9b9b-43b9-9b03-2012b4ae80a2",
+            "timestamp": 1792100336582
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "8bea69fa-9b9b-43b9-9b03-2012b4ae80a2",
+            "timestamp": 1792100342306
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "9": {
+        "node_id": "9",
+        "display_node": "9",
+        "parent_node": null,
+        "real_node_id": "9"
+      }
+    }
+  },
+  "30798e4b-8795-43fe-be29-9348b020bb8b": {
+    "prompt": [
+      5,
+      "30798e4b-8795-43fe-be29-9348b020bb8b",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "type": "krea2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "a busy night market street in Kathmandu in the rain, lanterns, people with umbrellas",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "width": 768,
+            "height": 1360,
+            "batch_size": 1
+          }
+        },
+        "7": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": ["1", 0],
+            "seed": 3412171510,
+            "steps": 8,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": ["4", 0],
+            "negative": ["5", 0],
+            "latent_image": ["6", 0],
+            "denoise": 1.0
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["8", 0],
+            "filename_prefix": "unnoodle/01a14180-49eb-7798-b80b-b8c233768023"
+          }
+        }
+      },
+      {
+        "client_id": "86b9a591a8b94df987346be31dfa025d",
+        "create_time": 1792100347002
+      },
+      ["9"]
+    ],
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "01a14180-49eb-7798-b80b-b8c233768023_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "30798e4b-8795-43fe-be29-9348b020bb8b",
+            "timestamp": 1792100347004
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3"],
+            "prompt_id": "30798e4b-8795-43fe-be29-9348b020bb8b",
+            "timestamp": 1792100347005
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "30798e4b-8795-43fe-be29-9348b020bb8b",
+            "timestamp": 1792100352727
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "9": {
+        "node_id": "9",
+        "display_node": "9",
+        "parent_node": null,
+        "real_node_id": "9"
+      }
+    }
+  },
+  "e2bc2718-afcc-49a7-9cb6-cd064aa559ea": {
+    "prompt": [
+      6,
+      "e2bc2718-afcc-49a7-9cb6-cd064aa559ea",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-9b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+            "type": "flux2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "image 1 wears a black leather jacket instead of the raincoat, same pose and background",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14180-f983-7133-9037-650e3e501200.png"
+          }
+        },
+        "7": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["6", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "8": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["4", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["5", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "11": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 832,
+            "height": 1248,
+            "batch_size": 1
+          }
+        },
+        "12": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 832,
+            "height": 1248
+          }
+        },
+        "13": {
+          "class_type": "CFGGuider",
+          "inputs": {
+            "model": ["1", 0],
+            "positive": ["9", 0],
+            "negative": ["10", 0],
+            "cfg": 1.0
+          }
+        },
+        "14": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 3324589850
+          }
+        },
+        "15": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "16": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["14", 0],
+            "guider": ["13", 0],
+            "sampler": ["15", 0],
+            "sigmas": ["12", 0],
+            "latent_image": ["11", 0]
+          }
+        },
+        "17": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["16", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "18": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["17", 0],
+            "filename_prefix": "unnoodle/01a14181-e976-7712-b43a-cc81373e00c3"
+          }
+        }
+      },
+      {
+        "client_id": "94587f8b262a4bad93281f366111f291",
+        "create_time": 1792100419325
+      },
+      ["18"]
+    ],
+    "outputs": {
+      "18": {
+        "images": [
+          {
+            "filename": "01a14181-e976-7712-b43a-cc81373e00c3_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "e2bc2718-afcc-49a7-9cb6-cd064aa559ea",
+            "timestamp": 1792100419326
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "e2bc2718-afcc-49a7-9cb6-cd064aa559ea",
+            "timestamp": 1792100419333
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "e2bc2718-afcc-49a7-9cb6-cd064aa559ea",
+            "timestamp": 1792100446720
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "18": {
+        "node_id": "18",
+        "display_node": "18",
+        "parent_node": null,
+        "real_node_id": "18"
+      }
+    }
+  },
+  "e633c3c1-633f-4db9-9322-65be585b9a55": {
+    "prompt": [
+      7,
+      "e633c3c1-633f-4db9-9322-65be585b9a55",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-9b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+            "type": "flux2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "image 1 holds the teapot from image 2 in both hands, in a sunny kitchen",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14181-d4bf-7326-96ed-75e34ccc7278.jpg"
+          }
+        },
+        "7": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["6", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "8": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["4", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["5", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "11": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14181-d4dc-7436-aec5-7878896b706b.webp"
+          }
+        },
+        "12": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["11", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "13": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["12", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "14": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["9", 0],
+            "latent": ["13", 0]
+          }
+        },
+        "15": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["10", 0],
+            "latent": ["13", 0]
+          }
+        },
+        "16": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 832,
+            "height": 624,
+            "batch_size": 1
+          }
+        },
+        "17": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 832,
+            "height": 624
+          }
+        },
+        "18": {
+          "class_type": "CFGGuider",
+          "inputs": {
+            "model": ["1", 0],
+            "positive": ["14", 0],
+            "negative": ["15", 0],
+            "cfg": 1.0
+          }
+        },
+        "19": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 2931365458
+          }
+        },
+        "20": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "21": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["19", 0],
+            "guider": ["18", 0],
+            "sampler": ["20", 0],
+            "sigmas": ["17", 0],
+            "latent_image": ["16", 0]
+          }
+        },
+        "22": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["21", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "23": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["22", 0],
+            "filename_prefix": "unnoodle/01a14181-e9aa-74ce-abec-0cb157820ffe"
+          }
+        }
+      },
+      {
+        "client_id": "3d65535250704cb29399ea327fb7eb4d",
+        "create_time": 1792100456250
+      },
+      ["23"]
+    ],
+    "outputs": {
+      "23": {
+        "images": [
+          {
+            "filename": "01a14181-e9aa-74ce-abec-0cb157820ffe_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "e633c3c1-633f-4db9-9322-65be585b9a55",
+            "timestamp": 1792100456252
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "20"],
+            "prompt_id": "e633c3c1-633f-4db9-9322-65be585b9a55",
+            "timestamp": 1792100456258
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "e633c3c1-633f-4db9-9322-65be585b9a55",
+            "timestamp": 1792100463437
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "23": {
+        "node_id": "23",
+        "display_node": "23",
+        "parent_node": null,
+        "real_node_id": "23"
+      }
+    }
+  },
+  "fab92ae1-3e5f-458b-99ec-47529e1e2e1d": {
+    "prompt": [
+      8,
+      "fab92ae1-3e5f-458b-99ec-47529e1e2e1d",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-9b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+            "type": "flux2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "image 1 rides the bicycle from image 2 down a quiet street, the teapot from image 3 in the front basket",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14180-f983-7133-9037-650e3e501200.png"
+          }
+        },
+        "7": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["6", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "8": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["4", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["5", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "11": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14180-97f3-7415-b33b-8b45cfdd129f.png"
+          }
+        },
+        "12": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["11", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "13": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["12", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "14": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["9", 0],
+            "latent": ["13", 0]
+          }
+        },
+        "15": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["10", 0],
+            "latent": ["13", 0]
+          }
+        },
+        "16": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14181-21a8-74fe-a2b9-5c103134db4f.png"
+          }
+        },
+        "17": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["16", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "18": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["17", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "19": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["14", 0],
+            "latent": ["18", 0]
+          }
+        },
+        "20": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["15", 0],
+            "latent": ["18", 0]
+          }
+        },
+        "21": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 1184,
+            "height": 1776,
+            "batch_size": 1
+          }
+        },
+        "22": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 1184,
+            "height": 1776
+          }
+        },
+        "23": {
+          "class_type": "CFGGuider",
+          "inputs": {
+            "model": ["1", 0],
+            "positive": ["19", 0],
+            "negative": ["20", 0],
+            "cfg": 1.0
+          }
+        },
+        "24": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 2894082338
+          }
+        },
+        "25": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "26": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["24", 0],
+            "guider": ["23", 0],
+            "sampler": ["25", 0],
+            "sigmas": ["22", 0],
+            "latent_image": ["21", 0]
+          }
+        },
+        "27": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["26", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "28": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["27", 0],
+            "filename_prefix": "unnoodle/01a14181-e9d4-7497-9504-a99551a6cc9c"
+          }
+        }
+      },
+      {
+        "client_id": "a0beae03fdea404a85555f29e05b91a8",
+        "create_time": 1792100481854
+      },
+      ["28"]
+    ],
+    "outputs": {
+      "28": {
+        "images": [
+          {
+            "filename": "01a14181-e9d4-7497-9504-a99551a6cc9c_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "fab92ae1-3e5f-458b-99ec-47529e1e2e1d",
+            "timestamp": 1792100481855
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "25"],
+            "prompt_id": "fab92ae1-3e5f-458b-99ec-47529e1e2e1d",
+            "timestamp": 1792100481864
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "fab92ae1-3e5f-458b-99ec-47529e1e2e1d",
+            "timestamp": 1792100495911
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "28": {
+        "node_id": "28",
+        "display_node": "28",
+        "parent_node": null,
+        "real_node_id": "28"
+      }
+    }
+  },
+  "52f704a9-1e47-4047-bd93-ccae83ed0868": {
+    "prompt": [
+      9,
+      "52f704a9-1e47-4047-bd93-ccae83ed0868",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-9b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+            "type": "flux2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "image 1 rides the bicycle from image 2 down a quiet street, the teapot from image 3 in the front basket",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14180-f983-7133-9037-650e3e501200.png"
+          }
+        },
+        "7": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["6", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "8": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["4", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["5", 0],
+            "latent": ["8", 0]
+          }
+        },
+        "11": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14180-97f3-7415-b33b-8b45cfdd129f.png"
+          }
+        },
+        "12": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["11", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "13": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["12", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "14": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["9", 0],
+            "latent": ["13", 0]
+          }
+        },
+        "15": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["10", 0],
+            "latent": ["13", 0]
+          }
+        },
+        "16": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14181-21a8-74fe-a2b9-5c103134db4f.png"
+          }
+        },
+        "17": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["16", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 16
+          }
+        },
+        "18": {
+          "class_type": "VAEEncode",
+          "inputs": {
+            "pixels": ["17", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "19": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["14", 0],
+            "latent": ["18", 0]
+          }
+        },
+        "20": {
+          "class_type": "ReferenceLatent",
+          "inputs": {
+            "conditioning": ["15", 0],
+            "latent": ["18", 0]
+          }
+        },
+        "21": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 1184,
+            "height": 1776,
+            "batch_size": 1
+          }
+        },
+        "22": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 1184,
+            "height": 1776
+          }
+        },
+        "23": {
+          "class_type": "CFGGuider",
+          "inputs": {
+            "model": ["1", 0],
+            "positive": ["19", 0],
+            "negative": ["20", 0],
+            "cfg": 1.0
+          }
+        },
+        "24": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 360426104
+          }
+        },
+        "25": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "26": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["24", 0],
+            "guider": ["23", 0],
+            "sampler": ["25", 0],
+            "sigmas": ["22", 0],
+            "latent_image": ["21", 0]
+          }
+        },
+        "27": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["26", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "28": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["27", 0],
+            "filename_prefix": "unnoodle/01a14181-e9d4-7497-9504-a996d3de670c"
+          }
+        }
+      },
+      {
+        "client_id": "ed443cbf05ca41c086e7f4492eda78c9",
+        "create_time": 1792100518522
+      },
+      ["28"]
+    ],
+    "outputs": {
+      "28": {
+        "images": [
+          {
+            "filename": "01a14181-e9d4-7497-9504-a996d3de670c_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "52f704a9-1e47-4047-bd93-ccae83ed0868",
+            "timestamp": 1792100518524
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15",
+              "16",
+              "17",
+              "18",
+              "19",
+              "20",
+              "21",
+              "22",
+              "23",
+              "25"
+            ],
+            "prompt_id": "52f704a9-1e47-4047-bd93-ccae83ed0868",
+            "timestamp": 1792100518534
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "52f704a9-1e47-4047-bd93-ccae83ed0868",
+            "timestamp": 1792100528985
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "28": {
+        "node_id": "28",
+        "display_node": "28",
+        "parent_node": null,
+        "real_node_id": "28"
+      }
+    }
+  },
+  "f80f185e-969f-48ff-9b24-8f64a35af3c9": {
+    "prompt": [
+      10,
+      "f80f185e-969f-48ff-9b24-8f64a35af3c9",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "a street musician plays an acoustic guitar under a lamp on a rainy night and sings softly, rain patters on the pavement",
+            "width": 672,
+            "height": 384,
+            "length": 124,
+            "ref_image_size": "match"
+          }
+        },
+        "8": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 3463314065
+          }
+        },
+        "9": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["7", 0]
+          }
+        },
+        "10": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "11": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "12": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["8", 0],
+            "guider": ["9", 0],
+            "sampler": ["10", 0],
+            "sigmas": ["11", 0],
+            "latent_image": ["7", 1]
+          }
+        },
+        "13": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["12", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "14": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["12", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "15": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["13", 0],
+            "audio": ["14", 0],
+            "fps": 24.0
+          }
+        },
+        "16": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["15", 0],
+            "filename_prefix": "unnoodle/01a14184-9fde-73ec-aba4-60b282a0708f",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "fe52516b9671479aa79b78ee606885df",
+        "create_time": 1792100575810
+      },
+      ["16"]
+    ],
+    "outputs": {
+      "16": {
+        "images": [
+          {
+            "filename": "01a14184-9fde-73ec-aba4-60b282a0708f_00001_.mp4",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "f80f185e-969f-48ff-9b24-8f64a35af3c9",
+            "timestamp": 1792100575811
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["10"],
+            "prompt_id": "f80f185e-969f-48ff-9b24-8f64a35af3c9",
+            "timestamp": 1792100575815
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "f80f185e-969f-48ff-9b24-8f64a35af3c9",
+            "timestamp": 1792100693485
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "16": {
+        "node_id": "16",
+        "display_node": "16",
+        "parent_node": null,
+        "real_node_id": "16"
+      }
+    }
+  },
+  "d12950fc-6d61-4fa4-897e-97d245f2e623": {
+    "prompt": [
+      11,
+      "d12950fc-6d61-4fa4-897e-97d245f2e623",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "a street musician plays an acoustic guitar under a lamp on a rainy night and sings softly, rain patters on the pavement",
+            "width": 672,
+            "height": 384,
+            "length": 124,
+            "ref_image_size": "match"
+          }
+        },
+        "8": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 3463314065
+          }
+        },
+        "9": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["7", 0]
+          }
+        },
+        "10": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "11": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "12": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["8", 0],
+            "guider": ["9", 0],
+            "sampler": ["10", 0],
+            "sigmas": ["11", 0],
+            "latent_image": ["7", 1]
+          }
+        },
+        "13": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["12", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "14": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["12", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "15": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["13", 0],
+            "audio": ["14", 0],
+            "fps": 24.0
+          }
+        },
+        "16": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["15", 0],
+            "filename_prefix": "unnoodle/01a14184-9fde-73ec-aba4-60b282a0708f",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "3d69af69621a46b281a60adf2c108f5b",
+        "create_time": 1792100676857
+      },
+      ["16"]
+    ],
+    "outputs": {
+      "16": {
+        "images": [
+          {
+            "filename": "01a14184-9fde-73ec-aba4-60b282a0708f_00001_.mp4",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "d12950fc-6d61-4fa4-897e-97d245f2e623",
+            "timestamp": 1792100693922
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"],
+            "prompt_id": "d12950fc-6d61-4fa4-897e-97d245f2e623",
+            "timestamp": 1792100693925
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "d12950fc-6d61-4fa4-897e-97d245f2e623",
+            "timestamp": 1792100693927
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "16": {
+        "node_id": "16",
+        "display_node": "16",
+        "parent_node": null,
+        "real_node_id": "16"
+      }
+    }
+  },
+  "25231ed1-d4bc-4fed-b573-dc8652e79ee7": {
+    "prompt": [
+      12,
+      "25231ed1-d4bc-4fed-b573-dc8652e79ee7",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14182-ca11-7237-a60f-afb23d8f1999.png"
+          }
+        },
+        "8": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["7", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 1
+          }
+        },
+        "9": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14181-21a8-74fe-a2b9-5c103134db4f.png"
+          }
+        },
+        "10": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["9", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 1
+          }
+        },
+        "11": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "<Picture 1> pours tea from the teapot in <Picture 2> into a cup, then smiles and says \"cheers\" to the camera",
+            "width": 416,
+            "height": 640,
+            "length": 124,
+            "ref_image_size": "match",
+            "ref_images.ref_image_0": ["8", 0],
+            "ref_images.ref_image_1": ["10", 0]
+          }
+        },
+        "12": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 3812044278
+          }
+        },
+        "13": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["11", 0]
+          }
+        },
+        "14": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "15": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "16": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["12", 0],
+            "guider": ["13", 0],
+            "sampler": ["14", 0],
+            "sigmas": ["15", 0],
+            "latent_image": ["11", 1]
+          }
+        },
+        "17": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["16", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "18": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["16", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "19": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["17", 0],
+            "audio": ["18", 0],
+            "fps": 24.0
+          }
+        },
+        "20": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["19", 0],
+            "filename_prefix": "unnoodle/01a14186-c420-7123-a861-fed0e5414cca",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "1134a8778d5440eea50721964afbdd3f",
+        "create_time": 1792100722762
+      },
+      ["20"]
+    ],
+    "outputs": {
+      "20": {
+        "images": [
+          {
+            "filename": "01a14186-c420-7123-a861-fed0e5414cca_00001_.mp4",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "25231ed1-d4bc-4fed-b573-dc8652e79ee7",
+            "timestamp": 1792100722763
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6", "14", "15"],
+            "prompt_id": "25231ed1-d4bc-4fed-b573-dc8652e79ee7",
+            "timestamp": 1792100722769
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "25231ed1-d4bc-4fed-b573-dc8652e79ee7",
+            "timestamp": 1792100808593
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "20": {
+        "node_id": "20",
+        "display_node": "20",
+        "parent_node": null,
+        "real_node_id": "20"
+      }
+    }
+  },
+  "01061d1d-1a14-4a28-90b9-367ccaa99d94": {
+    "prompt": [
+      13,
+      "01061d1d-1a14-4a28-90b9-367ccaa99d94",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "unnoodle/01a14180-97f3-7415-b33b-8b45cfdd129f.png"
+          }
+        },
+        "8": {
+          "class_type": "ImageScaleToTotalPixels",
+          "inputs": {
+            "image": ["7", 0],
+            "upscale_method": "lanczos",
+            "megapixels": 1.0,
+            "resolution_steps": 1
+          }
+        },
+        "9": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "unnoodle/01a14181-d50b-7635-aa37-fa95b8cff0dc.mp4"
+          }
+        },
+        "10": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": ["9", 0]
+          }
+        },
+        "11": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "unnoodle/01a14186-7f1b-75b9-9e8e-e5ada5f8388d.mp4"
+          }
+        },
+        "12": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": ["11", 0]
+          }
+        },
+        "13": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "the camera moves through the market street from <Video 1>; the musician from <Video 2> rides the bicycle from <Picture 1> through the crowd, ringing its bell",
+            "width": 480,
+            "height": 864,
+            "length": 243,
+            "ref_image_size": "match",
+            "ref_images.ref_image_0": ["8", 0],
+            "ref_videos.ref_video_0": ["10", 0],
+            "ref_videos.ref_video_1": ["12", 0]
+          }
+        },
+        "14": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 1543801767
+          }
+        },
+        "15": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["13", 0]
+          }
+        },
+        "16": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "17": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "18": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["14", 0],
+            "guider": ["15", 0],
+            "sampler": ["16", 0],
+            "sigmas": ["17", 0],
+            "latent_image": ["13", 1]
+          }
+        },
+        "19": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["18", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "20": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["18", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "21": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["19", 0],
+            "audio": ["20", 0],
+            "fps": 24.0
+          }
+        },
+        "22": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["21", 0],
+            "filename_prefix": "unnoodle/01a14186-c44b-765f-b632-726216f562b0",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "85155d5f13924fa2bdc8ee797c524004",
+        "create_time": 1792100828290
+      },
+      ["22"]
+    ],
+    "outputs": {
+      "11": {
+        "images": [
+          {
+            "filename": "01a14186-7f1b-75b9-9e8e-e5ada5f8388d.mp4",
+            "subfolder": "unnoodle",
+            "type": "input"
+          }
+        ],
+        "animated": [true]
+      },
+      "9": {
+        "images": [
+          {
+            "filename": "01a14181-d50b-7635-aa37-fa95b8cff0dc.mp4",
+            "subfolder": "unnoodle",
+            "type": "input"
+          }
+        ],
+        "animated": [true]
+      },
+      "22": {
+        "images": [
+          {
+            "filename": "01a14186-c44b-765f-b632-726216f562b0_00001_.mp4",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "01061d1d-1a14-4a28-90b9-367ccaa99d94",
+            "timestamp": 1792100828292
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6", "16", "17"],
+            "prompt_id": "01061d1d-1a14-4a28-90b9-367ccaa99d94",
+            "timestamp": 1792100828300
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "01061d1d-1a14-4a28-90b9-367ccaa99d94",
+            "timestamp": 1792101679500
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "11": {
+        "node_id": "11",
+        "display_node": "11",
+        "parent_node": null,
+        "real_node_id": "11"
+      },
+      "9": {
+        "node_id": "9",
+        "display_node": "9",
+        "parent_node": null,
+        "real_node_id": "9"
+      },
+      "22": {
+        "node_id": "22",
+        "display_node": "22",
+        "parent_node": null,
+        "real_node_id": "22"
+      }
+    }
+  },
+  "ec2dd245-695f-4dda-9b0b-92004eccf337": {
+    "prompt": [
+      14,
+      "ec2dd245-695f-4dda-9b0b-92004eccf337",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+            "type": "krea2",
+            "device": "default"
+          }
+        },
+        "3": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "4": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "text": "a paper boat on a puddle, close-up",
+            "clip": ["2", 0]
+          }
+        },
+        "5": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": ["4", 0]
+          }
+        },
+        "6": {
+          "class_type": "EmptyLatentImage",
+          "inputs": {
+            "width": 720,
+            "height": 720,
+            "batch_size": 1
+          }
+        },
+        "7": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": ["1", 0],
+            "seed": 2789367800,
+            "steps": 8,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": ["4", 0],
+            "negative": ["5", 0],
+            "latent_image": ["6", 0],
+            "denoise": 1.0
+          }
+        },
+        "8": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["7", 0],
+            "vae": ["3", 0]
+          }
+        },
+        "9": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": ["8", 0],
+            "filename_prefix": "unnoodle/01a14187-d0c4-7322-a4e5-02f4017fab37"
+          }
+        }
+      },
+      {
+        "client_id": "516f57b7067841e1b1c1d252213a12a3",
+        "create_time": 1792101688693
+      },
+      ["9"]
+    ],
+    "outputs": {
+      "9": {
+        "images": [
+          {
+            "filename": "01a14187-d0c4-7322-a4e5-02f4017fab37_00001_.png",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "ec2dd245-695f-4dda-9b0b-92004eccf337",
+            "timestamp": 1792101688694
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "ec2dd245-695f-4dda-9b0b-92004eccf337",
+            "timestamp": 1792101688695
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "ec2dd245-695f-4dda-9b0b-92004eccf337",
+            "timestamp": 1792101700620
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "9": {
+        "node_id": "9",
+        "display_node": "9",
+        "parent_node": null,
+        "real_node_id": "9"
+      }
+    }
+  },
+  "6f65d9b5-8d50-4aa6-91f7-86b73cf34870": {
+    "prompt": [
+      15,
+      "6f65d9b5-8d50-4aa6-91f7-86b73cf34870",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "the camera moves through a busy night market street in the rain; a musician rides a red bicycle through the crowd, ringing its bell",
+            "width": 480,
+            "height": 864,
+            "length": 243,
+            "ref_image_size": "match"
+          }
+        },
+        "8": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 452252857
+          }
+        },
+        "9": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["7", 0]
+          }
+        },
+        "10": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "11": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "12": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["8", 0],
+            "guider": ["9", 0],
+            "sampler": ["10", 0],
+            "sigmas": ["11", 0],
+            "latent_image": ["7", 1]
+          }
+        },
+        "13": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["12", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "14": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["12", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "15": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["13", 0],
+            "audio": ["14", 0],
+            "fps": 24.0
+          }
+        },
+        "16": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["15", 0],
+            "filename_prefix": "unnoodle/01a14192-d372-7134-9cc3-a9e9340684d2",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "a353a0e8985d473ca1b4a4ec238e809c",
+        "create_time": 1792101704153
+      },
+      ["16"]
+    ],
+    "outputs": {
+      "16": {
+        "images": [
+          {
+            "filename": "01a14192-d372-7134-9cc3-a9e9340684d2_00001_.mp4",
+            "subfolder": "unnoodle",
+            "type": "output"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "6f65d9b5-8d50-4aa6-91f7-86b73cf34870",
+            "timestamp": 1792101704154
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "6f65d9b5-8d50-4aa6-91f7-86b73cf34870",
+            "timestamp": 1792101704157
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "6f65d9b5-8d50-4aa6-91f7-86b73cf34870",
+            "timestamp": 1792101957066
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "16": {
+        "node_id": "16",
+        "display_node": "16",
+        "parent_node": null,
+        "real_node_id": "16"
+      }
+    }
+  },
+  "d619aaad-d252-447f-98f7-dffcb1d01698": {
+    "prompt": [
+      17,
+      "d619aaad-d252-447f-98f7-dffcb1d01698",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "unnoodle/sweep-384x672-6s.mp4"
+          }
+        },
+        "8": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": ["7", 0]
+          }
+        },
+        "9": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "the camera moves through the market street from <Video 1>, people walk past with umbrellas, rain falls",
+            "width": 384,
+            "height": 672,
+            "length": 124,
+            "ref_image_size": "match",
+            "ref_videos.ref_video_0": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 7
+          }
+        },
+        "11": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["9", 0]
+          }
+        },
+        "12": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "13": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "14": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["10", 0],
+            "guider": ["11", 0],
+            "sampler": ["12", 0],
+            "sigmas": ["13", 0],
+            "latent_image": ["9", 1]
+          }
+        },
+        "15": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "16": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "17": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["15", 0],
+            "audio": ["16", 0],
+            "fps": 24.0
+          }
+        },
+        "18": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["17", 0],
+            "filename_prefix": "unnoodle/sweep",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "bf7f544f4a7d4f4d95a42e9b382a2582",
+        "create_time": 1792101993739
+      },
+      ["18"]
+    ],
+    "outputs": {
+      "7": {
+        "images": [
+          {
+            "filename": "sweep-384x672-6s.mp4",
+            "subfolder": "unnoodle",
+            "type": "input"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "error",
+      "completed": false,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "d619aaad-d252-447f-98f7-dffcb1d01698",
+            "timestamp": 1792101993741
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6", "12", "13"],
+            "prompt_id": "d619aaad-d252-447f-98f7-dffcb1d01698",
+            "timestamp": 1792101993745
+          }
+        ],
+        [
+          "execution_interrupted",
+          {
+            "prompt_id": "d619aaad-d252-447f-98f7-dffcb1d01698",
+            "node_id": "14",
+            "node_type": "SamplerCustomAdvanced",
+            "executed": ["8", "9", "10", "11", "7"],
+            "timestamp": 1792102071528
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "7": {
+        "node_id": "7",
+        "display_node": "7",
+        "parent_node": null,
+        "real_node_id": "7"
+      }
+    }
+  },
+  "84628e25-9153-45a3-8ce5-a172abdbfb49": {
+    "prompt": [
+      18,
+      "84628e25-9153-45a3-8ce5-a172abdbfb49",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "unnoodle/sweep-544x960-6s.mp4"
+          }
+        },
+        "8": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": ["7", 0]
+          }
+        },
+        "9": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "the camera moves through the market street from <Video 1>, people walk past with umbrellas, rain falls",
+            "width": 384,
+            "height": 672,
+            "length": 124,
+            "ref_image_size": "match",
+            "ref_videos.ref_video_0": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 7
+          }
+        },
+        "11": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["9", 0]
+          }
+        },
+        "12": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "13": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "14": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["10", 0],
+            "guider": ["11", 0],
+            "sampler": ["12", 0],
+            "sigmas": ["13", 0],
+            "latent_image": ["9", 1]
+          }
+        },
+        "15": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "16": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "17": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["15", 0],
+            "audio": ["16", 0],
+            "fps": 24.0
+          }
+        },
+        "18": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["17", 0],
+            "filename_prefix": "unnoodle/sweep",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "155454318bfd426ebcf36ef8c5febd32",
+        "create_time": 1792102080220
+      },
+      ["18"]
+    ],
+    "outputs": {
+      "7": {
+        "images": [
+          {
+            "filename": "sweep-544x960-6s.mp4",
+            "subfolder": "unnoodle",
+            "type": "input"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "error",
+      "completed": false,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "84628e25-9153-45a3-8ce5-a172abdbfb49",
+            "timestamp": 1792102080222
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6", "10", "12", "13"],
+            "prompt_id": "84628e25-9153-45a3-8ce5-a172abdbfb49",
+            "timestamp": 1792102080226
+          }
+        ],
+        [
+          "execution_interrupted",
+          {
+            "prompt_id": "84628e25-9153-45a3-8ce5-a172abdbfb49",
+            "node_id": "14",
+            "node_type": "SamplerCustomAdvanced",
+            "executed": ["8", "9", "11", "7"],
+            "timestamp": 1792102184926
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "7": {
+        "node_id": "7",
+        "display_node": "7",
+        "parent_node": null,
+        "real_node_id": "7"
+      }
+    }
+  },
+  "6b3cea0e-6e94-4ead-a881-4d9753d08ce5": {
+    "prompt": [
+      19,
+      "6b3cea0e-6e94-4ead-a881-4d9753d08ce5",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "unnoodle/sweep-768x1344-6s.mp4"
+          }
+        },
+        "8": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": ["7", 0]
+          }
+        },
+        "9": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "the camera moves through the market street from <Video 1>, people walk past with umbrellas, rain falls",
+            "width": 384,
+            "height": 672,
+            "length": 124,
+            "ref_image_size": "match",
+            "ref_videos.ref_video_0": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 7
+          }
+        },
+        "11": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["9", 0]
+          }
+        },
+        "12": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "13": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "14": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["10", 0],
+            "guider": ["11", 0],
+            "sampler": ["12", 0],
+            "sigmas": ["13", 0],
+            "latent_image": ["9", 1]
+          }
+        },
+        "15": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "16": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "17": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["15", 0],
+            "audio": ["16", 0],
+            "fps": 24.0
+          }
+        },
+        "18": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["17", 0],
+            "filename_prefix": "unnoodle/sweep",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "ed94af9ed65b47adab6b8cbe9f7407d7",
+        "create_time": 1792102192886
+      },
+      ["18"]
+    ],
+    "outputs": {
+      "7": {
+        "images": [
+          {
+            "filename": "sweep-768x1344-6s.mp4",
+            "subfolder": "unnoodle",
+            "type": "input"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "error",
+      "completed": false,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "6b3cea0e-6e94-4ead-a881-4d9753d08ce5",
+            "timestamp": 1792102192889
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6", "10", "12", "13"],
+            "prompt_id": "6b3cea0e-6e94-4ead-a881-4d9753d08ce5",
+            "timestamp": 1792102192893
+          }
+        ],
+        [
+          "execution_interrupted",
+          {
+            "prompt_id": "6b3cea0e-6e94-4ead-a881-4d9753d08ce5",
+            "node_id": "14",
+            "node_type": "SamplerCustomAdvanced",
+            "executed": ["8", "9", "11", "7"],
+            "timestamp": 1792102375994
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "7": {
+        "node_id": "7",
+        "display_node": "7",
+        "parent_node": null,
+        "real_node_id": "7"
+      }
+    }
+  },
+  "3999d010-005f-45ef-a05c-bebb02a8ba8c": {
+    "prompt": [
+      20,
+      "3999d010-005f-45ef-a05c-bebb02a8ba8c",
+      {
+        "1": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "2": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": ["1", 0],
+            "lora_name": "minimax_h3_turbo_v4_step600_ema_pruned_comfyui.safetensors",
+            "strength_model": 1.0
+          }
+        },
+        "3": {
+          "class_type": "MiniMaxH3SigmaShift",
+          "inputs": {
+            "model": ["2", 0],
+            "shift_video": 12.0,
+            "shift_audio": 4.0
+          }
+        },
+        "4": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "type": "minimax",
+            "device": "default"
+          }
+        },
+        "5": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+          }
+        },
+        "6": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+          }
+        },
+        "7": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "unnoodle/sweep-480x864-11s.mp4"
+          }
+        },
+        "8": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": ["7", 0]
+          }
+        },
+        "9": {
+          "class_type": "MiniMaxH3ReferenceToVideo",
+          "inputs": {
+            "clip": ["4", 0],
+            "vae": ["5", 0],
+            "audio_vae": ["6", 0],
+            "prompt": "the camera moves through the market street from <Video 1>, people walk past with umbrellas, rain falls",
+            "width": 384,
+            "height": 672,
+            "length": 243,
+            "ref_image_size": "match",
+            "ref_videos.ref_video_0": ["8", 0]
+          }
+        },
+        "10": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 7
+          }
+        },
+        "11": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": ["3", 0],
+            "conditioning": ["9", 0]
+          }
+        },
+        "12": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "13": {
+          "class_type": "BasicScheduler",
+          "inputs": {
+            "model": ["3", 0],
+            "scheduler": "beta",
+            "steps": 8,
+            "denoise": 1.0
+          }
+        },
+        "14": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": ["10", 0],
+            "guider": ["11", 0],
+            "sampler": ["12", 0],
+            "sigmas": ["13", 0],
+            "latent_image": ["9", 1]
+          }
+        },
+        "15": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["5", 0]
+          }
+        },
+        "16": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": ["14", 0],
+            "vae": ["6", 0]
+          }
+        },
+        "17": {
+          "class_type": "CreateVideo",
+          "inputs": {
+            "images": ["15", 0],
+            "audio": ["16", 0],
+            "fps": 24.0
+          }
+        },
+        "18": {
+          "class_type": "SaveVideo",
+          "inputs": {
+            "video": ["17", 0],
+            "filename_prefix": "unnoodle/sweep",
+            "format": "mp4",
+            "format.codec": "h264"
+          }
+        }
+      },
+      {
+        "client_id": "a57c8521974d470fabae18db2dcb7f56",
+        "create_time": 1792102384341
+      },
+      ["18"]
+    ],
+    "outputs": {
+      "7": {
+        "images": [
+          {
+            "filename": "sweep-480x864-11s.mp4",
+            "subfolder": "unnoodle",
+            "type": "input"
+          }
+        ],
+        "animated": [true]
+      }
+    },
+    "status": {
+      "status_str": "error",
+      "completed": false,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "3999d010-005f-45ef-a05c-bebb02a8ba8c",
+            "timestamp": 1792102384343
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": ["1", "2", "3", "4", "5", "6", "10", "12", "13"],
+            "prompt_id": "3999d010-005f-45ef-a05c-bebb02a8ba8c",
+            "timestamp": 1792102384348
+          }
+        ],
+        [
+          "execution_interrupted",
+          {
+            "prompt_id": "3999d010-005f-45ef-a05c-bebb02a8ba8c",
+            "node_id": "14",
+            "node_type": "SamplerCustomAdvanced",
+            "executed": ["8", "9", "11", "7"],
+            "timestamp": 1792102589068
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "7": {
+        "node_id": "7",
+        "display_node": "7",
+        "parent_node": null,
+        "real_node_id": "7"
+      }
+    }
+  }
+}

@@ -1,0 +1,668 @@
+{
+  "setup": {
+    "gpu": "RTX 5090 32 GB (RunPod secure cloud, $1.19/h), 108 GB container RAM",
+    "comfyui": "v0.39.1",
+    "transport": "SSH tunnel from the laptop to the pod; inputs uploaded and outputs downloaded through it",
+    "notes": "transfer_overhead_s is app_run_s minus the time ComfyUI spent; most of it is the tunnel (~0.5-0.7 MB/s)"
+  },
+  "runs": [
+    {
+      "name": "K0-interrupt",
+      "workflow": "krea2-turbo",
+      "status": "error",
+      "error": "This was stopped before it finished",
+      "quality": "medium",
+      "shape": "1:1",
+      "duration_s": null,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": null,
+      "output_bytes": null,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:38:08.881820+00:00",
+      "queue_wait_s": 0.02,
+      "app_run_s": 9.1,
+      "pod_start": 1792100291649,
+      "pod_exec_s": 7.53,
+      "log_executed_s": 7.53,
+      "cached_nodes": 0,
+      "sampler": [],
+      "model_loads": [],
+      "transfer_overhead_s": 1.57,
+      "progress_samples": null
+    },
+    {
+      "name": "K1.1",
+      "workflow": "krea2-turbo",
+      "status": "success",
+      "error": null,
+      "quality": "low",
+      "shape": "3:4",
+      "duration_s": null,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "624x832",
+      "output_bytes": 633321,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:38:08.915283+00:00",
+      "queue_wait_s": 20.09,
+      "app_run_s": 5.99,
+      "pod_start": 1792100311542,
+      "pod_exec_s": 3.38,
+      "log_executed_s": 3.38,
+      "cached_nodes": 6,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 0,
+          "done": true,
+          "total_s": 2,
+          "s_per_step": 0.273
+        }
+      ],
+      "model_loads": [
+        "Model Krea2 prepared for dynamic VRAM loading. 12530MB Staged",
+        "Model WanVAE prepared for dynamic VRAM loading. 241MB Staged"
+      ],
+      "transfer_overhead_s": 2.61,
+      "progress_samples": null
+    },
+    {
+      "name": "K1.0",
+      "workflow": "krea2-turbo",
+      "status": "success",
+      "error": null,
+      "quality": "low",
+      "shape": "3:4",
+      "duration_s": null,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "624x832",
+      "output_bytes": 704833,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:38:08.915283+00:00",
+      "queue_wait_s": 9.11,
+      "app_run_s": 10.95,
+      "pod_start": 1792100300702,
+      "pod_exec_s": 6.82,
+      "log_executed_s": 6.82,
+      "cached_nodes": 1,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 1,
+          "done": true,
+          "total_s": 2,
+          "s_per_step": 0.28
+        }
+      ],
+      "model_loads": [
+        "Model Krea2TEModel_ prepared for dynamic VRAM loading. 4999MB Staged",
+        "Model Krea2 prepared for dynamic VRAM loading. 12530MB Staged",
+        "Model WanVAE prepared for dynamic VRAM loading. 241MB Staged"
+      ],
+      "transfer_overhead_s": 4.13,
+      "progress_samples": null
+    },
+    {
+      "name": "K2",
+      "workflow": "krea2-turbo",
+      "status": "success",
+      "error": null,
+      "quality": "high",
+      "shape": "2:3",
+      "duration_s": null,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "1184x1776",
+      "output_bytes": 2096452,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:38:08.948938+00:00",
+      "queue_wait_s": 26.06,
+      "app_run_s": 18.94,
+      "pod_start": 1792100318026,
+      "pod_exec_s": 10.91,
+      "log_executed_s": 10.91,
+      "cached_nodes": 3,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 1,
+          "done": true,
+          "total_s": 8,
+          "s_per_step": 1.1
+        }
+      ],
+      "model_loads": [
+        "Model Krea2TEModel_ prepared for dynamic VRAM loading. 4999MB Staged",
+        "Model Krea2 prepared for dynamic VRAM loading. 12530MB Staged",
+        "Model WanVAE prepared for dynamic VRAM loading. 241MB Staged"
+      ],
+      "transfer_overhead_s": 8.03,
+      "progress_samples": null
+    },
+    {
+      "name": "K3",
+      "workflow": "krea2-turbo",
+      "status": "success",
+      "error": null,
+      "quality": "medium",
+      "shape": "1:1",
+      "duration_s": null,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "1024x1024",
+      "output_bytes": 927768,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:38:08.977573+00:00",
+      "queue_wait_s": 45.0,
+      "app_run_s": 10.26,
+      "pod_start": 1792100336580,
+      "pod_exec_s": 5.73,
+      "log_executed_s": 5.73,
+      "cached_nodes": 3,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 0,
+          "done": true,
+          "total_s": 4,
+          "s_per_step": 0.437
+        }
+      ],
+      "model_loads": [
+        "Model Krea2TEModel_ prepared for dynamic VRAM loading. 4999MB Staged",
+        "Model Krea2 prepared for dynamic VRAM loading. 12530MB Staged",
+        "Model WanVAE prepared for dynamic VRAM loading. 241MB Staged"
+      ],
+      "transfer_overhead_s": 4.53,
+      "progress_samples": null
+    },
+    {
+      "name": "K4",
+      "workflow": "krea2-turbo",
+      "status": "success",
+      "error": null,
+      "quality": "medium",
+      "shape": "9:16",
+      "duration_s": null,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "768x1360",
+      "output_bytes": 1429734,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:38:09.004185+00:00",
+      "queue_wait_s": 55.25,
+      "app_run_s": 18.57,
+      "pod_start": 1792100347004,
+      "pod_exec_s": 5.72,
+      "log_executed_s": 5.72,
+      "cached_nodes": 3,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 0,
+          "done": true,
+          "total_s": 3,
+          "s_per_step": 0.515
+        }
+      ],
+      "model_loads": [
+        "Model Krea2TEModel_ prepared for dynamic VRAM loading. 4999MB Staged",
+        "Model Krea2 prepared for dynamic VRAM loading. 12530MB Staged",
+        "Model WanVAE prepared for dynamic VRAM loading. 241MB Staged"
+      ],
+      "transfer_overhead_s": 12.85,
+      "progress_samples": null
+    },
+    {
+      "name": "E1",
+      "workflow": "flux2-klein-edit",
+      "status": "success",
+      "error": null,
+      "quality": "medium",
+      "shape": "same as first",
+      "duration_s": null,
+      "photos": 1,
+      "clips": 0,
+      "input_bytes": 2096452,
+      "input_sizes": ["1184x1776"],
+      "output": "832x1248",
+      "output_bytes": 1193983,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:39:55.378666+00:00",
+      "queue_wait_s": 0.04,
+      "app_run_s": 57.46,
+      "pod_start": 1792100419326,
+      "pod_exec_s": 27.39,
+      "log_executed_s": 27.4,
+      "cached_nodes": 0,
+      "sampler": [
+        {
+          "steps": 4,
+          "first_step_s": 1,
+          "done": true,
+          "total_s": 1,
+          "s_per_step": 0.61
+        }
+      ],
+      "model_loads": [
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged",
+        "Model Flux2TEModel_ prepared for dynamic VRAM loading. 8262MB Staged",
+        "Model Flux2 prepared for dynamic VRAM loading. 8996MB Staged",
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged"
+      ],
+      "transfer_overhead_s": 30.07,
+      "progress_samples": null
+    },
+    {
+      "name": "E2",
+      "workflow": "flux2-klein-edit",
+      "status": "success",
+      "error": null,
+      "quality": "low",
+      "shape": "4:3",
+      "duration_s": null,
+      "photos": 2,
+      "clips": 0,
+      "input_bytes": 189805,
+      "input_sizes": ["1184x1776", "1024x1024"],
+      "output": "832x624",
+      "output_bytes": 668970,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:39:55.430975+00:00",
+      "queue_wait_s": 57.48,
+      "app_run_s": 12.33,
+      "pod_start": 1792100456252,
+      "pod_exec_s": 7.18,
+      "log_executed_s": 7.19,
+      "cached_nodes": 4,
+      "sampler": [
+        {
+          "steps": 4,
+          "first_step_s": 1,
+          "done": true,
+          "total_s": 2,
+          "s_per_step": 0.806
+        }
+      ],
+      "model_loads": [
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged",
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged",
+        "Model Flux2TEModel_ prepared for dynamic VRAM loading. 8262MB Staged",
+        "Model Flux2 prepared for dynamic VRAM loading. 8996MB Staged",
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged"
+      ],
+      "transfer_overhead_s": 5.15,
+      "progress_samples": null
+    },
+    {
+      "name": "E3.0",
+      "workflow": "flux2-klein-edit",
+      "status": "success",
+      "error": null,
+      "quality": "high",
+      "shape": "same as first",
+      "duration_s": null,
+      "photos": 3,
+      "clips": 0,
+      "input_bytes": 3729053,
+      "input_sizes": ["1184x1776", "624x832", "1024x1024"],
+      "output": "1184x1776",
+      "output_bytes": 3214647,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:39:55.472281+00:00",
+      "queue_wait_s": 69.78,
+      "app_run_s": 39.15,
+      "pod_start": 1792100481855,
+      "pod_exec_s": 14.06,
+      "log_executed_s": 14.06,
+      "cached_nodes": 4,
+      "sampler": [
+        {
+          "steps": 4,
+          "first_step_s": 2,
+          "done": true,
+          "total_s": 5,
+          "s_per_step": 2.11
+        }
+      ],
+      "model_loads": [
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged",
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged",
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged",
+        "Model Flux2TEModel_ prepared for dynamic VRAM loading. 8262MB Staged",
+        "Model Flux2 prepared for dynamic VRAM loading. 8996MB Staged",
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged"
+      ],
+      "transfer_overhead_s": 25.09,
+      "progress_samples": null
+    },
+    {
+      "name": "E3.1",
+      "workflow": "flux2-klein-edit",
+      "status": "success",
+      "error": null,
+      "quality": "high",
+      "shape": "same as first",
+      "duration_s": null,
+      "photos": 3,
+      "clips": 0,
+      "input_bytes": 3729053,
+      "input_sizes": ["1184x1776", "624x832", "1024x1024"],
+      "output": "1184x1776",
+      "output_bytes": 3407090,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:39:55.472281+00:00",
+      "queue_wait_s": 108.96,
+      "app_run_s": 36.45,
+      "pod_start": 1792100518524,
+      "pod_exec_s": 10.46,
+      "log_executed_s": 10.46,
+      "cached_nodes": 24,
+      "sampler": [
+        {
+          "steps": 4,
+          "first_step_s": 2,
+          "done": true,
+          "total_s": 5,
+          "s_per_step": 2.11
+        }
+      ],
+      "model_loads": [
+        "Model Flux2 prepared for dynamic VRAM loading. 8996MB Staged",
+        "Model AutoencoderKL prepared for dynamic VRAM loading. 160MB Staged"
+      ],
+      "transfer_overhead_s": 25.99,
+      "progress_samples": null
+    },
+    {
+      "name": "V1",
+      "workflow": "minimax-h3",
+      "status": "success",
+      "error": null,
+      "quality": "low",
+      "shape": "16:9",
+      "duration_s": 5.0,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "672x384",
+      "output_bytes": 1235318,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:42:53.152773+00:00",
+      "queue_wait_s": 100.82,
+      "app_run_s": 21.86,
+      "pod_start": 1792100693922,
+      "pod_exec_s": 0.01,
+      "log_executed_s": 0.01,
+      "cached_nodes": 16,
+      "sampler": [],
+      "model_loads": [],
+      "transfer_overhead_s": 21.85,
+      "progress_samples": null
+    },
+    {
+      "name": "V2",
+      "workflow": "minimax-h3",
+      "status": "success",
+      "error": null,
+      "quality": "low",
+      "shape": "same as first",
+      "duration_s": 5.0,
+      "photos": 2,
+      "clips": 0,
+      "input_bytes": 2121751,
+      "input_sizes": ["832x1248", "1024x1024"],
+      "output": "416x640",
+      "output_bytes": 1105016,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:45:13.499205+00:00",
+      "queue_wait_s": 0.03,
+      "app_run_s": 95.79,
+      "pod_start": 1792100722763,
+      "pod_exec_s": 85.83,
+      "log_executed_s": 85.83,
+      "cached_nodes": 8,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 5,
+          "done": true,
+          "total_s": 32,
+          "s_per_step": 4.14
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged",
+        "Model MiniMaxH3AudioVAE prepared for dynamic VRAM loading. 576MB Staged",
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged"
+      ],
+      "transfer_overhead_s": 9.96,
+      "progress_samples": null
+    },
+    {
+      "name": "V3",
+      "workflow": "minimax-h3",
+      "status": "success",
+      "error": null,
+      "quality": "medium",
+      "shape": "same as first",
+      "duration_s": 10.0,
+      "photos": 1,
+      "clips": 2,
+      "input_bytes": 3309397,
+      "input_sizes": ["768x1366/6.0s", "672x384/5.167s", "624x832"],
+      "output": "480x864",
+      "output_bytes": 4590283,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:45:13.544447+00:00",
+      "queue_wait_s": 95.81,
+      "app_run_s": 876.84,
+      "pod_start": 1792100828292,
+      "pod_exec_s": 851.21,
+      "log_executed_s": 11.93,
+      "cached_nodes": 8,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 82,
+          "done": true,
+          "total_s": 652,
+          "s_per_step": 81.78
+        },
+        {
+          "steps": 8,
+          "first_step_s": 1,
+          "done": true,
+          "total_s": 2,
+          "s_per_step": 0.254
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged",
+        "Model MiniMaxH3AudioVAE prepared for dynamic VRAM loading. 576MB Staged",
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model Krea2TEModel_ prepared for dynamic VRAM loading. 4999MB Staged",
+        "Model Krea2 prepared for dynamic VRAM loading. 12530MB Staged",
+        "Model WanVAE prepared for dynamic VRAM loading. 241MB Staged"
+      ],
+      "transfer_overhead_s": 25.63,
+      "progress_samples": null
+    },
+    {
+      "name": "K5-behind-videos",
+      "workflow": "krea2-turbo",
+      "status": "success",
+      "error": null,
+      "quality": "low",
+      "shape": "1:1",
+      "duration_s": null,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "720x720",
+      "output_bytes": 522140,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:46:22.277581+00:00",
+      "queue_wait_s": 903.94,
+      "app_run_s": 15.34,
+      "pod_start": 1792101688694,
+      "pod_exec_s": 11.93,
+      "log_executed_s": 252.91,
+      "cached_nodes": 0,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 16,
+          "done": true,
+          "total_s": 114,
+          "s_per_step": 14.75
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged",
+        "Model MiniMaxH3AudioVAE prepared for dynamic VRAM loading. 576MB Staged",
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged"
+      ],
+      "transfer_overhead_s": 3.41,
+      "progress_samples": null
+    },
+    {
+      "name": "V4-no-clips",
+      "workflow": "minimax-h3",
+      "status": "success",
+      "error": null,
+      "quality": "medium",
+      "shape": "9:16",
+      "duration_s": 10.0,
+      "photos": 0,
+      "clips": 0,
+      "input_bytes": 0,
+      "input_sizes": [],
+      "output": "480x864",
+      "output_bytes": 7459531,
+      "attempts": 1,
+      "created_at": "2026-10-15T21:58:23.861361+00:00",
+      "queue_wait_s": 197.71,
+      "app_run_s": 263.27,
+      "pod_start": 1792101704154,
+      "pod_exec_s": 252.91,
+      "log_executed_s": 77.79,
+      "cached_nodes": 0,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 10
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged"
+      ],
+      "transfer_overhead_s": 10.36,
+      "progress_samples": null
+    }
+  ],
+  "pod_runs_without_a_generation": {
+    "f80f185e-969f-48ff-9b24-8f64a35af3c9": {
+      "status": "success",
+      "pod_start": 1792100575811,
+      "pod_exec_s": 117.67,
+      "log_executed_s": 117.68,
+      "cached_nodes": 1,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 5,
+          "done": true,
+          "total_s": 28,
+          "s_per_step": 3.56
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged",
+        "Model MiniMaxH3AudioVAE prepared for dynamic VRAM loading. 576MB Staged",
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged"
+      ]
+    },
+    "d619aaad-d252-447f-98f7-dffcb1d01698": {
+      "status": "error",
+      "pod_start": 1792101993741,
+      "pod_exec_s": 77.79,
+      "log_executed_s": 104.71,
+      "cached_nodes": 8,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 17
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged"
+      ]
+    },
+    "84628e25-9153-45a3-8ce5-a172abdbfb49": {
+      "status": "error",
+      "pod_start": 1792102080222,
+      "pod_exec_s": 104.7,
+      "log_executed_s": 183.11,
+      "cached_nodes": 9,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 36
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged"
+      ]
+    },
+    "6b3cea0e-6e94-4ead-a881-4d9753d08ce5": {
+      "status": "error",
+      "pod_start": 1792102192889,
+      "pod_exec_s": 183.1,
+      "log_executed_s": 204.73,
+      "cached_nodes": 9,
+      "sampler": [
+        {
+          "steps": 8,
+          "first_step_s": 35
+        }
+      ],
+      "model_loads": [
+        "Model MiniMaxH3VideoVAE prepared for dynamic VRAM loading. 4965MB Staged",
+        "Model MiniMaxH3TEModel_ prepared for dynamic VRAM loading. 14956MB Staged",
+        "Model MiniMaxH3 prepared for dynamic VRAM loading. 19995MB Staged"
+      ]
+    }
+  }
+}
