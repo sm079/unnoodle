@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app import users
 from app.accounts import COOKIE
 from app.main import create_app
-from app.models import User, UserSession
+from app.models import FailedSignIn, User, UserSession
 from app.settings import Settings
 from tests.conftest import sign_up
 
@@ -147,3 +147,41 @@ def test_the_command_line_refuses_a_short_password(
         run_users(monkeypatch, settings, "create", "me@example.com", password="short")
     with Session(engine) as session:
         assert session.scalars(select(User)).first() is None
+
+
+def test_too_many_wrong_passwords_lock_the_email_for_a_while(client: TestClient, engine: Engine) -> None:
+    sign_up(client)
+    client.post("/auth/sign-out")
+    for _ in range(5):
+        assert sign_in(client, password="wrong horse") == 401
+    # Refused even with the right password, until the window passes
+    locked = client.post("/auth/sign-in", json={"email": "me@example.com", "password": "correct horse"})
+    assert locked.status_code == 429
+    assert locked.json()["detail"] == "Too many wrong passwords. Try again in 15 minutes."
+    assert locked.headers["retry-after"] == "900"
+    # Another address isn't affected
+    assert sign_in(client, email="other@example.com", password="anything") == 401
+
+    with Session(engine) as session:
+        session.execute(update(FailedSignIn).values(created_at=datetime.now(UTC) - timedelta(minutes=15)))
+        session.commit()
+    assert sign_in(client) == 200
+
+
+def test_an_email_without_an_account_is_limited_the_same_way(client: TestClient) -> None:
+    # So the limit doesn't reveal which addresses have accounts either
+    for _ in range(5):
+        assert sign_in(client, email="nobody@example.com") == 401
+    assert sign_in(client, email="nobody@example.com") == 429
+
+
+def test_signing_in_clears_the_wrong_passwords_before_it(client: TestClient) -> None:
+    sign_up(client)
+    client.post("/auth/sign-out")
+    for _ in range(4):
+        sign_in(client, password="wrong horse")
+    assert sign_in(client) == 200
+    client.post("/auth/sign-out")
+    for _ in range(4):
+        assert sign_in(client, password="wrong horse") == 401
+    assert sign_in(client) == 200
