@@ -395,17 +395,29 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
                     labels={{ ...shapeLabels, first: first ? `Same as ${handleOf(kinds, 0)}` : '' }}
                     onChange={value => setSetting('aspect_ratio', value as Shape)}
                   />
-                  {pipeline.durations_s.length > 0 && (
-                    <OptionChip
-                      label="Length"
-                      icon={<ClockIcon strokeWidth={2.5} />}
-                      value={String(settings.duration_s)}
-                      options={pipeline.durations_s.map(String)}
-                      labels={Object.fromEntries(pipeline.durations_s.map(s => [s, `${s} sec`]))}
-                      onChange={value => setSetting('duration_s', Number(value))}
-                      className={enterClass}
-                    />
-                  )}
+                  <AnimatePresence initial={false}>
+                    {pipeline.durations_s.length > 0 && (
+                      <m.div
+                        key="length"
+                        // Opens its own room, so the chips after it slide over instead of jumping; the negative margin
+                        // cancels the row gap while it's closed
+                        initial={{ width: 0, opacity: 0, marginLeft: '-0.375rem' }}
+                        animate={{ width: 'auto', opacity: 1, marginLeft: '0rem' }}
+                        exit={{ width: 0, opacity: 0, marginLeft: '-0.375rem' }}
+                        transition={{ type: 'spring', bounce: 0.15, visualDuration: 0.35 }}
+                        className="shrink-0 overflow-hidden"
+                      >
+                        <OptionChip
+                          label="Length"
+                          icon={<ClockIcon strokeWidth={2.5} />}
+                          value={String(settings.duration_s)}
+                          options={pipeline.durations_s.map(String)}
+                          labels={Object.fromEntries(pipeline.durations_s.map(s => [s, `${s} sec`]))}
+                          onChange={value => setSetting('duration_s', Number(value))}
+                        />
+                      </m.div>
+                    )}
+                  </AnimatePresence>
                   <CountStepper count={settings.count} max={MAX_QUEUED} onChange={count => setSetting('count', count)} />
                 </>
               )}
@@ -528,8 +540,6 @@ function GenerateButton({ disabled, busy, cost }: { disabled: boolean; busy: boo
 // Controls dip slightly while pressed and spring back on release
 const chipClass =
   "flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-2.5 text-sm font-semibold whitespace-nowrap text-white transition-[color,background-color,scale] duration-200 ease-spring outline-none hover:bg-[#3b3c3e] focus-visible:ring-2 focus-visible:ring-white/30 active:scale-[0.95] active:duration-100 disabled:opacity-40 data-[popup-open]:bg-[#3b3c3e] [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0";
-// Controls that come and go with the output type rise into place, one after another
-const enterClass = 'motion-safe:animate-rise [--rise-blur:3px] [--rise-distance:8px] [animation-duration:450ms]';
 const menuClass =
   'rounded-2xl border border-white/[0.07] bg-[#25282c]/90 p-1.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-0 backdrop-blur-xl';
 
