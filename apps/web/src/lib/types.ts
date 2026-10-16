@@ -31,3 +31,7 @@ export type Project = Schemas['ProjectOut'];
 export type Preferences = Schemas['PreferencesOut'];
 /** The signed-in account. */
 export type User = Schemas['UserOut'];
+/** What generating costs, in credits. */
+export type Prices = Schemas['Prices'];
+/** The signed-in account's balance, with the prices. */
+export type Credits = Schemas['CreditsOut'];

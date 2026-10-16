@@ -15,9 +15,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { api, messageOf } from '@/lib/api';
+import { useSWRConfig } from 'swr';
+import { api, messageOf, paths } from '@/lib/api';
 import { qualityLabels, shapeLabels } from '@/lib/capabilities';
-import { useAddToCache, useUploads, useWorkflows } from '@/lib/data';
+import { costOf } from '@/lib/credits';
+import { useAddToCache, useCredits, useUploads, useWorkflows } from '@/lib/data';
 import { handleOf } from '@/lib/mentions';
 import { menuItemClass, menuItemDelay } from '@/lib/motion';
 import { capabilityFor, route, type Attached, type Routed } from '@/lib/routing';
@@ -130,6 +132,13 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
   // Inputs that route nowhere say why on the route line, with Generate disabled. The line under the composer is
   // only for what went wrong: an upload or a request the API refused, or the workflows not loading.
   const status = problem ?? (workflows.error ? workflows.error.message : null);
+  const { data: credits } = useCredits();
+  const clips = draft.inputs.filter(i => i.asset.media_type === 'video').length;
+  const cost =
+    credits && workflow
+      ? costOf(credits.prices, mode, settings.quality, mode === 'video' ? settings.duration_s : null, clips) * settings.count
+      : null;
+  const short = credits && cost !== null && cost > credits.balance ? { cost, balance: credits.balance } : null;
 
   function update(patch: Partial<Draft>) {
     setProblem(null);
@@ -227,7 +236,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!workflow || uploading || sending) return;
+    if (!workflow || uploading || sending || short) return;
     if (draft.prompt.trim() === '') {
       promptRef.current?.focus();
       shake(promptRef.current);
@@ -384,14 +393,16 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
 
           <div className="@container flex flex-wrap items-center gap-2 lg:contents">
             <ModeToggle mode={mode} onChange={setMode} layout="row" className="lg:hidden" />
-            <GenerateButton disabled={!workflow || uploading || sending} busy={sending} />
+            <GenerateButton disabled={!workflow || uploading || sending || short !== null} busy={sending} cost={cost} />
           </div>
         </div>
 
-        {status && (
+        {status ? (
           <p role="status" className="px-3 pt-2 pb-1 text-sm text-[#e8a33d]">
             {status}
           </p>
+        ) : (
+          short && <NotEnoughCredits {...short} />
         )}
       </div>
 
@@ -457,7 +468,66 @@ function ModeToggle({
   );
 }
 
-function GenerateButton({ disabled, busy }: { disabled: boolean; busy: boolean }) {
+/** Why Generate is off for want of credits, and a place to put an invite code. */
+function NotEnoughCredits({ cost, balance }: { cost: number; balance: number }) {
+  const { mutate } = useSWRConfig();
+  const [code, setCode] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  // Its own form would be nested in the composer's, so the field submits on Enter by hand
+  async function redeem() {
+    if (redeeming || code.trim() === '') return;
+    setRedeeming(true);
+    setProblem(null);
+    try {
+      await mutate(paths.credits, api.redeem(code.trim()), { revalidate: false });
+      setCode('');
+    } catch (error) {
+      setProblem(messageOf(error));
+    } finally {
+      setRedeeming(false);
+    }
+  }
+
+  return (
+    <div role="status" className="flex flex-col gap-2 px-3 pt-2 pb-1.5 text-sm">
+      <p className="text-[#e8a33d]">
+        {balance === 0
+          ? `You have no credits yet. This needs ${cost}.`
+          : `This needs ${cost} ${cost === 1 ? 'credit' : 'credits'} and you have ${balance}.`}
+      </p>
+      <div className="flex gap-2">
+        <input
+          value={code}
+          onChange={event => {
+            setCode(event.target.value);
+            setProblem(null);
+          }}
+          onKeyDown={event => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            void redeem();
+          }}
+          aria-label="Invite code"
+          placeholder="Invite code"
+          autoCapitalize="characters"
+          autoComplete="off"
+          enterKeyHint="done"
+          disabled={redeeming}
+          // 16px at least, or iOS zooms the page in when the field gets focus
+          className="min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-base outline-none placeholder:text-[#7c7d7f] focus-visible:ring-2 focus-visible:ring-white/20 disabled:opacity-60"
+        />
+        <button type="button" onClick={() => void redeem()} disabled={redeeming || code.trim() === ''} className={chipClass}>
+          {redeeming ? 'Adding…' : 'Add credits'}
+        </button>
+      </div>
+      {problem && <p className="text-[#e8a33d]">{problem}</p>}
+    </div>
+  );
+}
+
+function GenerateButton({ disabled, busy, cost }: { disabled: boolean; busy: boolean; cost: number | null }) {
   return (
     <button
       type="submit"
@@ -473,6 +543,11 @@ function GenerateButton({ disabled, busy }: { disabled: boolean; busy: boolean }
       <span className="font-display text-sm font-extrabold tracking-[0.02em] uppercase font-stretch-[88%] lg:text-[0.9375rem]">
         Generate
       </span>
+      {cost !== null && (
+        <span className="text-xs font-semibold opacity-70 lg:absolute lg:bottom-3">
+          {cost} {cost === 1 ? 'credit' : 'credits'}
+        </span>
+      )}
     </button>
   );
 }

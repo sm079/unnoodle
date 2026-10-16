@@ -19,7 +19,7 @@ import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
 import { NewProjectForm } from '@/components/new-project';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { api } from '@/lib/api';
-import { useMe, usePreferences, useProjects } from '@/lib/data';
+import { useCredits, useMe, usePreferences, useProjects } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { allProjects, folder, home, sameView, type View } from '@/lib/views';
 
@@ -243,9 +243,10 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
   );
 }
 
-/** Who is signed in, and a way out. */
+/** Who is signed in, their credits, and a way out. */
 function Account({ email }: { email: string }) {
   const [leaving, setLeaving] = useState(false);
+  const { data: credits } = useCredits();
 
   async function signOut() {
     setLeaving(true);
@@ -268,7 +269,10 @@ function Account({ email }: { email: string }) {
       </IconTile>
       <span className={cn(collapsible, 'flex min-w-0 flex-1 flex-col text-left')}>
         <span className="truncate">Sign out</span>
-        <span className="truncate text-xs font-normal text-[#828282]">{email}</span>
+        <span className="truncate text-xs font-normal text-[#828282]">
+          {credits ? `${credits.balance} ${credits.balance === 1 ? 'credit' : 'credits'} · ` : ''}
+          {email}
+        </span>
       </span>
     </button>
   );
