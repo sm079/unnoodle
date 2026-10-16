@@ -5,10 +5,19 @@ dev/comfyui/custom_nodes to take a few seconds, report progress, fail on demand 
 prompt on the result, so the whole app can be tried on a laptop.
 """
 
-from app.catalogues.real import IMAGE_MEGAPIXELS, VIDEO_MEGAPIXELS
+from dataclasses import replace
+
+from app.catalogues.real import (
+    IMAGE_MEGAPIXELS,
+    MINIMAX_FRAMES,
+    VIDEO_MEGAPIXELS,
+    klein_seconds,
+    krea2_seconds,
+    minimax_seconds,
+)
 from app.graph import Graph, Link
 from app.models import Capability, InputRole, MediaType
-from app.workflows import Accepts, Job, Workflow
+from app.workflows import Accepts, Job, Work, Workflow
 
 
 def stamp(g: Graph, images: Link, job: Job, prompt: str) -> Link:
@@ -82,6 +91,12 @@ def video(job: Job) -> Graph:
     return g
 
 
+def video_seconds(work: Work) -> float:
+    # As long as the real video of that length, whose frame rate is higher
+    assert work.frames is not None
+    return minimax_seconds(replace(work, frames=MINIMAX_FRAMES[work.frames // DEV_VIDEO_FPS]))
+
+
 WORKFLOWS = [
     Workflow(
         id="dev-image",
@@ -91,6 +106,8 @@ WORKFLOWS = [
         description="A tinted canvas with the prompt written on it",
         build=image,
         megapixels=IMAGE_MEGAPIXELS,
+        # The real models' estimates, so Smart Queue orders the stand-ins as it would the real thing
+        estimate=krea2_seconds,
     ),
     Workflow(
         id="dev-edit",
@@ -101,6 +118,7 @@ WORKFLOWS = [
         build=edit,
         megapixels=IMAGE_MEGAPIXELS,
         accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
+        estimate=klein_seconds,
     ),
     Workflow(
         id="dev-video",
@@ -113,5 +131,6 @@ WORKFLOWS = [
         multiple=32,
         accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 9), Accepts(InputRole.REFERENCE, MediaType.VIDEO, 3)),
         frames={seconds: seconds * DEV_VIDEO_FPS for seconds in (5, 10, 15)},
+        estimate=video_seconds,
     ),
 ]

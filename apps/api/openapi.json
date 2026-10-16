@@ -387,6 +387,60 @@
           }
         }
       }
+    },
+    "/preferences": {
+      "get": {
+        "summary": "Get Preferences",
+        "operationId": "get_preferences_preferences_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Preferences",
+        "operationId": "update_preferences_preferences_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -889,6 +943,36 @@
           "seed"
         ],
         "title": "ParamsOut"
+      },
+      "PreferencesIn": {
+        "properties": {
+          "smart_queue": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Queue"
+          }
+        },
+        "type": "object",
+        "title": "PreferencesIn"
+      },
+      "PreferencesOut": {
+        "properties": {
+          "smart_queue": {
+            "type": "boolean",
+            "title": "Smart Queue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "smart_queue"
+        ],
+        "title": "PreferencesOut"
       },
       "ProjectIn": {
         "properties": {

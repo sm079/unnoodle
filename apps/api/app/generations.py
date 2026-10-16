@@ -24,7 +24,7 @@ from app.models import (
 )
 from app.routing import RoutingError, capability_for, route
 from app.worker import queue
-from app.workflows import AspectRatio, Workflow, WorkflowsDep
+from app.workflows import AspectRatio, Work, Workflow, WorkflowsDep, ratio_of
 
 # Seeds the app picks stay within 32 bits, which every sampler takes. Ones sent in may go up to the largest
 # integer a browser holds exactly.
@@ -143,6 +143,7 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
     p = body.params
+    estimated_s = estimate(workflow, p, [assets[i.asset_id] for i in body.inputs])
     seeds = [p.seed + n if p.seed is not None else secrets.randbelow(PICKED_SEEDS) for n in range(p.count)]
     generations = [
         Generation(
@@ -154,6 +155,7 @@ def create_generation(body: GenerationIn, session: SessionDep, workflows: Workfl
             aspect_ratio=p.aspect_ratio,
             duration_s=p.duration_s,
             seed=seed,
+            estimated_s=estimated_s,
             inputs=[
                 GenerationInput(position=n, role=i.role, asset=assets[i.asset_id]) for n, i in enumerate(body.inputs)
             ],
@@ -203,6 +205,22 @@ def check_params(workflow: Workflow, params: Params, attached: int) -> None:
             raise RequestError(f"Videos can be {offered} seconds long")
     elif params.duration_s is not None:
         raise RequestError("Only videos have a length")
+
+
+def estimate(workflow: Workflow, params: Params, attached: list[Asset]) -> float:
+    # The same size the worker will work out, from the shape asked for or the first attachment's
+    if params.aspect_ratio is not None:
+        ratio = ratio_of(params.aspect_ratio)
+    else:
+        ratio = (attached[0].width, attached[0].height)
+    work = Work(
+        size=workflow.size(params.quality, ratio),
+        frames=None if params.duration_s is None else workflow.frames[params.duration_s],
+        photos=sum(a.media_type is MediaType.IMAGE for a in attached),
+        # Only clips have a duration
+        clips=tuple((a.width, a.height, a.duration_s) for a in attached if a.duration_s is not None),
+    )
+    return workflow.estimate(work)
 
 
 def attached_assets(session: SessionDep, inputs: list[InputIn]) -> dict[uuid.UUID, Asset]:

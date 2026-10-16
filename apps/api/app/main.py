@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app import generations, health, media, projects, workflows
+from app import generations, health, media, preferences, projects, workflows
 from app.db import make_engine
 from app.settings import Settings
 
@@ -30,6 +30,7 @@ def create_app(settings: Settings | None = None, catalogue: dict[str, workflows.
     app.include_router(media.router)
     app.include_router(generations.router)
     app.include_router(projects.router)
+    app.include_router(preferences.router)
     app.mount(media.MEDIA_URL, StaticFiles(directory=settings.media_dir), name="media")
     return app
 

@@ -8,8 +8,8 @@ Every node is part of ComfyUI itself, so a plain install with the models in plac
 
 from app.graph import Graph, Link
 from app.models import Capability, InputRole, MediaType, Quality
-from app.video import CLIP_MEGAPIXELS
-from app.workflows import Accepts, Job, Workflow, size_for
+from app.video import CLIP_FPS, CLIP_MEGAPIXELS
+from app.workflows import Accepts, Job, Work, Workflow, size_for
 
 IMAGE_MEGAPIXELS = {Quality.LOW: 0.5, Quality.MEDIUM: 1.0, Quality.HIGH: 2.0}
 VIDEO_MEGAPIXELS = {Quality.LOW: 0.25, Quality.MEDIUM: 0.4, Quality.HIGH: 0.9}
@@ -176,6 +176,34 @@ def minimax_h3(job: Job) -> Graph:
     return g
 
 
+# Estimates, fitted to the runs on an RTX 5090 in dev/metrics/runpod-5090-2026-10-16. They leave out loading a model
+# that isn't in memory yet (10 to 60 s, depending on what ran before).
+
+
+def megapixels(size: tuple[int, int]) -> float:
+    return size[0] * size[1] / 1_000_000
+
+
+def krea2_seconds(work: Work) -> float:
+    return 2 + 4.5 * megapixels(work.size)
+
+
+def klein_seconds(work: Work) -> float:
+    return 4 + 4 * megapixels(work.size) + work.photos
+
+
+def minimax_seconds(work: Work) -> float:
+    """MiniMax's work grows with the megapixel-frames of the output and of each clip, as many of a clip's frames as
+    the output has (at most 0.4 MP each). Each of the 8 steps is part linear and part quadratic in them (attention),
+    and setting up and decoding are about a second per megapixel-frame. Within a quarter of the plain runs; the run
+    with two clips took 1.8 times this."""
+    assert work.frames is not None
+    load = megapixels(work.size) * work.frames
+    for width, height, seconds in work.clips:
+        load += min(megapixels((width, height)), CLIP_MEGAPIXELS) * min(round(seconds * CLIP_FPS), work.frames)
+    return 20 + load + 8 * (0.095 * load + 0.0007 * load**2)
+
+
 WORKFLOWS = [
     Workflow(
         id="krea2-turbo",
@@ -185,6 +213,7 @@ WORKFLOWS = [
         description="Pictures from a description",
         build=krea2,
         megapixels=IMAGE_MEGAPIXELS,
+        estimate=krea2_seconds,
     ),
     Workflow(
         id="flux2-klein-edit",
@@ -195,6 +224,7 @@ WORKFLOWS = [
         build=klein,
         megapixels=IMAGE_MEGAPIXELS,
         accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
+        estimate=klein_seconds,
     ),
     Workflow(
         id="minimax-h3",
@@ -208,5 +238,6 @@ WORKFLOWS = [
         accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 9), Accepts(InputRole.REFERENCE, MediaType.VIDEO, 3)),
         frames=MINIMAX_FRAMES,
         sound=True,
+        estimate=minimax_seconds,
     ),
 ]
