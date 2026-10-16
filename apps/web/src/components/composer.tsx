@@ -21,6 +21,7 @@ import { api, messageOf } from '@/lib/api';
 import { qualityLabels, shapeLabels } from '@/lib/capabilities';
 import { costOf } from '@/lib/credits';
 import { useAddToCache, useCredits, useUploads, usePipelines } from '@/lib/data';
+import { useDemo } from '@/lib/demo';
 import { handleOf } from '@/lib/mentions';
 import { menuItemClass, menuItemDelay, shake } from '@/lib/motion';
 import { capabilityFor, route, type Attached, type Routed } from '@/lib/routing';
@@ -110,6 +111,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
   const pipelines = usePipelines();
   const { data: library = [] } = useUploads();
   const addToCache = useAddToCache();
+  const demo = useDemo();
   const [mode, setMode] = useState<MediaType>('image');
   const [drafts, setDrafts] = useState(initialDrafts);
   const [sending, setSending] = useState(false);
@@ -245,6 +247,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
       shake(promptRef.current);
       return;
     }
+    if (demo) return demo('generate');
     // Not a dead end: the sheet says how far short it is, takes a code, and can carry on from there
     if (short) return setCreditsOpen(true);
     void send();
@@ -351,7 +354,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
                 type="button"
                 aria-label="Attach files"
                 disabled={full}
-                onClick={() => fileRef.current?.click()}
+                onClick={() => (demo ? demo('upload') : fileRef.current?.click())}
                 className={cn(chipClass, 'w-9 justify-center px-0')}
               >
                 <PlusIcon />
