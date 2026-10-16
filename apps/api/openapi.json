@@ -555,6 +555,9 @@
           },
           "429": {
             "description": "Too many waiting"
+          },
+          "503": {
+            "description": "The GPU is resting"
           }
         }
       },
@@ -1506,6 +1509,210 @@
           }
         }
       }
+    },
+    "/gpu": {
+      "get": {
+        "summary": "Get Gpu",
+        "operationId": "get_gpu_gpu_get",
+        "parameters": [
+          {
+            "name": "unnoodle_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unnoodle Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/gpu": {
+      "get": {
+        "summary": "Get Admin Gpu",
+        "operationId": "get_admin_gpu_admin_gpu_get",
+        "parameters": [
+          {
+            "name": "unnoodle_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unnoodle Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminGpuOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an admin"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/gpu/start": {
+      "post": {
+        "summary": "Start Gpu",
+        "description": "Asks for a GPU now, before anything is queued (it stops again after the idle time).",
+        "operationId": "start_gpu_admin_gpu_start_post",
+        "parameters": [
+          {
+            "name": "unnoodle_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unnoodle Session"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminGpuOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an admin"
+          },
+          "409": {
+            "description": "Already up"
+          },
+          "503": {
+            "description": "Off"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/gpu/stop": {
+      "post": {
+        "summary": "Stop Gpu",
+        "description": "Hands the GPU back now. Anything waiting for it fails with its credits back.",
+        "operationId": "stop_gpu_admin_gpu_stop_post",
+        "parameters": [
+          {
+            "name": "unnoodle_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unnoodle Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminGpuOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an admin"
+          },
+          "404": {
+            "description": "None up"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1656,6 +1863,58 @@
           "owner_email"
         ],
         "title": "AdminGenerationOut"
+      },
+      "AdminGpuOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "gpu": {
+            "$ref": "#/components/schemas/GpuOut"
+          },
+          "used_today_s": {
+            "type": "number",
+            "title": "Used Today S"
+          },
+          "daily_limit_s": {
+            "type": "number",
+            "title": "Daily Limit S"
+          },
+          "idle_stop_s": {
+            "type": "number",
+            "title": "Idle Stop S"
+          },
+          "idle_left_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idle Left S"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/GpuSessionOut"
+            },
+            "type": "array",
+            "title": "Sessions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "gpu",
+          "used_today_s",
+          "daily_limit_s",
+          "idle_stop_s",
+          "idle_left_s",
+          "sessions"
+        ],
+        "title": "AdminGpuOut"
       },
       "AdminUserOut": {
         "properties": {
@@ -2008,6 +2267,214 @@
           "done"
         ],
         "title": "GenerationStatus"
+      },
+      "GpuOut": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "asleep",
+              "starting",
+              "ready",
+              "resting"
+            ],
+            "title": "State"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "ready": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ready"
+          },
+          "eta_s": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Eta S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "phase",
+          "ready",
+          "eta_s"
+        ],
+        "title": "GpuOut",
+        "description": "off: no GPU is rented here (a renderer is run by hand); asleep: none is up, and the next generation starts one;\nstarting: one is being got ready; ready: it runs what's in ready; resting: today's GPU time is used up."
+      },
+      "GpuSessionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GpuStatus"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "ready": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Ready"
+          },
+          "requested_by": {
+            "type": "string",
+            "title": "Requested By"
+          },
+          "gpu_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Type"
+          },
+          "cost_per_hour": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Per Hour"
+          },
+          "stop_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Reason"
+          },
+          "stop_requested": {
+            "type": "boolean",
+            "title": "Stop Requested"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "launched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Launched At"
+          },
+          "active_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active At"
+          },
+          "stopped_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped At"
+          },
+          "billed_s": {
+            "type": "number",
+            "title": "Billed S"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "phase",
+          "ready",
+          "requested_by",
+          "gpu_type",
+          "cost_per_hour",
+          "stop_reason",
+          "stop_requested",
+          "created_at",
+          "launched_at",
+          "active_at",
+          "stopped_at",
+          "billed_s",
+          "cost"
+        ],
+        "title": "GpuSessionOut"
+      },
+      "GpuStatus": {
+        "type": "string",
+        "enum": [
+          "requested",
+          "launching",
+          "preparing",
+          "ready",
+          "stopped",
+          "failed"
+        ],
+        "title": "GpuStatus",
+        "description": "Where a rented GPU is in its life (app.gpu). One session at a time is anything but stopped or failed."
       },
       "GrantIn": {
         "properties": {

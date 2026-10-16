@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app import accounts, admin, credits, generations, health, media, pipelines, preferences, projects
 from app.db import make_engine
+from app.gpu import api as gpu
 from app.settings import Settings
 
 
@@ -34,6 +35,7 @@ def create_app(settings: Settings | None = None, catalogue: dict[str, pipelines.
     app.include_router(projects.router)
     app.include_router(preferences.router)
     app.include_router(admin.router)
+    app.include_router(gpu.router)
     return app
 
 
