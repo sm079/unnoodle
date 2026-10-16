@@ -179,7 +179,7 @@ export interface paths {
     };
     /**
      * Get Media
-     * @description A stored file or a video's poster, for its owner, or anyone for a demo's. Anyone else gets the same 404 as for
+     * @description A stored file or its still, for its owner, or anyone for a demo's. Anyone else gets the same 404 as for
      *     a file that doesn't exist, so whether it exists isn't given away either.
      */
     get: operations['get_media_media__key__get'];

@@ -165,6 +165,7 @@ export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
           >
             {assets.map((asset, index) => (
               <Image
+                unoptimized
                 key={asset.id}
                 src={asset.thumbnail_url}
                 alt=""
@@ -220,6 +221,7 @@ export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
                 )}
               >
                 <Image
+                  unoptimized
                   src={asset.thumbnail_url}
                   alt=""
                   fill

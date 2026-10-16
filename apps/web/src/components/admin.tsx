@@ -182,6 +182,7 @@ function Cover({ generation, className }: { generation: AdminGeneration; classNa
       {cover ? (
         <>
           <Image
+            unoptimized
             src={cover.thumbnail_url}
             alt=""
             fill

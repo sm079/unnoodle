@@ -97,6 +97,7 @@ function FolderCard({
           >
             {covers[slot] ? (
               <Image
+                unoptimized
                 src={covers[slot].thumbnail_url}
                 alt=""
                 fill
