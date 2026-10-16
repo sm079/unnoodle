@@ -183,6 +183,14 @@ class Manager:
         if self.last_heartbeat is None or now - self.last_heartbeat >= HEARTBEAT_EVERY:
             if self.shell.heartbeat(pod):
                 self.last_heartbeat = now
+            elif self.pods.get(pod.id) is None:
+                # Its watchdog deleted it while this process was away, or RunPod took it back: what was waiting goes
+                # back to asking for a GPU at the next tick
+                logger.warning("Pod %s is gone", pod.id)
+                self.shell.close_tunnel()
+                set_session(self.engine, live.id, status=GpuStatus.STOPPED, phase=None, stop_reason="The pod was gone")
+                self.last_heartbeat = None
+                return
             else:
                 logger.warning("No heartbeat to pod %s", live.pod_id)
         if running(session) or waiting(session):

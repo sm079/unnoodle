@@ -87,7 +87,7 @@ class FakeShell:
 
     def heartbeat(self, pod: Pod) -> bool:
         self.heartbeats += 1
-        return True
+        return self.reachable_pods
 
     def open_tunnel(self, pod: Pod) -> None:
         self.tunnel = pod.id
@@ -406,3 +406,26 @@ def test_every_model_file_the_real_pipelines_load_is_downloaded() -> None:
     loaded = set(re.findall(r'"([\w.\-]+\.safetensors)"', source))
     downloaded = {Path(f).name for sources in FILES.values() for s in sources for f in s.files}
     assert loaded and loaded <= downloaded
+
+
+def test_a_pod_that_went_away_meanwhile_is_replaced(
+    client: TestClient, manager: Manager, pods: FakePods, shell: FakeShell, engine: Engine
+) -> None:
+    queue_picture(client)
+    manager.tick()
+    manager.tick()
+    # Its watchdog deleted it while this process was away
+    del pods.pods["pod1"]
+    shell.reachable_pods = False
+    manager.tick()
+    gone = last_session(engine)
+    assert gone.status is GpuStatus.STOPPED
+    assert gone.stop_reason == "The pod was gone"
+    assert shell.tunnel is None
+
+    # The picture still waits, so the next tick asks for another
+    shell.reachable_pods = True
+    manager.tick()
+    manager.tick()
+    assert len(pods.created) == 2
+    assert last_session(engine).status is GpuStatus.READY
