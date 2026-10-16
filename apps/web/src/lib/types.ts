@@ -27,5 +27,7 @@ export type Workflow = Schemas['WorkflowOut'];
  * and one made in a project is in both.
  */
 export type Project = Schemas['ProjectOut'];
-/** Settings for the whole app, until there are accounts. */
+/** Settings for the whole app. Anyone signed in reads them; only admins change them. */
 export type Preferences = Schemas['PreferencesOut'];
+/** The signed-in account. */
+export type User = Schemas['UserOut'];

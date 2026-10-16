@@ -6,10 +6,14 @@ import type { Asset, Generation, GenerationRequest, Project } from '../src/lib/t
  * Answers the browser's API calls with the fixtures, so the tests need no API and always see the same data. A
  * generation sent from the composer is queued, then runs and finishes over the next few times the list is fetched.
  */
-export async function mockApi(page: Page) {
+export async function mockApi(page: Page, { signedIn = true } = {}) {
   const created: Generation[] = [];
   const createdProjects: Project[] = [];
   let reads = 0;
+
+  // Signed in as an admin: the cookie gets past the sign-in redirect (src/proxy.ts), and the mocks never check it
+  if (signedIn) await signIn(page);
+  await page.route('**/api/auth/me', route => route.fulfill({ json: { id: 'usr_e2e', email: 'me@example.com', is_admin: true } }));
 
   await page.route('**/api/workflows', route => route.fulfill({ json: workflows }));
 
@@ -88,4 +92,9 @@ export async function mockApi(page: Page) {
         outputs: [{ ...uploads[2], id: `${g.id}_out`, source: 'generation' }]
       });
   }
+}
+
+/** What signing in leaves behind: the session cookie, which gets past the sign-in redirect (src/proxy.ts). */
+export function signIn(page: Page) {
+  return page.context().addCookies([{ name: 'unnoodle_session', value: 'e2e', domain: 'localhost', path: '/' }]);
 }

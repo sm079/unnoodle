@@ -1,6 +1,6 @@
 // Calls to the API, which the web app passes through under /api (see next.config.ts).
 
-import type { Asset, Generation, GenerationRequest, Preferences, Project } from './types';
+import type { Asset, Generation, GenerationRequest, Preferences, Project, User } from './types';
 
 /** A failed call. The message is fit to show: the API's own reason when it gave one. */
 export class ApiError extends Error {
@@ -19,8 +19,22 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError("Can't reach the server. Check your connection.", 0);
   }
+  if (response.status === 401 && !path.startsWith('/auth/')) signIn();
   if (!response.ok) throw new ApiError(await reason(response), response.status);
-  return (await response.json()) as T;
+  // Sign out answers with no body
+  return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
+/** Sends someone whose session has ended to sign in, and back here afterwards. */
+function signIn() {
+  const here = window.location.pathname + window.location.search;
+  // A full load: this runs outside React, with no router to hand, and the cached data belongs to the ended session
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.assign(`/sign-in?next=${encodeURIComponent(here)}`);
+}
+
+function json(method: string, body: unknown): RequestInit {
+  return { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) };
 }
 
 /** The API explains refusals in a "detail": a sentence for its own checks, a list for malformed requests. */
@@ -47,28 +61,29 @@ export const api = {
 
   /** Queues params.count generations and returns them, oldest first. */
   createGeneration(body: GenerationRequest): Promise<Generation[]> {
-    return request('/generations', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    return request('/generations', json('POST', body));
   },
 
-  /** Changes the settings given and returns them all. */
+  /** Changes the settings given and returns them all. Admins only. */
   updatePreferences(changes: Partial<Preferences>): Promise<Preferences> {
-    return request('/preferences', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(changes)
-    });
+    return request('/preferences', json('PATCH', changes));
   },
 
   createProject(name: string): Promise<Project> {
-    return request('/projects', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name })
-    });
+    return request('/projects', json('POST', { name }));
+  },
+
+  /** Makes an account and signs in to it. */
+  signUp(email: string, password: string): Promise<User> {
+    return request('/auth/sign-up', json('POST', { email, password }));
+  },
+
+  signIn(email: string, password: string): Promise<User> {
+    return request('/auth/sign-in', json('POST', { email, password }));
+  },
+
+  signOut(): Promise<void> {
+    return request('/auth/sign-out', { method: 'POST' });
   }
 };
 
@@ -78,7 +93,8 @@ export const paths = {
   uploads: '/assets',
   generations: '/generations',
   projects: '/projects',
-  preferences: '/preferences'
+  preferences: '/preferences',
+  me: '/auth/me'
 } as const;
 
 /** The generations in one project, or every generation (My generations) for null. */
