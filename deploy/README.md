@@ -52,6 +52,24 @@ curl https://<API_HOST>/health # {"status":"ok","db":"ok"}
 sslip.io answers any name that contains an IP address with that address, so there is a public name to get a certificate
 for without buying a domain.
 
+### Or: a machine on a tailnet, through Tailscale Funnel
+
+Any machine with Docker and Tailscale can be the server instead, with Funnel in front in place of Caddy.
+`compose.funnel.yml` publishes the API on that machine's loopback only (port 18400) and leaves Caddy out; Funnel then
+gives it a public HTTPS name:
+
+```sh
+cd deploy
+cp .env.example .env           # API_HOST is then only for reference
+docker compose -f compose.yml -f compose.funnel.yml up -d
+tailscale funnel --bg --https=8443 http://127.0.0.1:18400
+curl https://<machine>.<tailnet>.ts.net:8443/health
+```
+
+The machine name is part of the public address, so name it in the Tailscale admin console first. Funnel opens only that
+one port, Postgres isn't published, and the containers see only their named volumes, not the machine's files. The API
+is up only while the machine is, which `/demo` covers: it needs neither.
+
 ## The web app
 
 On Vercel, import the repository and set:
