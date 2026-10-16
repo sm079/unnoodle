@@ -51,6 +51,23 @@ def test_a_phone_photo_turned_by_exif_reports_its_shown_size(client: TestClient)
     assert (asset["width"], asset["height"]) == (30, 40)
 
 
+def test_a_picture_gets_a_smaller_upright_preview_for_grids(client: TestClient) -> None:
+    # Stored 2000 wide and 1000 high, tagged to be shown turned a quarter
+    asset = upload(client, image_bytes("JPEG", (2000, 1000), orientation=6), name="big.jpg", content_type="image/jpeg")
+    assert asset["thumbnail_url"] == f"/media/uploads/{asset['id']}.preview.webp"
+    served = client.get(str(asset["thumbnail_url"]))
+    assert served.status_code == 200
+    assert served.headers["content-type"] == "image/webp"
+    with Image.open(BytesIO(served.content)) as preview:
+        assert preview.size == (media.PREVIEW_EDGE // 2, media.PREVIEW_EDGE)
+
+
+def test_a_preview_is_private_like_its_picture(client: TestClient) -> None:
+    asset = upload(client, image_bytes())
+    client.cookies.clear()
+    assert client.get(str(asset["thumbnail_url"])).status_code == 401
+
+
 @pytest.mark.parametrize(
     "data",
     [b"not an image at all", image_bytes("GIF"), image_bytes()[:-30]],

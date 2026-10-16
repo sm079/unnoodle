@@ -12,12 +12,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 
@@ -28,6 +28,8 @@ from app.models import Asset, AssetSource, MediaType, new_id
 from app.sharing import visible_asset
 
 MEDIA_URL = "/media"
+# What a still's extension says it is: video posters are JPEG, picture previews WebP
+STILL_TYPES = {".jpg": "image/jpeg", ".webp": "image/webp"}
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 # Pillow format -> (MIME type, file extension)
@@ -36,6 +38,10 @@ IMAGE_FORMATS = {"PNG": ("image/png", "png"), "JPEG": ("image/jpeg", "jpg"), "WE
 # EXIF orientations that turn the picture a quarter turn, so its width and height swap when shown
 QUARTER_TURNS = {5, 6, 7, 8}
 EXIF_ORIENTATION = 0x0112
+
+# A picture's preview: the longest side at most this, as WebP. Big enough for the largest grid card on a phone at 3x.
+PREVIEW_EDGE = 960
+PREVIEW_QUALITY = 80
 
 
 class MediaStore:
@@ -83,6 +89,7 @@ class Stored:
     height: int
     # Videos only
     duration_s: float | None = None
+    # A still for grids: a video's first frame, or a smaller copy of a picture
     poster_key: str | None = None
 
     def fields(self) -> dict[str, Any]:
@@ -90,7 +97,7 @@ class Stored:
 
 
 def store_image(store: MediaStore, data: bytes, key_stem: str) -> Stored | None:
-    """Stores a PNG, JPEG or WebP image as it is, or returns None if the data isn't one."""
+    """Stores a PNG, JPEG or WebP image as it is, with a preview beside it, or returns None if the data isn't one."""
     # The bytes decide what the file is, not its name or the type the client claims
     try:
         # Opening reads only the header; verify catches truncated and corrupt files before the renderer meets them. It
@@ -108,7 +115,21 @@ def store_image(store: MediaStore, data: bytes, key_stem: str) -> Stored | None:
     mime_type, extension = IMAGE_FORMATS[image_format]
     key = f"{key_stem}.{extension}"
     store.write(key, data)
-    return Stored(MediaType.IMAGE, key, mime_type, len(data), width, height)
+    poster_key = f"{key_stem}.preview.webp"
+    write_preview(store, key, poster_key)
+    return Stored(MediaType.IMAGE, key, mime_type, len(data), width, height, poster_key=poster_key)
+
+
+def write_preview(store: MediaStore, key: str, preview_key: str) -> None:
+    """A smaller copy of the picture at key, turned the way its EXIF says, for grids and the hero. Pages load it
+    directly: the image optimizer in the web app fetches without the visitor's cookie, so it can't reach /media."""
+    with Image.open(store.path(key)) as image:
+        preview = ImageOps.exif_transpose(image)
+        preview.thumbnail((PREVIEW_EDGE, PREVIEW_EDGE), Image.Resampling.LANCZOS)
+        if preview.mode not in ("RGB", "RGBA"):
+            preview = preview.convert("RGBA" if "A" in preview.getbands() else "RGB")
+        with store.writing(preview_key) as target:
+            preview.save(target, "WEBP", quality=PREVIEW_QUALITY, method=4)
 
 
 class ClipTooShort(Exception):
@@ -162,7 +183,7 @@ class AssetOut(BaseModel):
     media_type: MediaType
     source: AssetSource
     url: str
-    # A still for grids: a video's first frame, or the image itself
+    # A still for grids: a video's first frame or a picture's preview (the picture itself if it has none yet)
     thumbnail_url: str
     width: int
     height: int
@@ -228,14 +249,14 @@ def list_uploads(user: CurrentUser, session: SessionDep, limit: int = 60) -> lis
 
 @router.get(MEDIA_URL + "/{key:path}", response_class=FileResponse, responses={404: {"description": "No such file"}})
 def get_media(key: str, user: CurrentUser, session: SessionDep, store: MediaStoreDep) -> FileResponse:
-    """A stored file or a video's poster, for its owner, or anyone for a demo's. Anyone else gets the same 404 as for
+    """A stored file or its still, for its owner, or anyone for a demo's. Anyone else gets the same 404 as for
     a file that doesn't exist, so whether it exists isn't given away either."""
     asset = session.scalars(
         select(Asset).where(visible_asset(user), or_(Asset.storage_key == key, Asset.poster_key == key))
     ).first()
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such file")
-    media_type = asset.mime_type if key == asset.storage_key else "image/jpeg"
+    media_type = asset.mime_type if key == asset.storage_key else STILL_TYPES[PurePath(key).suffix]
     # A key is never reused for other content, so the browser can keep it, but only for this person (private)
     return FileResponse(
         store.path(key), media_type=media_type, headers={"Cache-Control": "private, max-age=31536000, immutable"}
