@@ -79,20 +79,23 @@ export function Studio() {
           )}
         </AnimatePresence>
 
-        {/* Kept mounted in every view, so a half-written prompt survives; layout animates its move */}
+        {/* Kept mounted in every view, so a half-written prompt survives; layout animates its move. Docked, its backing
+            spans the whole width so nothing scrolls past at its sides, and fades out above it over what scrolls under. */}
         <m.div
           layout="position"
           className={cn(
-            'sticky bottom-0 z-10 mx-auto w-full bg-linear-to-t from-background from-70% to-transparent pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:max-w-2xl lg:max-w-[68rem] lg:pt-6 lg:pb-5',
+            'sticky bottom-0 z-10 -mx-4 bg-background px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-12 before:bg-linear-to-t before:from-background before:to-transparent lg:-mx-12 lg:px-12 lg:pt-3 lg:pb-5 lg:before:h-20',
             view.name === 'home' &&
-              'animate-rise [--rise-blur:0px] [--rise-distance:18px] [animation-delay:250ms] [animation-duration:650ms] lg:static lg:bg-none lg:p-0'
+              'animate-rise [--rise-blur:0px] [--rise-distance:18px] [animation-delay:250ms] [animation-duration:650ms] lg:static lg:mx-0 lg:bg-transparent lg:p-0 lg:before:hidden'
           )}
         >
-          <Composer
-            ref={composer}
-            projectId={fileInto}
-            onGenerated={generation => show(view.name === 'folder' && fileInto === open ? view : folder(generation.project_id))}
-          />
+          <div className="mx-auto w-full md:max-w-2xl lg:max-w-[68rem]">
+            <Composer
+              ref={composer}
+              projectId={fileInto}
+              onGenerated={generation => show(view.name === 'folder' && fileInto === open ? view : folder(generation.project_id))}
+            />
+          </div>
         </m.div>
       </div>
     </AppShell>
