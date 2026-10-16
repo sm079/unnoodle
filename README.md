@@ -1,12 +1,14 @@
 # unnoodle
 
-Hand-picked ComfyUI workflows behind one prompt box, built for phones. You choose a picture or a video, describe it and
-attach any photos or clips to work from, and the request goes to the workflow that fits: a prompt alone makes a picture
-(Krea 2) or a video (MiniMax H3), a photo to edit goes to FLUX.2 Klein, and photos or clips attached to a video are its
-references. Settings are in plain words: a quality, a shape and, for videos, a length.
+AI pictures and videos from one prompt box, built for phones. Node-based generation tools hand you every setting and
+a canvas of wires to connect; unnoodle keeps the pipelines on the server and leaves you a few plain choices. You choose
+a picture or a video, describe it and attach any photos or clips to work from, and the request goes to the pipeline that
+fits: a prompt alone makes a picture (Krea 2) or a video (MiniMax H3), a photo to edit goes to FLUX.2 Klein, and photos
+or clips attached to a video are its references. Settings are in plain words: a quality, a shape and, for videos, a
+length.
 
-The web app sends requests to the API, which queues them in Postgres; a worker runs each one on ComfyUI and stores what
-it makes.
+The web app sends requests to the API, which queues them in Postgres; a worker builds each request's graph, runs it on
+a GPU render server (the renderer) and stores what it makes.
 
 ## Layout
 
@@ -27,10 +29,10 @@ cd apps/api
 uv sync
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload    # API on http://localhost:8000; try GET /health
-uv run python -m app.worker             # runs queued generations on ComfyUI (below)
+uv run python -m app.worker             # runs queued generations on the renderer (below)
 ```
 
-The API queues generations in Postgres and the worker, a separate process, runs them on ComfyUI one at a time. Several
+The API queues generations in Postgres and the worker, a separate process, runs them on the renderer one at a time. Several
 workers can share the queue. It is first in, first out unless Smart Queue is on (a switch in the sidebar, for admins,
 since it reorders everyone's jobs): then each generation's estimated run time moves it back, by 10 minutes at most, so
 quick ones go ahead of long videos.
@@ -62,7 +64,7 @@ set this way.
 
 A demo project is shown to every account, so a new one has something to look at before making anything: its
 generations, their inputs and outputs, which anyone can use as inputs. Only its owner adds to it.
-`uv run python -m app.demo krea2-turbo flux2-klein-edit minimax-h3` files every finished generation of those workflows
+`uv run python -m app.demo krea2-turbo flux2-klein-edit minimax-h3` files every finished generation of those pipelines
 into one called Demo.
 
 ### Credits
@@ -101,24 +103,25 @@ generating takes credits, which only admins hand out, and that admins see everyt
 them, with its outputs, their files and the uploads nothing else uses. It also gives credits, makes invite codes and
 shows their uses, and keeps the banned words.
 
-### ComfyUI without models
+### The renderer without models
 
-Generations run on ComfyUI. To develop without downloading any models, start ComfyUI (0.39 or later) from the repo
-root with `dev/comfyui` as its base directory:
+The renderer is a node-graph inference server: it takes a graph as JSON over HTTP, reports progress over a websocket
+and serves the files it writes (`app/worker/renderer.py` makes every call). To develop without downloading any models,
+start one (0.39 or later) from the repo root with `dev/renderer` as its base directory:
 
 ```sh
-python <path-to-ComfyUI>/main.py --base-directory dev/comfyui --port 8189 --cpu --disable-auto-launch
+python <path-to-renderer>/main.py --base-directory dev/renderer --port 8189 --cpu --disable-auto-launch
 ```
 
-It then loads only the development node in `dev/comfyui/custom_nodes`, and keeps its inputs, outputs and settings in
-`dev/comfyui` (git-ignored), so an existing ComfyUI install is left as it was. The node stands in for a model: it
+It then loads only the development node in `dev/renderer/custom_nodes`, and keeps its inputs, outputs and settings in
+`dev/renderer` (git-ignored), so an existing renderer install is left as it was. The node stands in for a model: it
 takes as long as the real model would on an RTX 5090 (a set-up with no progress, then steps), tints each image by the
 seed and writes the prompt on it. It fails like a GPU out of memory when the prompt contains `#oom`, and finishes in a
-few seconds when it contains `#quick`. Port 8189 keeps it clear of a normal ComfyUI on 8188.
+few seconds when it contains `#quick`. Port 8189 keeps it clear of a normal renderer on 8188.
 
-Workflows are code: each one builds its ComfyUI graph for every request, with one image chain per attached photo
-(`app/workflows.py` describes the contract). `app/catalogues/dev.py` holds stand-ins that run on this ComfyUI, and
-`app/catalogues/real.py` the ones that need models. `UNNOODLE_WORKFLOWS` picks the catalogue (`dev` unless set).
+Pipelines are code: each one builds its graph for every request, with one image chain per attached photo
+(`app/pipelines.py` describes the contract). `app/catalogues/dev.py` holds stand-ins that run on this renderer, and
+`app/catalogues/real.py` the ones that need models. `UNNOODLE_PIPELINES` picks the catalogue (`dev` unless set).
 
 ### On a phone
 
@@ -128,8 +131,8 @@ pnpm serve                              # everything, with a production build on
 
 `pnpm serve` starts Postgres with docker compose if nothing answers yet, applies the migrations, then runs the API, the
 worker and a production build of the web app (`next build`, then `next start`), each line of output prefixed with the
-process it came from. It uses a ComfyUI that already answers at `UNNOODLE_COMFYUI_URL`; otherwise it starts the dev one
-when `UNNOODLE_DEV_COMFYUI_MAIN` (and, for a portable build, `UNNOODLE_DEV_COMFYUI_PYTHON`) says where it is. If any
+process it came from. It uses a renderer that already answers at `UNNOODLE_RENDERER_URL`; otherwise it starts the dev one
+when `UNNOODLE_DEV_RENDERER_MAIN` (and, for a portable build, `UNNOODLE_DEV_RENDERER_PYTHON`) says where it is. If any
 of them stops, it stops the rest, and Ctrl+C stops them all. A phone gets the production build rather than `next dev`,
 which only serves its scripts to `localhost` and is slow over a network.
 
@@ -161,9 +164,9 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run p
 ```
 
 API tests that need Postgres are skipped unless `UNNOODLE_TEST_DATABASE_URL` is set, which a `.env` copied from
-`.env.example` does. They use their own database, which they create and migrate. The few that talk to a real ComfyUI
-also need the dev ComfyUI running and `UNNOODLE_TEST_COMFYUI_URL` set. CI runs all of the above on every push and pull
-request, apart from the ComfyUI tests.
+`.env.example` does. They use their own database, which they create and migrate. The few that talk to a real renderer
+also need the dev renderer running and `UNNOODLE_TEST_RENDERER_URL` set. CI runs all of the above on every push and pull
+request, apart from the renderer tests.
 
 ## Mock data
 
