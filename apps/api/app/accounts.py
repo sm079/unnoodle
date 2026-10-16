@@ -16,15 +16,18 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import AfterValidator, BaseModel, StringConstraints
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import SessionDep
-from app.models import User, UserSession
+from app.models import FailedSignIn, User, UserSession
 from app.settings import Settings
 
 COOKIE = "unnoodle_session"
+# Wrong passwords allowed for one email within the window before it is refused until the oldest of them ages out
+MAX_FAILED_SIGN_INS = 5
+FAILED_SIGN_IN_WINDOW = timedelta(minutes=15)
 SESSION_LENGTH = timedelta(days=30)
 MIN_PASSWORD = 8
 
@@ -142,12 +145,33 @@ def sign_up(body: SignUpIn, response: Response, session: SessionDep, settings: S
     return UserOut.of(user)
 
 
-@router.post("/sign-in", responses={401: {"description": "Wrong email or password"}})
+@router.post(
+    "/sign-in",
+    responses={401: {"description": "Wrong email or password"}, 429: {"description": "Too many wrong passwords"}},
+)
 def sign_in(body: SignInIn, response: Response, session: SessionDep, settings: SettingsDep) -> UserOut:
+    now = datetime.now(UTC)
+    # Old failures are cleared as new attempts come in, so the table only holds the current window
+    session.execute(delete(FailedSignIn).where(FailedSignIn.created_at <= now - FAILED_SIGN_IN_WINDOW))
+    failed = session.execute(
+        select(func.count(), func.min(FailedSignIn.created_at)).where(FailedSignIn.email == body.email)
+    ).one()
+    if failed[0] >= MAX_FAILED_SIGN_INS:
+        session.commit()
+        # Refused before the password is checked, so guessing gets no further however many tries are sent
+        minutes = max(1, -(-int((failed[1] + FAILED_SIGN_IN_WINDOW - now).total_seconds()) // 60))
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"Too many wrong passwords. Try again in {minutes} {'minute' if minutes == 1 else 'minutes'}.",
+            headers={"Retry-After": str(minutes * 60)},
+        )
     user = session.scalars(select(User).where(User.email == body.email)).first()
     if not password_matches(user, body.password) or user is None:
+        session.add(FailedSignIn(email=body.email))
+        session.commit()
         # One message for both, so it doesn't say which addresses have accounts
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong email or password")
+    session.execute(delete(FailedSignIn).where(FailedSignIn.email == body.email))
     if user.password_hash is not None and hasher.check_needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
     start_session(session, user, response, settings)

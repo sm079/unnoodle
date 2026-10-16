@@ -716,6 +716,13 @@ export interface operations {
           'application/json': components['schemas']['HTTPValidationError'];
         };
       };
+      /** @description Too many wrong passwords */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   sign_out_auth_sign_out_post: {

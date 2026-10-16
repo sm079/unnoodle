@@ -102,6 +102,9 @@
           "401": {
             "description": "Wrong email or password"
           },
+          "429": {
+            "description": "Too many wrong passwords"
+          },
           "422": {
             "description": "Validation Error",
             "content": {

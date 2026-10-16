@@ -117,6 +117,19 @@ class UserSession(Base):
     user: Mapped[User] = relationship(lazy="joined")
 
 
+class FailedSignIn(Base):
+    """A wrong password, kept for a while so guessing one can be slowed down (app.accounts)."""
+
+    __tablename__ = "failed_sign_ins"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    # As typed, lowercased: an address with no account is limited the same way, so the limit doesn't tell either
+    email: Mapped[str] = mapped_column(String(254))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (Index("ix_failed_sign_ins_email", "email", "created_at"),)
+
+
 class Asset(Base):
     """A stored image or video: an upload, or an output of a generation."""
 

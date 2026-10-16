@@ -45,7 +45,8 @@ Every setting has a working default. To change one, copy `.env.example` to `.env
 People sign up on `/sign-up` with an email and a password, and everything they upload, generate or file in a project
 is theirs alone: the API filters every query by owner, answers 404 for anyone else's things, and serves `/media` files
 only to their owner. A signed-in browser holds a random token in an httpOnly, SameSite=Lax cookie; the database keeps
-only its SHA-256, and passwords are hashed with Argon2. Set `UNNOODLE_SECURE_COOKIES=true` wherever the app is served
+only its SHA-256, and passwords are hashed with Argon2. After 5 wrong passwords for one email in 15 minutes, signing in to it is refused until the
+oldest ages out; a right password clears the count. Set `UNNOODLE_SECURE_COOKIES=true` wherever the app is served
 over HTTPS, the tailnet address included.
 
 There's no email yet, so the first admin and forgotten passwords go through the command line (run from `apps/api`):
