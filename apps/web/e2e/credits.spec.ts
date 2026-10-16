@@ -35,3 +35,18 @@ test('short of credits, Generate opens a sheet that takes a code and carries on'
   await sent;
   await expect(page.getByRole('dialog')).toBeHidden();
 });
+
+test('the sidebar shows the balance and opens the sheet to get more', async ({ page }) => {
+  await mockApi(page, { credits: 40 });
+  await page.goto('/generate');
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.getByRole('button', { name: '40 credits. Get more' }).click();
+
+  const sheet = page.getByRole('dialog', { name: 'Get more credits' });
+  await expect(sheet).toContainText('You have');
+  await expect(sheet.getByRole('list', { name: 'Credit packs' }).getByRole('listitem')).toHaveCount(3);
+  await sheet.getByRole('button', { name: 'Enter code' }).click();
+  await sheet.getByRole('textbox', { name: 'Invite code' }).fill('welcome');
+  await sheet.getByRole('button', { name: 'Add' }).click();
+  await expect(sheet.getByRole('status')).toContainText('50');
+});

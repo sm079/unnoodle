@@ -25,16 +25,19 @@ const rise: Variants = {
 interface CreditsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** What the request that opened it costs. */
-  cost: number;
+  /** What the request that opened it costs; left out when it was opened just to get more. */
+  cost?: number;
   balance: number;
   /** Goes ahead with that request, once there's enough. */
-  onContinue: () => void;
+  onContinue?: () => void;
 }
 
-/** Opens when Generate is pressed without enough credits: how far short, how to get more, and a way to carry on. */
+/**
+ * How to get more credits. Opened by Generate when short, it also says how far short and carries on once there's
+ * enough; opened from the sidebar, it shows the balance.
+ */
 export function CreditsSheet({ open, onOpenChange, cost, balance, onContinue }: CreditsSheetProps) {
-  const enough = balance >= cost;
+  const enough = cost !== undefined && balance >= cost;
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -56,7 +59,7 @@ export function CreditsSheet({ open, onOpenChange, cost, balance, onContinue }: 
         </div>
 
         {/* Keyed by open, so the bar fills from empty each time the sheet opens */}
-        <Shortfall key={String(open)} cost={cost} balance={balance} />
+        {cost === undefined ? <Balance balance={balance} /> : <Shortfall key={String(open)} cost={cost} balance={balance} />}
 
         <AnimatePresence initial={false} mode="popLayout">
           {enough ? (
@@ -101,6 +104,19 @@ export function CreditsSheet({ open, onOpenChange, cost, balance, onContinue }: 
         <CodeEntry balance={balance} />
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** What there is, when no request is waiting on it. */
+function Balance({ balance }: { balance: number }) {
+  return (
+    <div className="mt-6 flex flex-col rounded-2xl bg-panel-raised p-4">
+      <span className="text-xs text-[#828282]">You have</span>
+      <span className="inline-flex items-center gap-[0.2em] text-2xl font-bold tabular-nums">
+        <CreditGlyph className="text-brand" />
+        <RollingValue value={balance.toLocaleString('en')} />
+      </span>
+    </div>
   );
 }
 
