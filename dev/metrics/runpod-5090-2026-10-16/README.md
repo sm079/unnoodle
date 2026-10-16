@@ -11,7 +11,8 @@ real numbers to pace simulated generations by (durations, progress, queue waits)
   original of a run resubmitted after the tunnel dropped) are listed separately.
 - `raw/sweep.jsonl`: MiniMax H3 with one reference clip at 0.25, 0.5 and 1 MP (and 0.4 MP over 10 s), stopped after
   three steps. Step time follows the total latent tokens of the output and the clips, and grows faster than linearly.
-- `raw/`: ComfyUI's history and log from the pod, the worker log, and the test driver's own results.
+- `raw/`: ComfyUI's history from the pod and the test driver's own results. The pod and worker logs that `runs.json`
+  was parsed from are `*.log`, which git ignores.
 - `scripts/`: the test driver (`t.py`), the clip sweep, the node spec check against `/object_info`, and the collector
   that wrote `runs.json`. They expect the tunnel on `127.0.0.1:8288` and the API on `127.0.0.1:8000`.
 
