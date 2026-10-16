@@ -167,6 +167,22 @@ def test_minimax_gives_each_photo_and_clip_its_place_and_tag() -> None:
     assert all(node_id in graph for node_id, _ in links(graph))
 
 
+@pytest.mark.parametrize(("size", "scaled_to"), [((1280, 720), (864, 480)), ((480, 864), None), (None, None)])
+def test_minimax_scales_down_clips_bigger_than_uploads_are_cut_to(
+    size: tuple[int, int] | None, scaled_to: tuple[int, int] | None
+) -> None:
+    built = job((REFERENCE, CLIP), prompt="like @clip1", size=(480, 864), frames=124)
+    built = replace(built, inputs=(replace(built.inputs[0], size=size),))
+    graph = real.minimax_h3(built).nodes
+    reference = graph[node_of(graph, "MiniMaxH3ReferenceToVideo")["ref_videos.ref_video_0"][0]]
+    if scaled_to is None:
+        assert reference["class_type"] == "GetVideoComponents"
+    else:
+        assert reference["class_type"] == "ImageScale"
+        assert (reference["inputs"]["width"], reference["inputs"]["height"]) == scaled_to
+        assert graph[reference["inputs"]["image"][0]]["class_type"] == "GetVideoComponents"
+
+
 def test_minimax_from_a_prompt_alone_has_no_references() -> None:
     node = node_of(real.minimax_h3(job(size=(480, 864), frames=124)).nodes, "MiniMaxH3ReferenceToVideo")
     assert not any(key.startswith("ref_") and key != "ref_image_size" for key in node)

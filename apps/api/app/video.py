@@ -8,10 +8,12 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-# Reference clips are cut to what MiniMax H3 uses of them: up to 15 seconds at 24 frames a second, on a canvas whose
-# short edge is 768 pixels. Anything beyond that would only cost upload time and memory on the GPU machine.
+# Reference clips are cut to what MiniMax H3 can use without slowing right down: up to 15 seconds at 24 frames a
+# second, at most 0.4 megapixels. The model works through every frame of a reference as well as the video it makes, so
+# a clip at its full canvas (about a megapixel) made a small 5 second video about eight times slower on an RTX 5090
+# than none did; at 0.4 megapixels it is about three times slower.
 CLIP_FPS = 24
-CLIP_SHORT_EDGE = 768
+CLIP_MEGAPIXELS = 0.4
 SHORTEST_CLIP_S = 2.0
 LONGEST_CLIP_S = 15.0
 # What phones record and browsers make, as ffprobe names the containers. ffprobe also reads still images (a GIF is
@@ -52,11 +54,11 @@ def probe(path: Path) -> VideoInfo:
 
 
 def cut_clip(source: Path, target: Path) -> None:
-    """Writes the first LONGEST_CLIP_S of a clip to target as H.264 at CLIP_FPS, its short edge at most
-    CLIP_SHORT_EDGE (never enlarged) and without sound. Phone clips come out upright, as they were filmed."""
+    """Writes the first LONGEST_CLIP_S of a clip to target as H.264 at CLIP_FPS, at most CLIP_MEGAPIXELS (never
+    enlarged) and without sound. Phone clips come out upright, as they were filmed."""
     # Keeps the shape; width and height stay even, which H.264 needs
-    edge = f"trunc(min({CLIP_SHORT_EDGE},{{}})/2)*2"
-    scale = f"scale='if(lt(iw,ih),{edge.format('iw')},-2)':'if(lt(iw,ih),-2,{edge.format('ih')})'"
+    fit = f"min(1,sqrt({round(CLIP_MEGAPIXELS * 1024 * 1024)}/(iw*ih)))"
+    scale = f"scale='trunc(iw*{fit}/2)*2':'trunc(ih*{fit}/2)*2'"
     run(
         "ffmpeg",
         "-v", "error", "-y",

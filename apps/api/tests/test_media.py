@@ -78,8 +78,8 @@ def test_a_clip_is_stored_as_mp4_with_a_poster(client: TestClient, settings: Set
 @needs_ffmpeg
 def test_a_long_tall_clip_is_cut_to_what_the_video_model_uses(client: TestClient) -> None:
     asset = upload(client, clip(17, size=(800, 1600), fps=10), name="tall.mp4", content_type="video/mp4")
-    # The first 15 seconds, with the short edge at 768
-    assert (asset["width"], asset["height"], asset["duration_s"]) == (768, 1536, 15)
+    # The first 15 seconds, at 0.4 megapixels in the same shape
+    assert (asset["width"], asset["height"], asset["duration_s"]) == (456, 914, 15)
 
 
 @needs_ffmpeg
