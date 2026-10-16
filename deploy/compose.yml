@@ -12,7 +12,9 @@ x-api: &api
   environment:
     UNNOODLE_DATABASE_URL: postgresql+psycopg://unnoodle:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/unnoodle
     UNNOODLE_PIPELINES: ${UNNOODLE_PIPELINES:-real}
-    UNNOODLE_RENDERER_URL: ${UNNOODLE_RENDERER_URL:-http://127.0.0.1:8188}
+    UNNOODLE_RENDERER_URL: ${UNNOODLE_RENDERER_URL:-http://gpu:8288}
+    # "runpod" rents a GPU while there is work (the gpu service below); "off" leaves the renderer to you
+    UNNOODLE_GPU: ${UNNOODLE_GPU:-off}
     # Browsers reach the API through the web app's HTTPS address only
     UNNOODLE_SECURE_COOKIES: 'true'
   volumes:
@@ -59,6 +61,22 @@ services:
     <<: *api
     command: ['python', '-m', 'app.worker']
 
+  # Rents a GPU on RunPod while generations wait, hands it back when idle, and tunnels its renderer to gpu:8288 on
+  # this network only. Exits at once when UNNOODLE_GPU isn't "runpod".
+  gpu:
+    <<: *api
+    command: ['python', '-m', 'app.gpu']
+    restart: on-failure
+    environment:
+      UNNOODLE_DATABASE_URL: postgresql+psycopg://unnoodle:${POSTGRES_PASSWORD}@postgres:5432/unnoodle
+      UNNOODLE_PIPELINES: ${UNNOODLE_PIPELINES:-real}
+      UNNOODLE_GPU: ${UNNOODLE_GPU:-off}
+      UNNOODLE_RUNPOD_API_KEY: ${UNNOODLE_RUNPOD_API_KEY:-}
+      UNNOODLE_HF_TOKEN: ${UNNOODLE_HF_TOKEN:-}
+    volumes:
+      # Its SSH key, made on first start
+      - gpu-keys:/data/gpu
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -77,4 +95,5 @@ services:
 volumes:
   pgdata:
   media:
+  gpu-keys:
   caddy-data:
