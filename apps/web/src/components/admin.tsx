@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AnimatePresence, m } from 'motion/react';
@@ -9,10 +9,12 @@ import {
   CheckIcon,
   ClockIcon,
   CopyIcon,
+  CpuIcon,
   ImageIcon,
   LoaderCircleIcon,
   PlayIcon,
   PlusIcon,
+  PowerIcon,
   TicketIcon,
   Trash2Icon,
   TriangleAlertIcon,
@@ -28,9 +30,10 @@ import { api, messageOf, paths, request } from '@/lib/api';
 import { useMe } from '@/lib/data';
 import { shake } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import type { AdminGeneration, AdminUser, Invite } from '@/lib/types';
+import type { AdminGeneration, AdminGpu, AdminUser, GpuSession, Invite } from '@/lib/types';
 
 const tabs = [
+  { id: 'gpu', label: 'GPU', icon: CpuIcon },
   { id: 'generations', label: 'Generations', icon: ImageIcon },
   { id: 'people', label: 'People', icon: UsersIcon },
   { id: 'codes', label: 'Codes', icon: TicketIcon },
@@ -45,10 +48,11 @@ const primary =
 const quiet =
   'flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-chip px-3 text-sm font-semibold text-white transition-[background-color,scale] duration-200 ease-spring hover:bg-[#3b3c3e] active:scale-95 disabled:opacity-40';
 
-/** Everyone's generations to see and delete, people and their credits, invite codes and banned words. */
+/** The rented GPU, everyone's generations to see and delete, people and their credits, invite codes and banned
+ * words. */
 export function Admin() {
   const { data: me, isLoading } = useMe();
-  const [tab, setTab] = useState<Tab>('generations');
+  const [tab, setTab] = useState<Tab>('gpu');
 
   if (isLoading) return null;
   if (!me?.is_admin) {
@@ -106,6 +110,7 @@ export function Admin() {
           exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
           className="mt-3 flex flex-col"
         >
+          {tab === 'gpu' && <GpuPanel />}
           {tab === 'generations' && <Generations />}
           {tab === 'people' && <People />}
           {tab === 'codes' && <Codes />}
@@ -113,6 +118,300 @@ export function Admin() {
         </m.section>
       </AnimatePresence>
     </main>
+  );
+}
+
+// What each pipeline makes, for the download a GPU is on
+const makes: Record<string, string> = { 'krea2-turbo': 'pictures', 'flux2-klein-edit': 'edits', 'minimax-h3': 'videos' };
+
+function phaseWords(phase: string | null): string {
+  if (phase === 'waiting-for-gpu') return 'Waiting for a free GPU';
+  if (phase === 'launching') return 'Renting a GPU';
+  if (phase === 'setup') return 'Setting it up';
+  if (phase?.startsWith('models:')) return `Getting ${makes[phase.slice(7)] ?? 'models'} ready`;
+  return 'Starting';
+}
+
+/** "5090" from "NVIDIA GeForce RTX 5090" */
+const shortGpu = (type: string | null) => type?.replace(/^NVIDIA (GeForce )?(RTX )?/, '') ?? 'GPU';
+
+function duration(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+}
+
+const dollars = (n: number | null | undefined) => (n == null ? '–' : `$${n.toFixed(2)}`);
+
+/** Seconds since the page last heard from the API, so clocks move between checks. */
+function useSince(stamp: unknown) {
+  const [since, setSince] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const timer = setInterval(() => setSince((Date.now() - started) / 1000), 1000);
+    return () => {
+      clearInterval(timer);
+      setSince(0);
+    };
+  }, [stamp]);
+  return since;
+}
+
+/** The rented GPU: what it's doing, what it costs, today's GPU time, a way to start or stop it, and past sessions. */
+function GpuPanel() {
+  const { data, mutate } = useSWR(paths.admin.gpu, path => request<AdminGpu>(path), {
+    // Often while one is up or on its way, so phases and the idle clock stay current
+    refreshInterval: gpu => (gpu && gpu.gpu.state !== 'asleep' && gpu.gpu.state !== 'off' ? 3000 : 15000)
+  });
+  const since = useSince(data);
+  const [stopping, setStopping] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  if (!data) return null;
+  if (!data.enabled) return <Empty>Renting GPUs is off on this server: the renderer is run by hand.</Empty>;
+
+  const live = data.sessions.find(s => s.status !== 'stopped' && s.status !== 'failed') ?? null;
+  const state = data.gpu.state;
+  const title =
+    state === 'ready' ? 'Ready' : state === 'starting' ? phaseWords(data.gpu.phase) : state === 'resting' ? 'Resting' : 'Asleep';
+  const billed = live ? live.billed_s + (live.launched_at ? since : 0) : 0;
+
+  async function start() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      await mutate(api.startGpu(), { revalidate: false });
+    } catch (error) {
+      setProblem(messageOf(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-[22px] bg-panel p-4">
+        <div className="flex items-center gap-3">
+          <StateLight state={state} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <p className="font-display text-xl font-bold uppercase font-stretch-[86%]">{title}</p>
+            <p className="text-sm text-[#a0a1a3]">
+              {live
+                ? `${shortGpu(live.gpu_type)} · ${live.cost_per_hour != null ? `$${live.cost_per_hour.toFixed(2)}/h` : 'renting'}`
+                : state === 'resting'
+                  ? "Today's GPU time is used up. Generating is off until tomorrow."
+                  : 'Starts by itself when someone generates.'}
+            </p>
+          </div>
+          {live ? (
+            <button
+              type="button"
+              onClick={() => setStopping(true)}
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#4a1a22] px-3.5 text-sm font-bold text-[#ff9aa6] transition-[scale] duration-200 ease-spring active:scale-95"
+            >
+              <PowerIcon className="size-4" /> Stop
+            </button>
+          ) : (
+            state === 'asleep' && (
+              <button type="button" onClick={() => void start()} disabled={busy} className={cn(primary, 'h-10')}>
+                <PowerIcon className="size-4" /> {busy ? 'Starting…' : 'Start'}
+              </button>
+            )
+          )}
+        </div>
+
+        {live && (
+          <>
+            <dl className="mt-4 grid grid-cols-3 gap-2">
+              <Stat label="Up for" value={duration(billed)} />
+              <Stat label="Cost so far" value={dollars(live.cost_per_hour != null ? (billed / 3600) * live.cost_per_hour : null)} />
+              <Stat
+                label="Idle stop in"
+                value={data.idle_left_s == null ? 'Busy' : duration(data.idle_left_s - since)}
+                warn={data.idle_left_s != null && data.idle_left_s - since < 60}
+              />
+            </dl>
+            <ul aria-label="Ready for" className="mt-3 flex flex-wrap gap-1.5">
+              {Object.entries(makes).map(([pipeline, words]) => (
+                <li
+                  key={pipeline}
+                  className={cn(
+                    'rounded-full px-2.5 py-1 text-xs font-semibold',
+                    pipeline in live.ready ? 'bg-brand/15 text-brand' : 'bg-white/[0.06] text-[#828282]'
+                  )}
+                >
+                  {pipeline in live.ready ? '✓ ' : ''}
+                  {words[0].toUpperCase() + words.slice(1)}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {problem && (
+          <p role="alert" className="mt-3 text-sm text-[#e8a33d]">
+            {problem}
+          </p>
+        )}
+      </div>
+
+      <Usage used={data.used_today_s + (live?.launched_at ? since : 0)} limit={data.daily_limit_s} />
+
+      {data.sessions.length > 0 && (
+        <section aria-labelledby="gpu-sessions" className="flex flex-col gap-1.5">
+          <h2 id="gpu-sessions" className="mt-2 px-1 text-sm text-[#828282]">
+            Recent sessions
+          </h2>
+          <ul className="flex flex-col gap-1.5">
+            {data.sessions.map(session => (
+              <SessionRow key={session.id} session={session} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <StopSheet
+        open={stopping}
+        onOpenChange={setStopping}
+        onStopped={next => {
+          setStopping(false);
+          void mutate(next, { revalidate: false });
+        }}
+      />
+    </div>
+  );
+}
+
+function StateLight({ state }: { state: string }) {
+  const color =
+    state === 'ready' ? 'bg-[#4ade80]' : state === 'starting' ? 'bg-brand' : state === 'resting' ? 'bg-[#e8a33d]' : 'bg-[#5c5d60]';
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-panel-raised">
+      <span className="relative flex size-3">
+        {(state === 'starting' || state === 'ready') && (
+          <span className={cn('absolute inset-0 animate-ping rounded-full opacity-60 motion-reduce:animate-none', color)} />
+        )}
+        <span className={cn('relative size-3 rounded-full', color)} />
+      </span>
+    </span>
+  );
+}
+
+function Stat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-2xl bg-panel-raised px-3 py-2.5">
+      <dt className="text-xs text-[#828282]">{label}</dt>
+      <dd className={cn('text-base font-bold tabular-nums', warn && 'text-[#e8a33d]')}>{value}</dd>
+    </div>
+  );
+}
+
+function Usage({ used, limit }: { used: number; limit: number }) {
+  const share = Math.min(1, used / Math.max(limit, 1));
+  return (
+    <div className="rounded-[22px] bg-panel p-4">
+      <div className="flex items-end justify-between gap-3">
+        <span className="text-sm text-[#a0a1a3]">GPU time today</span>
+        <span className="text-sm font-semibold tabular-nums">
+          {duration(used)} <span className="font-normal text-[#828282]">of {duration(limit)}</span>
+        </span>
+      </div>
+      <div
+        className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/[0.07]"
+        role="meter"
+        aria-label="GPU time used today"
+        aria-valuemin={0}
+        aria-valuemax={limit}
+        aria-valuenow={Math.min(used, limit)}
+      >
+        <div
+          className={cn('h-full rounded-full transition-[width] duration-700 ease-out', share > 0.8 ? 'bg-[#e8a33d]' : 'bg-brand')}
+          style={{ width: `${share * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SessionRow({ session }: { session: GpuSession }) {
+  const when = new Date(session.created_at).toLocaleString('en', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  const ended = session.status === 'stopped' || session.status === 'failed';
+  return (
+    <li className="flex items-center gap-3 rounded-2xl bg-panel px-3.5 py-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-sm font-semibold">
+          {when} · {shortGpu(session.gpu_type)}
+        </span>
+        <span className={cn('truncate text-xs', session.status === 'failed' ? 'text-[#ff9aa6]' : 'text-[#828282]')}>
+          {ended ? (session.stop_reason ?? session.status) : 'Up now'}
+          {session.requested_by !== 'queue' ? ` · started by ${session.requested_by}` : ''}
+        </span>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-0.5 text-sm tabular-nums">
+        <span className="font-semibold">{dollars(session.cost)}</span>
+        <span className="text-xs text-[#828282]">{duration(session.billed_s)}</span>
+      </div>
+    </li>
+  );
+}
+
+function StopSheet({
+  open,
+  onOpenChange,
+  onStopped
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onStopped: (gpu: AdminGpu) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function stop() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      onStopped(await api.stopGpu());
+    } catch (error) {
+      setProblem(messageOf(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="mx-auto max-h-[94dvh] max-w-md gap-0 overflow-y-auto rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:bottom-6 lg:rounded-[28px]"
+      >
+        <SheetTitle className="font-display text-xl font-bold uppercase font-stretch-[86%]">Stop the GPU?</SheetTitle>
+        <SheetDescription className="mt-1 text-sm text-[#a0a1a3]">
+          {"It's handed back now. Anything waiting for it or running on it fails, and those people get their credits back."}
+        </SheetDescription>
+        {problem && (
+          <p role="alert" className="mt-3 text-sm text-[#e8a33d]">
+            {problem}
+          </p>
+        )}
+        <div className="mt-5 flex gap-2">
+          <button type="button" onClick={() => onOpenChange(false)} className={cn(quiet, 'h-12 flex-1 justify-center rounded-[14px]')}>
+            Keep it
+          </button>
+          <button
+            type="button"
+            onClick={() => void stop()}
+            disabled={busy}
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-[#4a1a22] text-sm font-bold text-[#ff9aa6] transition-[scale,opacity] duration-200 ease-spring active:scale-95 disabled:opacity-60"
+          >
+            <PowerIcon className="size-4" />
+            {busy ? 'Stopping…' : 'Stop'}
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
