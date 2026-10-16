@@ -4,6 +4,8 @@ import { useImperativeHandle, useRef, useState, type ChangeEvent, type FormEvent
 import Image from 'next/image';
 import { AnimatePresence, m } from 'motion/react';
 import { ClockIcon, FocusIcon, GemIcon, ImageIcon, LoaderCircleIcon, MinusIcon, PlusIcon, VideoIcon, XIcon } from 'lucide-react';
+import { CreditGlyph } from '@/components/credit-glyph';
+import { CreditsSheet } from '@/components/credits-sheet';
 import { RollingValue } from '@/components/rolling-value';
 import { WorkflowMenu } from '@/components/workflow-menu';
 import {
@@ -15,13 +17,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { useSWRConfig } from 'swr';
-import { api, messageOf, paths } from '@/lib/api';
+import { api, messageOf } from '@/lib/api';
 import { qualityLabels, shapeLabels } from '@/lib/capabilities';
 import { costOf } from '@/lib/credits';
 import { useAddToCache, useCredits, useUploads, useWorkflows } from '@/lib/data';
 import { handleOf } from '@/lib/mentions';
-import { menuItemClass, menuItemDelay } from '@/lib/motion';
+import { menuItemClass, menuItemDelay, shake } from '@/lib/motion';
 import { capabilityFor, route, type Attached, type Routed } from '@/lib/routing';
 import { cn } from '@/lib/utils';
 import type { AspectRatio, Asset, Generation, InputRole, MediaType, Quality, Workflow } from '@/lib/types';
@@ -112,6 +113,8 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
   const [mode, setMode] = useState<MediaType>('image');
   const [drafts, setDrafts] = useState(initialDrafts);
   const [sending, setSending] = useState(false);
+  // Opened by Generate when the request costs more credits than there are
+  const [creditsOpen, setCreditsOpen] = useState(false);
   // Why the last attempt to upload or send didn't work; cleared by the next change
   const [problem, setProblem] = useState<string | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -138,7 +141,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
     credits && workflow
       ? costOf(credits.prices, mode, settings.quality, mode === 'video' ? settings.duration_s : null, clips) * settings.count
       : null;
-  const short = credits && cost !== null && cost > credits.balance ? { cost, balance: credits.balance } : null;
+  const short = credits !== undefined && cost !== null && cost > credits.balance;
 
   function update(patch: Partial<Draft>) {
     setProblem(null);
@@ -234,14 +237,20 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
     });
   }
 
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
-    if (!workflow || uploading || sending || short) return;
+    if (!workflow || uploading || sending) return;
     if (draft.prompt.trim() === '') {
       promptRef.current?.focus();
       shake(promptRef.current);
       return;
     }
+    // Not a dead end: the sheet says how far short it is, takes a code, and can carry on from there
+    if (short) return setCreditsOpen(true);
+    void send();
+  }
+
+  async function send() {
     setSending(true);
     setProblem(null);
     try {
@@ -393,20 +402,28 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
 
           <div className="@container flex flex-wrap items-center gap-2 lg:contents">
             <ModeToggle mode={mode} onChange={setMode} layout="row" className="lg:hidden" />
-            <GenerateButton disabled={!workflow || uploading || sending || short !== null} busy={sending} cost={cost} />
+            <GenerateButton disabled={!workflow || uploading || sending} busy={sending} cost={cost} />
           </div>
         </div>
 
-        {status ? (
+        {status && (
           <p role="status" className="px-3 pt-2 pb-1 text-sm text-[#e8a33d]">
             {status}
           </p>
-        ) : (
-          short && <NotEnoughCredits {...short} />
         )}
       </div>
 
       <input ref={fileRef} type="file" accept="image/*,video/*" multiple hidden onChange={attachFiles} />
+      <CreditsSheet
+        open={creditsOpen}
+        onOpenChange={setCreditsOpen}
+        cost={cost ?? 0}
+        balance={credits?.balance ?? 0}
+        onContinue={() => {
+          setCreditsOpen(false);
+          void send();
+        }}
+      />
     </form>
   );
 }
@@ -468,72 +485,13 @@ function ModeToggle({
   );
 }
 
-/** Why Generate is off for want of credits, and a place to put an invite code. */
-function NotEnoughCredits({ cost, balance }: { cost: number; balance: number }) {
-  const { mutate } = useSWRConfig();
-  const [code, setCode] = useState('');
-  const [redeeming, setRedeeming] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-
-  // Its own form would be nested in the composer's, so the field submits on Enter by hand
-  async function redeem() {
-    if (redeeming || code.trim() === '') return;
-    setRedeeming(true);
-    setProblem(null);
-    try {
-      await mutate(paths.credits, api.redeem(code.trim()), { revalidate: false });
-      setCode('');
-    } catch (error) {
-      setProblem(messageOf(error));
-    } finally {
-      setRedeeming(false);
-    }
-  }
-
-  return (
-    <div role="status" className="flex flex-col gap-2 px-3 pt-2 pb-1.5 text-sm">
-      <p className="text-[#e8a33d]">
-        {balance === 0
-          ? `You have no credits yet. This needs ${cost}.`
-          : `This needs ${cost} ${cost === 1 ? 'credit' : 'credits'} and you have ${balance}.`}
-      </p>
-      <div className="flex gap-2">
-        <input
-          value={code}
-          onChange={event => {
-            setCode(event.target.value);
-            setProblem(null);
-          }}
-          onKeyDown={event => {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            void redeem();
-          }}
-          aria-label="Invite code"
-          placeholder="Invite code"
-          autoCapitalize="characters"
-          autoComplete="off"
-          enterKeyHint="done"
-          disabled={redeeming}
-          // 16px at least, or iOS zooms the page in when the field gets focus
-          className="min-w-0 flex-1 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-base outline-none placeholder:text-[#7c7d7f] focus-visible:ring-2 focus-visible:ring-white/20 disabled:opacity-60"
-        />
-        <button type="button" onClick={() => void redeem()} disabled={redeeming || code.trim() === ''} className={chipClass}>
-          {redeeming ? 'Adding…' : 'Add credits'}
-        </button>
-      </div>
-      {problem && <p className="text-[#e8a33d]">{problem}</p>}
-    </div>
-  );
-}
-
 function GenerateButton({ disabled, busy, cost }: { disabled: boolean; busy: boolean; cost: number | null }) {
   return (
     <button
       type="submit"
       aria-disabled={disabled}
       aria-busy={busy}
-      className="group/generate relative mb-[3px] flex h-11 min-w-[6.5rem] flex-1 items-center justify-center gap-3 overflow-hidden rounded-[14px] bg-linear-to-b from-[#d8ff17] via-[#f4ff1f] to-[#ffff17] text-[#191b04] shadow-[0_3px_0_var(--color-lime-edge),0_10px_20px_rgb(0_0_0/0.45)] transition-[translate,box-shadow,filter,opacity] duration-300 ease-spring hover:shadow-[0_3px_0_var(--color-lime-edge),0_10px_28px_rgb(220_255_23/0.2)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-lime-edge),0_4px_10px_rgb(0_0_0/0.4)] active:duration-75 active:ease-out aria-disabled:pointer-events-none aria-disabled:opacity-40 sm:ml-auto sm:w-44 sm:flex-none lg:h-24 lg:w-40"
+      className="group/generate relative mb-[3px] flex h-11 min-w-[6.5rem] flex-1 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[14px] bg-linear-to-b from-[#d8ff17] via-[#f4ff1f] to-[#ffff17] text-[#191b04] shadow-[0_3px_0_var(--color-lime-edge),0_10px_20px_rgb(0_0_0/0.45)] transition-[translate,box-shadow,filter,opacity] duration-300 ease-spring hover:shadow-[0_3px_0_var(--color-lime-edge),0_10px_28px_rgb(220_255_23/0.2)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_var(--color-lime-edge),0_4px_10px_rgb(0_0_0/0.4)] active:duration-75 active:ease-out aria-disabled:pointer-events-none aria-disabled:opacity-40 sm:ml-auto sm:w-44 sm:flex-none lg:h-24 lg:w-40 lg:gap-1.5"
     >
       {/* A glint crosses the button as the pointer arrives */}
       <span
@@ -544,8 +502,10 @@ function GenerateButton({ disabled, busy, cost }: { disabled: boolean; busy: boo
         Generate
       </span>
       {cost !== null && (
-        <span className="text-xs font-semibold opacity-70 lg:absolute lg:bottom-3">
-          {cost} {cost === 1 ? 'credit' : 'credits'}
+        <span className="flex items-center gap-1 text-[0.8125rem] leading-none font-semibold tabular-nums lg:text-base">
+          <CreditGlyph />
+          <RollingValue value={cost} />
+          <span className="sr-only">{cost === 1 ? 'credit' : 'credits'}</span>
         </span>
       )}
     </button>
@@ -572,12 +532,6 @@ export function fitSettings(settings: Settings, workflow: Workflow, mode: MediaT
     duration_s: pick(settings.duration_s, workflow.durations_s),
     count: settings.count
   };
-}
-
-/** A short head shake: the prompt is needed before anything can be generated. */
-function shake(element: HTMLElement | null) {
-  if (!element || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  element.animate({ translate: ['0', '-6px', '5px', '-3px', '2px', '0'] }, { duration: 400, easing: 'ease-out' });
 }
 
 /** Stands in for a file while it uploads, so its chip shows straight away. */

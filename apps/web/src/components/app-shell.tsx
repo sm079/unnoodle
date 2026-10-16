@@ -16,6 +16,7 @@ import {
   ZapIcon
 } from 'lucide-react';
 import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
+import { CreditAmount } from '@/components/credit-glyph';
 import { NewProjectForm } from '@/components/new-project';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { api } from '@/lib/api';
@@ -270,7 +271,12 @@ function Account({ email }: { email: string }) {
       <span className={cn(collapsible, 'flex min-w-0 flex-1 flex-col text-left')}>
         <span className="truncate">Sign out</span>
         <span className="truncate text-xs font-normal text-[#828282]">
-          {credits ? `${credits.balance} ${credits.balance === 1 ? 'credit' : 'credits'} · ` : ''}
+          {credits && (
+            <>
+              <CreditAmount value={credits.balance} className="text-[#c8c9cb]" />
+              {' · '}
+            </>
+          )}
           {email}
         </span>
       </span>
