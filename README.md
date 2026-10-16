@@ -59,6 +59,33 @@ uv run python -m app.users admin someone@example.com      # --remove to undo
 Whatever was made before there were accounts belongs to `owner@unnoodle.local`, an admin with no password until one is
 set this way.
 
+A demo project is shown to every account, so a new one has something to look at before making anything: its
+generations, their inputs and outputs, which anyone can use as inputs. Only its owner adds to it.
+`uv run python -m app.demo krea2-turbo flux2-klein-edit minimax-h3` files every finished generation of those workflows
+into one called Demo.
+
+### Credits
+
+Generating costs credits; there's no payment. New accounts start with none and can look around with Generate turned
+off until they redeem an invite code or an admin grants some. Prices are fixed and shown on Generate:
+
+| Request                     | Credits                                      |
+| --------------------------- | -------------------------------------------- |
+| A picture                   | 1, or 2 at high quality                      |
+| A video, for each 5 seconds | 10 low, 20 medium, 40 high                   |
+| Each clip attached to video | 10 more (the model works through its frames) |
+
+"How many" queues that many, each charged in full. Every credit given or taken is a row in an append-only ledger
+(`credit_entries`), so a balance is a sum and every change can be traced. Queuing charges at once, under a lock on the
+account so two requests can't spend the same credits; a generation that fails gets its credits back in the same
+transaction that marks it failed. Each person can have 8 generations waiting or running at once.
+
+```sh
+uv run python -m app.credits invite WELCOME --credits 50 --uses 20 --days 14
+uv run python -m app.credits grant someone@example.com 100 --note "for the demo"   # negative takes back
+uv run python -m app.credits balance someone@example.com
+```
+
 ### ComfyUI without models
 
 Generations run on ComfyUI. To develop without downloading any models, start ComfyUI (0.39 or later) from the repo

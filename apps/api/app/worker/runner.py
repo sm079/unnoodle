@@ -173,7 +173,7 @@ def finish(engine: Engine, claim: queue.Claim, outputs: list[Stored]) -> Outcome
                     **output.fields(),
                 )
             )
-        queue.end(generation, GenerationStatus.DONE)
+        queue.end(session, generation, GenerationStatus.DONE)
     return "done"
 
 
@@ -182,5 +182,5 @@ def fail(engine: Engine, claim: queue.Claim, message: str) -> Outcome:
         generation = queue.lock_held(session, claim)
         if generation is None:
             return "lost"
-        queue.end(generation, GenerationStatus.FAILED, message)
+        queue.end(session, generation, GenerationStatus.FAILED, message)
     return "failed"

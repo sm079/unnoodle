@@ -4,7 +4,7 @@
 
 import useSWR, { useSWRConfig } from 'swr';
 import { api, generationsIn, paths, request } from './api';
-import type { Asset, Generation, Preferences, Project, User, Workflow } from './types';
+import type { Asset, Credits, Generation, Preferences, Project, User, Workflow } from './types';
 
 export function useWorkflows() {
   // They only change when the API restarts
@@ -34,6 +34,14 @@ export function useMe() {
   return useSWR(paths.me, path => request<User>(path), { revalidateOnFocus: false });
 }
 
+/** The balance and the prices. Checked again while something is waiting, since a failed one gives its credits back. */
+export function useCredits() {
+  const { data: generations } = useGenerations();
+  return useSWR(paths.credits, path => request<Credits>(path), {
+    refreshInterval: generations?.some(isActive) ? 3000 : 0
+  });
+}
+
 export function usePreferences() {
   const swr = useSWR(paths.preferences, path => request<Preferences>(path));
   return {
@@ -55,6 +63,8 @@ export function useAddToCache() {
     mutate<Generation[]>(path, current => [generation, ...(current ?? [])], { revalidate: true });
   return {
     generation: (generation: Generation) => {
+      // It was paid for
+      void mutate(paths.credits);
       // It is in My generations, and in its project if it has one, whose count has changed
       void prepend(paths.generations, generation);
       if (generation.project_id !== null) {

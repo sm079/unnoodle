@@ -1,6 +1,6 @@
 // Calls to the API, which the web app passes through under /api (see next.config.ts).
 
-import type { Asset, Generation, GenerationRequest, Preferences, Project, User } from './types';
+import type { Asset, Credits, Generation, GenerationRequest, Preferences, Project, User } from './types';
 
 /** A failed call. The message is fit to show: the API's own reason when it gave one. */
 export class ApiError extends Error {
@@ -84,6 +84,11 @@ export const api = {
 
   signOut(): Promise<void> {
     return request('/auth/sign-out', { method: 'POST' });
+  },
+
+  /** Adds an invite code's credits, and returns the new balance. */
+  redeem(code: string): Promise<Credits> {
+    return request('/credits/redeem', json('POST', { code }));
   }
 };
 
@@ -94,7 +99,8 @@ export const paths = {
   generations: '/generations',
   projects: '/projects',
   preferences: '/preferences',
-  me: '/auth/me'
+  me: '/auth/me',
+  credits: '/credits'
 } as const;
 
 /** The generations in one project, or every generation (My generations) for null. */

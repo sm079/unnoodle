@@ -89,6 +89,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/credits': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Credits
+     * @description Your balance, and what things cost.
+     */
+    get: operations['get_credits_credits_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/credits/redeem': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Redeem
+     * @description Adds an invite code's credits to your balance.
+     */
+    post: operations['redeem_credits_redeem_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/workflows': {
     parameters: {
       query?: never;
@@ -300,6 +340,12 @@ export interface components {
      * @enum {string}
      */
     Capability: 'image.generate' | 'image.edit' | 'video.generate' | 'video.reference';
+    /** CreditsOut */
+    CreditsOut: {
+      /** Balance */
+      balance: number;
+      prices: components['schemas']['Prices'];
+    };
     /**
      * GenerationIn
      * @description What the composer sends. It names no workflow: the inputs' roles decide one.
@@ -440,6 +486,19 @@ export interface components {
       /** Smart Queue */
       smart_queue: boolean;
     };
+    /** Prices */
+    Prices: {
+      /** Image */
+      image: {
+        [key: string]: number;
+      };
+      /** Video Per 5S */
+      video_per_5s: {
+        [key: string]: number;
+      };
+      /** Per Clip */
+      per_clip: number;
+    };
     /** ProjectIn */
     ProjectIn: {
       /** Name */
@@ -474,6 +533,11 @@ export interface components {
      * @enum {string}
      */
     Quality: 'low' | 'medium' | 'high';
+    /** RedeemIn */
+    RedeemIn: {
+      /** Code */
+      code: string;
+    };
     /** SignInIn */
     SignInIn: {
       /** Email */
@@ -721,6 +785,86 @@ export interface operations {
       };
     };
   };
+  get_credits_credits_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CreditsOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  redeem_credits_redeem_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: {
+        unnoodle_session?: string | null;
+      };
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RedeemIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CreditsOut'];
+        };
+      };
+      /** @description No such code */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Already redeemed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   list_workflows_workflows_get: {
     parameters: {
       query?: never;
@@ -904,8 +1048,22 @@ export interface operations {
           'application/json': components['schemas']['GenerationOut'][];
         };
       };
+      /** @description Not enough credits */
+      402: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Can't be run */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Too many waiting */
+      429: {
         headers: {
           [name: string]: unknown;
         };

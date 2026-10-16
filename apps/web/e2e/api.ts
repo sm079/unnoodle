@@ -6,7 +6,7 @@ import type { Asset, Generation, GenerationRequest, Project } from '../src/lib/t
  * Answers the browser's API calls with the fixtures, so the tests need no API and always see the same data. A
  * generation sent from the composer is queued, then runs and finishes over the next few times the list is fetched.
  */
-export async function mockApi(page: Page, { signedIn = true } = {}) {
+export async function mockApi(page: Page, { signedIn = true, credits = 1000 } = {}) {
   const created: Generation[] = [];
   const createdProjects: Project[] = [];
   let reads = 0;
@@ -14,6 +14,17 @@ export async function mockApi(page: Page, { signedIn = true } = {}) {
   // Signed in as an admin: the cookie gets past the sign-in redirect (src/proxy.ts), and the mocks never check it
   if (signedIn) await signIn(page);
   await page.route('**/api/auth/me', route => route.fulfill({ json: { id: 'usr_e2e', email: 'me@example.com', is_admin: true } }));
+
+  // The API's price table; WELCOME is an invite code worth 50
+  let balance = credits;
+  const prices = { image: { low: 1, medium: 1, high: 2 }, video_per_5s: { low: 10, medium: 20, high: 40 }, per_clip: 10 };
+  await page.route('**/api/credits', route => route.fulfill({ json: { balance, prices } }));
+  await page.route('**/api/credits/redeem', async route => {
+    const { code } = route.request().postDataJSON() as { code: string };
+    if (code.toUpperCase() !== 'WELCOME') return route.fulfill({ status: 404, json: { detail: "That code doesn't work" } });
+    balance += 50;
+    return route.fulfill({ json: { balance, prices } });
+  });
 
   await page.route('**/api/workflows', route => route.fulfill({ json: workflows }));
 
