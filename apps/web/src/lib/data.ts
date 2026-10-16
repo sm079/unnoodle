@@ -4,7 +4,7 @@
 
 import useSWR, { useSWRConfig } from 'swr';
 import { api, generationsIn, paths, request } from './api';
-import type { Asset, Generation, Preferences, Project, Workflow } from './types';
+import type { Asset, Generation, Preferences, Project, User, Workflow } from './types';
 
 export function useWorkflows() {
   // They only change when the API restarts
@@ -27,6 +27,11 @@ export function useGenerations(projectId: string | null = null) {
     // Every second while something is queued or running, so progress moves; otherwise only when the tab regains focus
     refreshInterval: generations => (generations?.some(isActive) ? 1000 : 0)
   });
+}
+
+/** The signed-in account. */
+export function useMe() {
+  return useSWR(paths.me, path => request<User>(path), { revalidateOnFocus: false });
 }
 
 export function usePreferences() {

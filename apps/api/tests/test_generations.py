@@ -12,12 +12,14 @@ from app.main import create_app
 from app.models import Asset, AssetSource, MediaType
 from app.settings import Settings
 from tests.catalogue import catalogue
+from tests.conftest import sign_up
 
 
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
     """An app with three workflows: text to image, an edit, and video from a prompt or references."""
     with TestClient(create_app(settings, catalogue())) as client:
+        sign_up(client)
         yield client
 
 
@@ -29,10 +31,11 @@ def upload(client: TestClient) -> str:
     return asset_id
 
 
-def clip(engine: Engine) -> str:
+def clip(client: TestClient, engine: Engine) -> str:
     # Straight into the table: what matters here is that it is a video
     with Session(engine) as session:
         asset = Asset(
+            owner_id=client.get("/auth/me").json()["id"],
             media_type=MediaType.VIDEO,
             source=AssetSource.UPLOAD,
             storage_key="uploads/clip.mp4",
@@ -105,7 +108,10 @@ def test_an_edit_can_take_another_shape(client: TestClient) -> None:
 
 
 def test_references_queue_video_from_references(client: TestClient, engine: Engine) -> None:
-    inputs = [{"asset_id": upload(client), "role": "reference"}, {"asset_id": clip(engine), "role": "reference"}]
+    inputs = [
+        {"asset_id": upload(client), "role": "reference"},
+        {"asset_id": clip(client, engine), "role": "reference"},
+    ]
     g = queue(client, video_request(inputs, duration_s=10))
     assert (g["capability"], g["workflow_id"], g["params"]["duration_s"]) == ("video.reference", "video", 10)
 

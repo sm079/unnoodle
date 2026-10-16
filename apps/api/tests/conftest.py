@@ -72,8 +72,23 @@ def settings(engine: Engine, test_database_url: str, tmp_path: Path) -> Settings
 
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
+    """Signed in, as someone with no admin rights."""
     with TestClient(create_app(settings)) as client:
+        sign_up(client)
         yield client
+
+
+def sign_up(client: TestClient, email: str = "me@example.com", password: str = "correct horse") -> str:
+    """Signs the client up (and so in) as a new account, and returns its id."""
+    response = client.post("/auth/sign-up", json={"email": email, "password": password})
+    assert response.status_code == 201, response.text
+    user_id: str = response.json()["id"]
+    return user_id
+
+
+def make_admin(engine: Engine, user_id: str) -> None:
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE users SET is_admin = true WHERE id = :id"), {"id": user_id})
 
 
 def create_database_if_missing(url: str) -> None:

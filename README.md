@@ -31,13 +31,33 @@ uv run python -m app.worker             # runs queued generations on ComfyUI (be
 ```
 
 The API queues generations in Postgres and the worker, a separate process, runs them on ComfyUI one at a time. Several
-workers can share the queue. It is first in, first out unless Smart Queue is on (a switch in the sidebar): then each
-generation's estimated run time moves it back, by 10 minutes at most, so quick ones go ahead of long videos.
+workers can share the queue. It is first in, first out unless Smart Queue is on (a switch in the sidebar, for admins,
+since it reorders everyone's jobs): then each generation's estimated run time moves it back, by 10 minutes at most, so
+quick ones go ahead of long videos.
 
 The browser only talks to the web app, which passes `/api/*` and `/media/*` through to the API (`API_URL`, by default
 `http://127.0.0.1:8000`), so a phone needs one address and no cross-origin setup.
 
 Every setting has a working default. To change one, copy `.env.example` to `.env`; compose and the API both read it.
+
+### Accounts
+
+People sign up on `/sign-up` with an email and a password, and everything they upload, generate or file in a project
+is theirs alone: the API filters every query by owner, answers 404 for anyone else's things, and serves `/media` files
+only to their owner. A signed-in browser holds a random token in an httpOnly, SameSite=Lax cookie; the database keeps
+only its SHA-256, and passwords are hashed with Argon2. Set `UNNOODLE_SECURE_COOKIES=true` wherever the app is served
+over HTTPS, the tailnet address included.
+
+There's no email yet, so the first admin and forgotten passwords go through the command line (run from `apps/api`):
+
+```sh
+uv run python -m app.users create you@example.com --admin
+uv run python -m app.users set-password you@example.com   # also signs the account out everywhere
+uv run python -m app.users admin someone@example.com      # --remove to undo
+```
+
+Whatever was made before there were accounts belongs to `owner@unnoodle.local`, an admin with no password until one is
+set this way.
 
 ### ComfyUI without models
 

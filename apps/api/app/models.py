@@ -72,12 +72,46 @@ def new_id() -> uuid.UUID:
     return uuid.uuid7()
 
 
+class User(Base):
+    """Someone with an account. Everything they make or upload is theirs alone."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    # Stored lowercased, so an address is one account however it is typed
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    # Argon2. None: the account can't sign in until a password is set from the command line (app.users).
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # Can change settings that affect everyone, such as Smart Queue
+    is_admin: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (CheckConstraint("email = lower(email)", name="email_lowercase"),)
+
+
+class UserSession(Base):
+    """A signed-in browser. The cookie holds a random token and only its hash is stored, so a copy of the database
+    can't be used to sign in. Deleting the row signs that browser out."""
+
+    __tablename__ = "sessions"
+
+    # SHA-256 of the token, in hex
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship(lazy="joined")
+
+
 class Asset(Base):
     """A stored image or video: an upload, or an output of a generation."""
 
     __tablename__ = "assets"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    # An output belongs to whoever owns its generation. Deleting an account deletes everything it made.
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     media_type: Mapped[MediaType] = mapped_column(string_enum(MediaType, "media_type"))
     source: Mapped[AssetSource] = mapped_column(string_enum(AssetSource, "source"))
     # Path under the media directory, with forward slashes
@@ -88,7 +122,7 @@ class Asset(Base):
     height: Mapped[int]
     duration_s: Mapped[float | None]
     # Videos only: a still of the first frame, under the media directory like storage_key
-    poster_key: Mapped[str | None] = mapped_column(String(255))
+    poster_key: Mapped[str | None] = mapped_column(String(255), unique=True)
     # Set for outputs: the generation that made this asset
     generation_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("generations.id", ondelete="CASCADE"), index=True
@@ -99,6 +133,8 @@ class Asset(Base):
         CheckConstraint("(source = 'generation') = (generation_id IS NOT NULL)", name="output_has_generation"),
         CheckConstraint("(media_type = 'video') = (duration_s IS NOT NULL)", name="duration_for_video"),
         CheckConstraint("(media_type = 'video') = (poster_key IS NOT NULL)", name="poster_for_video"),
+        # Someone's uploads, newest first
+        Index("ix_assets_owner_id", "owner_id", "id"),
     )
 
 
@@ -108,10 +144,16 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(80))
+    # Shown to everyone, read-only for all but its owner (app.sharing)
+    is_demo: Mapped[bool] = mapped_column(default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    __table_args__ = (CheckConstraint("btrim(name) <> ''", name="name_not_blank"),)
+    __table_args__ = (
+        CheckConstraint("btrim(name) <> ''", name="name_not_blank"),
+        Index("ix_projects_owner_id", "owner_id", "id"),
+    )
 
 
 class Generation(Base):
@@ -120,6 +162,7 @@ class Generation(Base):
     __tablename__ = "generations"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_id)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     status: Mapped[GenerationStatus] = mapped_column(
         string_enum(GenerationStatus, "status"), default=GenerationStatus.QUEUED
     )
@@ -165,11 +208,13 @@ class Generation(Base):
         Index("ix_generations_queued", "created_at", postgresql_where=text("status = 'queued'")),
         # A project's generations, newest first
         Index("ix_generations_project_id", "project_id", "id"),
+        # Someone's generations (My generations), newest first
+        Index("ix_generations_owner_id", "owner_id", "id"),
     )
 
 
 class Preferences(Base):
-    """Settings for the whole app, in one row. They move to each person once there are accounts."""
+    """Settings for the whole app, in one row. Only admins change them, since they affect everyone."""
 
     __tablename__ = "preferences"
 

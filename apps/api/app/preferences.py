@@ -1,9 +1,10 @@
-"""Preferences: settings for the whole app, until there are accounts to hold them."""
+"""Preferences: settings for the whole app. Anyone signed in can read them; only admins change them."""
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.accounts import AdminUser, CurrentUser
 from app.db import SessionDep
 from app.models import Preferences
 
@@ -22,12 +23,12 @@ router = APIRouter()
 
 
 @router.get("/preferences")
-def get_preferences(session: SessionDep) -> PreferencesOut:
+def get_preferences(_: CurrentUser, session: SessionDep) -> PreferencesOut:
     return PreferencesOut(smart_queue=stored(session).smart_queue)
 
 
-@router.patch("/preferences")
-def update_preferences(body: PreferencesIn, session: SessionDep) -> PreferencesOut:
+@router.patch("/preferences", responses={403: {"description": "Not an admin"}})
+def update_preferences(body: PreferencesIn, _: AdminUser, session: SessionDep) -> PreferencesOut:
     preferences = stored(session)
     if body.smart_queue is not None:
         preferences.smart_queue = body.smart_queue

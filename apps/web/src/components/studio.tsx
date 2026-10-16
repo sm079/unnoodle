@@ -19,12 +19,20 @@ const HIGHLIGHTS = 8;
 /**
  * The one screen the app is: the home screen (hero and composer), All projects, or one folder's gallery. On phones
  * the composer is docked at the bottom everywhere; on wide screens it sits under the hero, then docks under the rest.
- * Generating from a project files the result there; from anywhere else it goes to My generations, which opens.
+ * Generating from a project files the result there; from anywhere else it goes to My generations, which opens. So
+ * does generating from a demo someone else owns, since only its owner adds to it.
  */
 export function Studio() {
   const [view, setView] = useState<View>(home);
   const { data: generations = [] } = useGenerations();
-  const highlights = generations.flatMap(g => g.outputs).slice(0, HIGHLIGHTS);
+  const { data: projects = [] } = useProjects();
+  // Until someone has made anything, the hero shows the demo's outputs (the same request as My generations without one)
+  const demo = projects.find(p => p.demo);
+  const { data: demoGenerations = [] } = useGenerations(demo?.id ?? null);
+  const own = generations.flatMap(g => g.outputs);
+  const highlights = (own.length > 0 ? own : demoGenerations.flatMap(g => g.outputs)).slice(0, HIGHLIGHTS);
+  const open = projectOf(view);
+  const fileInto = projects.find(p => p.id === open)?.mine === false ? null : open;
   const top = useRef<HTMLDivElement>(null);
   const composer = useRef<ComposerHandle>(null);
   const attachToComposer = (asset: Asset) => composer.current?.attach(asset);
@@ -82,8 +90,8 @@ export function Studio() {
         >
           <Composer
             ref={composer}
-            projectId={projectOf(view)}
-            onGenerated={generation => show(view.name === 'folder' ? view : folder(generation.project_id))}
+            projectId={fileInto}
+            onGenerated={generation => show(view.name === 'folder' && fileInto === open ? view : folder(generation.project_id))}
           />
         </m.div>
       </div>

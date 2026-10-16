@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -16,11 +17,23 @@ from app.models import (
     InputRole,
     MediaType,
     Quality,
+    User,
 )
+
+# Every row these tests make belongs to one account, made before each test
+OWNER = uuid.uuid7()
+
+
+@pytest.fixture(autouse=True)
+def owner(engine: Engine) -> None:
+    with Session(engine) as session:
+        session.add(User(id=OWNER, email="owner@example.com"))
+        session.commit()
 
 
 def upload(key: str = "uploads/a.png") -> Asset:
     return Asset(
+        owner_id=OWNER,
         media_type=MediaType.IMAGE,
         source=AssetSource.UPLOAD,
         storage_key=key,
@@ -33,6 +46,7 @@ def upload(key: str = "uploads/a.png") -> Asset:
 
 def generation(**changes: object) -> Generation:
     fields: dict[str, object] = {
+        "owner_id": OWNER,
         "capability": Capability.VIDEO_REFERENCE,
         "workflow_id": "minimax-h3",
         "prompt": "she turns towards the camera",
@@ -57,6 +71,7 @@ def test_a_generation_keeps_its_inputs_in_order_and_its_outputs(engine: Engine) 
         session.flush()
         session.add(
             Asset(
+                owner_id=OWNER,
                 media_type=MediaType.VIDEO,
                 source=AssetSource.GENERATION,
                 storage_key=f"outputs/{g.id}/0.mp4",

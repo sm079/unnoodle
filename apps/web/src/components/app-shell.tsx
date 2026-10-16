@@ -7,6 +7,7 @@ import {
   ChevronRightIcon,
   HeartIcon,
   HouseIcon,
+  LogOutIcon,
   MenuIcon,
   PanelLeftIcon,
   PlusIcon,
@@ -17,7 +18,8 @@ import {
 import { BrandMark, NoodleGlyph } from '@/components/brand-mark';
 import { NewProjectForm } from '@/components/new-project';
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { usePreferences, useProjects } from '@/lib/data';
+import { api } from '@/lib/api';
+import { useMe, usePreferences, useProjects } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { allProjects, folder, home, sameView, type View } from '@/lib/views';
 
@@ -116,6 +118,7 @@ const current = (item: View | undefined, view: View) => (item && sameView(item, 
 
 function SidebarBody({ view, onView, action }: { view: View; onView: (view: View) => void; action: ReactNode }) {
   const { data: projects = [] } = useProjects();
+  const { data: me } = useMe();
   const [creating, setCreating] = useState(false);
 
   return (
@@ -234,12 +237,45 @@ function SidebarBody({ view, onView, action }: { view: View; onView: (view: View
         />
       </button>
 
-      <SmartQueueSwitch />
+      {me?.is_admin && <SmartQueueSwitch />}
+      {me && <Account email={me.email} />}
     </div>
   );
 }
 
-/** Lets quick generations go ahead of long ones in the queue. Off until turned on. */
+/** Who is signed in, and a way out. */
+function Account({ email }: { email: string }) {
+  const [leaving, setLeaving] = useState(false);
+
+  async function signOut() {
+    setLeaving(true);
+    await api.signOut().catch(() => undefined);
+    // A full load rather than a client-side move, so nothing cached for this account is left for the next one
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign('/');
+  }
+
+  return (
+    <button
+      type="button"
+      title={`Signed in as ${email}. Sign out`}
+      disabled={leaving}
+      onClick={() => void signOut()}
+      className={cn(rowClass, 'mt-[3px] h-auto py-1.5 disabled:opacity-60 lg:h-auto')}
+    >
+      <IconTile className="bg-[#232426]">
+        <LogOutIcon className="size-4 text-[#a0a1a3] lg:size-3.5" />
+      </IconTile>
+      <span className={cn(collapsible, 'flex min-w-0 flex-1 flex-col text-left')}>
+        <span className="truncate">Sign out</span>
+        <span className="truncate text-xs font-normal text-[#828282]">{email}</span>
+      </span>
+    </button>
+  );
+}
+
+/** Lets quick generations go ahead of long ones in the queue. Off until turned on. Admins only, since it reorders
+ * everyone's jobs. */
 function SmartQueueSwitch() {
   const { data, update } = usePreferences();
   const on = data?.smart_queue ?? false;
