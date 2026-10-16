@@ -29,7 +29,8 @@ def read_password() -> str:
         if getpass.getpass("Again: ") != password:
             sys.exit("The passwords don't match")
     else:
-        password = sys.stdin.readline().rstrip("\n")
+        # Windows shells end a piped line with \r\n, and the \r would become part of the password
+        password = sys.stdin.readline().rstrip("\r\n")
     if len(password) < MIN_PASSWORD:
         sys.exit(f"Passwords need at least {MIN_PASSWORD} characters")
     return password
