@@ -1,0 +1,11 @@
+# HTTPS for the API, with a certificate Caddy gets and renews by itself
+{$API_HOST} {
+	encode zstd gzip
+
+	request_body {
+		# A little above the API's 50 MB upload limit, so the API refuses bigger files with its own message
+		max_size 60MB
+	}
+
+	reverse_proxy api:8000
+}

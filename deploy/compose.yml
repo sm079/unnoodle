@@ -1,0 +1,80 @@
+# The hosted backend: Postgres, the API, the worker and Caddy in front for HTTPS. The web app runs on Vercel and passes
+# /api and /media through to API_HOST. Settings come from deploy/.env (see .env.example next to this file).
+#
+#   docker compose up -d          start or update everything (migrations run first)
+#   docker compose pull           fetch the newest image built from main
+
+name: unnoodle
+
+x-api: &api
+  image: ${API_IMAGE:-ghcr.io/sm079/unnoodle-api:latest}
+  restart: unless-stopped
+  environment:
+    UNNOODLE_DATABASE_URL: postgresql+psycopg://unnoodle:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/unnoodle
+    UNNOODLE_PIPELINES: ${UNNOODLE_PIPELINES:-real}
+    UNNOODLE_RENDERER_URL: ${UNNOODLE_RENDERER_URL:-http://127.0.0.1:8188}
+    # Browsers reach the API through the web app's HTTPS address only
+    UNNOODLE_SECURE_COOKIES: 'true'
+  volumes:
+    - media:/data/media
+  depends_on:
+    postgres:
+      condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: unnoodle
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: unnoodle
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U unnoodle -d unnoodle']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *api
+    restart: 'no'
+    command: ['alembic', 'upgrade', 'head']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    <<: *api
+    command: ['python', '-m', 'app.worker']
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      API_HOST: ${API_HOST:?set API_HOST in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  media:
+  caddy-data:
