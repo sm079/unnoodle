@@ -1,28 +1,47 @@
 # Hosting
 
-The web app runs on Vercel. Everything else runs in Docker on one small server: Postgres, the API, the worker and Caddy,
-which gets an HTTPS certificate for the API by itself. Vercel passes `/api/*` and `/media/*` through to the API, so the
-browser still talks to one address and the sign-in cookie stays first-party.
+The web app runs on Vercel. Everything else runs in Docker on one machine: Postgres, the API, the worker and the GPU
+process, which rents a GPU only while generations wait. The API is reached over HTTPS through Tailscale Funnel or, on a
+plain server, Caddy. Vercel passes `/api/*` and `/media/*` through to the API, so the browser still talks to one address
+and the sign-in cookie stays first-party. `/` and `/demo` are static, so they work even while that machine is off.
 
 ```mermaid
 flowchart LR
   B[Browser] --> V[Vercel: Next.js]
-  V -- "/api, /media" --> C[Caddy :443]
-  subgraph Server [Server, docker compose]
+  V -- "/api, /media" --> C[Funnel or Caddy]
+  subgraph Server [One machine, docker compose]
     C --> A[API] --> P[(Postgres)]
     W[Worker] --> P
+    G[GPU process] --> P
     A & W --> M[(media volume)]
   end
-  W -- graphs --> R[Renderer on a GPU]
+  G -- "rents, tunnels, returns" --> R[Renderer on a rented GPU]
+  W -- graphs --> R
 ```
 
 The API image is built from `main` by `.github/workflows/image.yml` and published as `ghcr.io/sm079/unnoodle-api`
 (`latest` and `sha-<commit>`). The server only pulls it; nothing is built there.
 
-## The server
+## The machine
 
-A 1 GB DigitalOcean droplet (Ubuntu 24.04, Basic, Regular SSD, $6/month) is enough: nothing runs a model on it. Pick
-the region closest to the people using it. Add your SSH key when creating it, then:
+Any machine with Docker and Tailscale can host it, with Funnel giving the API a public HTTPS name. `compose.funnel.yml`
+publishes the API on that machine's loopback only (port 18400) and leaves Caddy out:
+
+```sh
+cd deploy
+cp .env.example .env           # POSTGRES_PASSWORD, the GPU settings; API_HOST is then only for reference
+docker compose -f compose.yml -f compose.funnel.yml up -d
+tailscale funnel --bg --https=8443 http://127.0.0.1:18400
+curl https://<machine>.<tailnet>.ts.net:8443/health
+```
+
+The machine name is part of the public address, so name it in the Tailscale admin console first. Funnel opens only that
+one port, Postgres isn't published, and the containers run as a non-root user and see only their named volumes, not the
+machine's files. Sign-in, media and Generate work only while the machine is on.
+
+### Or: a plain server with Caddy
+
+A small VPS with 1 GB of memory is enough: nothing runs a model on it. Add your SSH key when creating it, then:
 
 ```sh
 ssh root@<ip>
@@ -52,23 +71,14 @@ curl https://<API_HOST>/health # {"status":"ok","db":"ok"}
 sslip.io answers any name that contains an IP address with that address, so there is a public name to get a certificate
 for without buying a domain.
 
-### Or: a machine on a tailnet, through Tailscale Funnel
+## The GPU
 
-Any machine with Docker and Tailscale can be the server instead, with Funnel in front in place of Caddy.
-`compose.funnel.yml` publishes the API on that machine's loopback only (port 18400) and leaves Caddy out; Funnel then
-gives it a public HTTPS name:
-
-```sh
-cd deploy
-cp .env.example .env           # API_HOST is then only for reference
-docker compose -f compose.yml -f compose.funnel.yml up -d
-tailscale funnel --bg --https=8443 http://127.0.0.1:18400
-curl https://<machine>.<tailnet>.ts.net:8443/health
-```
-
-The machine name is part of the public address, so name it in the Tailscale admin console first. Funnel opens only that
-one port, Postgres isn't published, and the containers see only their named volumes, not the machine's files. The API
-is up only while the machine is, which `/demo` covers: it needs neither.
+With `UNNOODLE_GPU=runpod`, a RunPod API key and a Hugging Face token in `.env`, the `gpu` service rents a GPU when
+generations wait, downloads the models one pipeline at a time and tunnels its renderer to `gpu:8288` on the compose
+network. It hands the GPU back after 5 idle minutes and stops for the day after 2 hours of GPU time
+(`UNNOODLE_GPU_IDLE_STOP_S`, `UNNOODLE_GPU_DAILY_LIMIT_S`). It also deletes stray pods of this app, and each pod deletes
+itself if the process stops checking in. Set a spend limit on the RunPod account as well. Admins can stop the GPU from
+`/admin`. With `UNNOODLE_GPU=off`, point `UNNOODLE_RENDERER_URL` at a renderer you run yourself.
 
 ## The web app
 
@@ -100,11 +110,14 @@ People and credits are managed with the same commands as locally, run inside the
 
 ## Updating
 
-Merging to `main` publishes a new image. On the server:
+Merging to `main` publishes a new image. On the server (add the `-f` files used to start it):
 
 ```sh
 docker compose pull && docker compose up -d
 ```
+
+Or build the image on the machine itself: `docker build -t unnoodle-api:local apps/api`, then set
+`API_IMAGE=unnoodle-api:local` in `.env` and `up -d`.
 
 ## Known limits
 
