@@ -1,12 +1,15 @@
 import type { Page, Route } from '@playwright/test';
 import { generations, projects, uploads, pipelines } from '../src/lib/fixtures';
-import type { Asset, Generation, GenerationRequest, Project } from '../src/lib/types';
+import type { Asset, Generation, GenerationRequest, Gpu, Project } from '../src/lib/types';
 
 /**
  * Answers the browser's API calls with the fixtures, so the tests need no API and always see the same data. A
  * generation sent from the composer is queued, then runs and finishes over the next few times the list is fetched.
  */
-export async function mockApi(page: Page, { signedIn = true, credits = 1000 } = {}) {
+// By default no GPU is rented, as on a machine that runs its own renderer
+const noGpu: Gpu = { state: 'off', phase: null, ready: [], eta_s: {} };
+
+export async function mockApi(page: Page, { signedIn = true, credits = 1000, gpu = noGpu } = {}) {
   const created: Generation[] = [];
   const createdProjects: Project[] = [];
   let reads = 0;
@@ -27,6 +30,7 @@ export async function mockApi(page: Page, { signedIn = true, credits = 1000 } = 
   });
 
   await page.route('**/api/pipelines', route => route.fulfill({ json: pipelines }));
+  await page.route('**/api/gpu', route => route.fulfill({ json: gpu }));
 
   await page.route('**/api/assets', async route => {
     if (route.request().method() === 'GET') return route.fulfill({ json: uploads });
