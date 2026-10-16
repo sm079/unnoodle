@@ -211,7 +211,7 @@ export function Hero({ assets, title }: { assets: Asset[]; title: string }) {
                 onClick={() => side && step(offset)}
                 style={style}
                 className={cn(
-                  'hero-card absolute top-1/2 left-1/2 aspect-video overflow-hidden rounded-[11px] bg-muted outline-none focus-visible:ring-4 focus-visible:ring-lime/60',
+                  'hero-card absolute top-1/2 left-1/2 aspect-video overflow-hidden rounded-[11px] bg-muted outline-none focus-visible:ring-4 focus-visible:ring-brand/60',
                   isFront
                     ? 'cursor-grab shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-2 ring-white/25 group-data-[dragging]/stage:cursor-grabbing'
                     : 'shadow-[0_8px_24px_rgb(0_0_0/0.4)] ring-1 ring-white/15 hover:brightness-110',

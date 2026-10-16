@@ -28,7 +28,7 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-linear-to-b from-[#e6ff3d] to-lime text-black shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]',
+        'flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-linear-to-b from-[#ff8763] to-brand text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]',
         className
       )}
     >

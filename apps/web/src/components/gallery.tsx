@@ -118,9 +118,9 @@ function StatusLine({ generation }: { generation: Generation }) {
             className="h-1 overflow-hidden rounded-full bg-white/10"
           >
             {settingUp ? (
-              <div className="h-full w-1/3 animate-[sheen_1.6s_ease-in-out_infinite] rounded-full bg-lime/60 motion-reduce:w-full motion-reduce:animate-none motion-reduce:bg-lime/25" />
+              <div className="h-full w-1/3 animate-[sheen_1.6s_ease-in-out_infinite] rounded-full bg-brand/60 motion-reduce:w-full motion-reduce:animate-none motion-reduce:bg-brand/25" />
             ) : (
-              <div className="h-full rounded-full bg-lime transition-[width] duration-700 ease-out" style={{ width: `${percent}%` }} />
+              <div className="h-full rounded-full bg-brand transition-[width] duration-700 ease-out" style={{ width: `${percent}%` }} />
             )}
           </div>
         </div>
