@@ -1,6 +1,6 @@
 // Calls to the API, which the web app passes through under /api (see next.config.ts).
 
-import type { Asset, Credits, Generation, GenerationRequest, Preferences, Project, User } from './types';
+import type { AdminUser, Asset, Credits, Generation, GenerationRequest, Invite, InviteRequest, Preferences, Project, User } from './types';
 
 /** A failed call. The message is fit to show: the API's own reason when it gave one. */
 export class ApiError extends Error {
@@ -89,6 +89,30 @@ export const api = {
   /** Adds an invite code's credits, and returns the new balance. */
   redeem(code: string): Promise<Credits> {
     return request('/credits/redeem', json('POST', { code }));
+  },
+
+  // Admins only
+
+  deleteGeneration(id: string): Promise<void> {
+    return request(`/admin/generations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  /** Gives credits, or takes them back with a negative amount. */
+  grant(userId: string, amount: number, note: string | null): Promise<AdminUser> {
+    return request(`/admin/users/${encodeURIComponent(userId)}/credits`, json('POST', { amount, note }));
+  },
+
+  createInvite(invite: InviteRequest): Promise<Invite> {
+    return request('/admin/invite-codes', json('POST', invite));
+  },
+
+  /** Each returns the whole list after the change. */
+  addBannedWord(word: string): Promise<string[]> {
+    return request('/admin/banned-words', json('POST', { word }));
+  },
+
+  removeBannedWord(word: string): Promise<string[]> {
+    return request(`/admin/banned-words/${encodeURIComponent(word)}`, { method: 'DELETE' });
   }
 };
 
@@ -100,7 +124,13 @@ export const paths = {
   projects: '/projects',
   preferences: '/preferences',
   me: '/auth/me',
-  credits: '/credits'
+  credits: '/credits',
+  admin: {
+    generations: '/admin/generations',
+    users: '/admin/users',
+    invites: '/admin/invite-codes',
+    words: '/admin/banned-words'
+  }
 } as const;
 
 /** The generations in one project, or every generation (My generations) for null. */

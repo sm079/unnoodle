@@ -15,6 +15,7 @@ from app.db import SessionDep
 from app.media import AssetOut
 from app.models import (
     Asset,
+    BannedWord,
     Capability,
     Generation,
     GenerationInput,
@@ -26,6 +27,7 @@ from app.models import (
     User,
     new_id,
 )
+from app.moderation import banned_in
 from app.routing import RoutingError, capability_for, route
 from app.sharing import visible_asset, visible_generation
 from app.worker import queue
@@ -150,6 +152,9 @@ def create_generation(
 ) -> list[GenerationOut]:
     """Queues count generations, oldest first in the answer."""
     try:
+        word = banned_in(body.prompt, session.scalars(select(BannedWord.word)))
+        if word is not None:
+            raise RequestError(f'"{word}" isn\'t allowed in prompts here. Try saying it another way.')
         assets = attached_assets(session, user, body.inputs)
         attached = [(i.role, assets[i.asset_id].media_type) for i in body.inputs]
         workflow = route(workflows.values(), body.media_type, attached, body.model)

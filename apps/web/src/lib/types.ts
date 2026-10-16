@@ -35,3 +35,10 @@ export type User = Schemas['UserOut'];
 export type Prices = Schemas['Prices'];
 /** The signed-in account's balance, with the prices. */
 export type Credits = Schemas['CreditsOut'];
+/** For the admin page: a generation with who made it. */
+export type AdminGeneration = Schemas['AdminGenerationOut'];
+/** For the admin page: an account with its balance. */
+export type AdminUser = Schemas['AdminUserOut'];
+/** For the admin page: an invite code with how many have used it. */
+export type Invite = Schemas['InviteOut'];
+export type InviteRequest = Schemas['InviteIn'];

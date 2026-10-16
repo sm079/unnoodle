@@ -87,6 +87,20 @@ uv run python -m app.credits grant someone@example.com 100 --note "for the demo"
 uv run python -m app.credits balance someone@example.com
 ```
 
+### Safety and the admin page
+
+Prompts containing a banned word or phrase are refused before anything is charged, with the word named so the person
+can say it another way. Words are compared after evening out capitals, accents, digits and symbols standing in for
+letters (`nud3`, `$ex`), held-down letters, spaced-out letters and plurals. A new install starts with a short list.
+
+This is a first layer only, and it is meant for a small invite-only app: misspellings, other languages and what is in
+an uploaded photo get past a word list, and photo edits of real people are the bigger risk. The other layers are that
+generating takes credits, which only admins hand out, and that admins see everything.
+
+`/admin` (admins only; linked from the sidebar) lists everyone's generations with who made them and deletes any of
+them, with its outputs, their files and the uploads nothing else uses. It also gives credits, makes invite codes and
+shows their uses, and keeps the banned words.
+
 ### ComfyUI without models
 
 Generations run on ComfyUI. To develop without downloading any models, start ComfyUI (0.39 or later) from the repo
