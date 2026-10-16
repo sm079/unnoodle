@@ -20,6 +20,16 @@ logger = logging.getLogger(__name__)
 
 PROGRESS_EVERY_S = 0.5
 
+# A run is stopped after this many times its estimate, and never sooner than MIN_TIME_LIMIT_S, which leaves room to
+# load a model, which the estimates leave out
+TIME_LIMIT_FACTOR = 3
+MIN_TIME_LIMIT_S = 120
+
+
+class TooLong(Exception):
+    """A run that went past its time limit."""
+
+
 Outcome = Literal["done", "failed", "released", "lost"]
 
 
@@ -41,7 +51,7 @@ def run_job(
         inputs = tuple(upload(store, comfy, role, asset) for role, asset in attached)
         graph = workflow.build(job_for(generation, workflow, inputs))
         assert graph.output_node is not None, f"{workflow.id} built a graph that saves nothing"
-        progress = ProgressWriter(engine, claim)
+        progress = ProgressWriter(engine, claim, time_limit_s(generation.estimated_s))
         files = comfy.run(graph.nodes, prompt_id, graph.output_node, progress.update, progress.beat)
         if not files:
             raise ComfyFailed("This finished without making anything")
@@ -49,6 +59,13 @@ def run_job(
             store_output(store, comfy, file, f"outputs/{generation.id}/{claim.attempt}-{n}")
             for n, file in enumerate(files)
         ]
+    except TooLong:
+        logger.warning("Generation %s went past its time limit; stopping it", generation.id)
+        try:
+            comfy.stop(prompt_id)
+        except ComfyUnavailable as error:
+            logger.warning("Couldn't stop generation %s in ComfyUI: %s", generation.id, error)
+        return fail(engine, claim, "This took much longer than it should, so it was stopped. Try again.")
     except ComfyUnavailable as error:
         logger.warning("ComfyUI unreachable, putting generation %s back in the queue: %s", generation.id, error)
         queue.release(engine, claim)
@@ -87,6 +104,7 @@ def job_for(generation: Generation, workflow: Workflow, inputs: tuple[JobInput, 
         frames=None if duration_s is None else workflow.frames[round(duration_s)],
         inputs=inputs,
         filename_prefix=f"unnoodle/{generation.id}",
+        estimated_s=generation.estimated_s,
     )
 
 
@@ -109,20 +127,33 @@ def failure_message(error: ComfyFailed) -> str:
     return "Something went wrong while making this. Try again."
 
 
-class ProgressWriter:
-    """Writes progress to the database at most every PROGRESS_EVERY_S, renewing the lease each time."""
+def time_limit_s(estimated_s: float) -> float:
+    return max(TIME_LIMIT_FACTOR * estimated_s, MIN_TIME_LIMIT_S)
 
-    def __init__(self, engine: Engine, claim: queue.Claim) -> None:
+
+class ProgressWriter:
+    """Writes progress to the database at most every PROGRESS_EVERY_S, renewing the lease each time. Raises TooLong
+    once the run has gone past its time limit: ComfyUI reports progress, or goes quiet, often enough for that to be
+    checked here."""
+
+    def __init__(self, engine: Engine, claim: queue.Claim, time_limit_s: float) -> None:
         self.engine, self.claim = engine, claim
         self.written_at = 0.0
+        self.deadline = time.monotonic() + time_limit_s
 
     def update(self, fraction: float) -> None:
+        self.check_time()
         if fraction >= 1 or time.monotonic() - self.written_at >= PROGRESS_EVERY_S:
             queue.beat(self.engine, self.claim, fraction)
             self.written_at = time.monotonic()
 
     def beat(self) -> None:
+        self.check_time()
         queue.beat(self.engine, self.claim)
+
+    def check_time(self) -> None:
+        if time.monotonic() > self.deadline:
+            raise TooLong
 
 
 def finish(engine: Engine, claim: queue.Claim, outputs: list[Stored]) -> Outcome:

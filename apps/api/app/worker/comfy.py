@@ -63,6 +63,10 @@ class Comfy(Protocol):
 
     def download(self, file: OutputFile) -> bytes: ...
 
+    def stop(self, prompt_id: str) -> None:
+        """Stops a run, whether it is running or still waiting in ComfyUI's queue."""
+        ...
+
 
 class ComfyClient:
     def __init__(self, base_url: str, quiet_after_s: float = 10) -> None:
@@ -141,6 +145,11 @@ class ComfyClient:
     def download(self, file: OutputFile) -> bytes:
         params = {"filename": file.filename, "subfolder": file.subfolder, "type": file.type}
         return self.request("GET", "/view", params=params).content
+
+    def stop(self, prompt_id: str) -> None:
+        # The interrupt only touches this run if it is the one executing; the delete takes it off the queue if not
+        self.request("POST", "/interrupt", json={"prompt_id": prompt_id})
+        self.request("POST", "/queue", json={"delete": [prompt_id]})
 
     def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         try:

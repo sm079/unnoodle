@@ -74,6 +74,16 @@ def test_a_failure_inside_comfyui_is_reported_with_its_type(comfyui_url: str) ->
     assert "OutOfMemory" in str(failure.value.exception_type)
 
 
+def test_a_run_can_be_stopped_while_it_sets_up(comfyui_url: str) -> None:
+    client = ComfyClient(comfyui_url, quiet_after_s=0.5)
+    graph = dev.image(replace(job(f"slow {uuid.uuid4()}"), estimated_s=600))
+    assert graph.output_node is not None
+    prompt_id = str(uuid.uuid4())
+    # Set-up reports nothing, so the client goes quiet; the first time it does, stop the run
+    with pytest.raises(ComfyFailed, match="stopped before it finished"):
+        client.run(graph.nodes, prompt_id, graph.output_node, lambda _: None, lambda: client.stop(prompt_id))
+
+
 def test_a_graph_comfyui_refuses_says_which_node(comfyui_url: str) -> None:
     graph = dev.image(job("refused"))
     [node_id] = [k for k, n in graph.nodes.items() if n["class_type"] == "UnnoodleDevSteps"]

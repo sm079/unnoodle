@@ -78,6 +78,8 @@ class Job:
     inputs: tuple[JobInput, ...]
     # Groups each generation's files in ComfyUI's output folder
     filename_prefix: str
+    # The workflow's estimate of its run time, when the worker knows it. The dev stand-ins take this long.
+    estimated_s: float | None = None
 
     def files(self, media_type: MediaType, role: InputRole | None = None) -> list[str]:
         return [i.file for i in self.inputs if i.media_type is media_type and role in (None, i.role)]
