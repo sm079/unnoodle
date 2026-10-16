@@ -102,8 +102,8 @@ function Hero() {
             <Link href="/sign-up" className={primary}>
               Get started
             </Link>
-            <Link href="/sign-in" className={secondary}>
-              Sign in
+            <Link href="/demo" className={secondary}>
+              Look around
             </Link>
           </div>
           <p className="mt-4 text-sm text-[#8a8b8c]">Invite only for now. Made for your phone.</p>
@@ -469,8 +469,8 @@ function Closing() {
           <Link href="/sign-up" className={primary}>
             Get started
           </Link>
-          <Link href="/sign-in" className={secondary}>
-            Sign in
+          <Link href="/demo" className={secondary}>
+            Look around
           </Link>
         </div>
       </div>
