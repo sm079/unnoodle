@@ -24,3 +24,18 @@ test('signing in takes you on to where you were going', async ({ page }) => {
   await expect(page).toHaveURL('/generate');
   await expect(page.getByRole('textbox', { name: 'Prompt' })).toBeVisible();
 });
+
+test('making an account is closed while the API is away', async ({ page }) => {
+  await page.route('**/api/health', route => route.fulfill({ status: 502, body: '' }));
+  await page.goto('/sign-up');
+  await expect(page.getByRole('heading', { name: 'Invites closed' })).toBeVisible();
+  await expect(page.getByRole('form')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Look around' }).click();
+  await expect(page).toHaveURL('/demo');
+});
+
+test('making an account is open while the API answers', async ({ page }) => {
+  await page.goto('/sign-up');
+  await expect(page.getByRole('form', { name: 'Make an account' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Invites closed' })).toHaveCount(0);
+});

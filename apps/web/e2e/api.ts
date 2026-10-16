@@ -29,6 +29,7 @@ export async function mockApi(page: Page, { signedIn = true, credits = 1000, gpu
     return route.fulfill({ json: { balance, prices } });
   });
 
+  await page.route('**/api/health', route => route.fulfill({ json: { status: 'ok', db: 'ok' } }));
   await page.route('**/api/pipelines', route => route.fulfill({ json: pipelines }));
   await page.route('**/api/gpu', route => route.fulfill({ json: gpu }));
 
