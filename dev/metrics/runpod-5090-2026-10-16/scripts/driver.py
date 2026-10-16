@@ -1,4 +1,4 @@
-"""RunPod test driver. python t.py <step> [...]
+"""RunPod test driver. python driver.py <step> [...]
 
 Talks to the local API (which sends work to the pod through the tunnel), keeps names -> ids in state.json and
 appends one result line per generation to results.jsonl.

@@ -13,7 +13,7 @@ real numbers to pace simulated generations by (durations, progress, queue waits)
   three steps. Step time follows the total latent tokens of the output and the clips, and grows faster than linearly.
 - `raw/`: the renderer's history from the pod and the test driver's own results. The pod and worker logs that `runs.json`
   was parsed from are `*.log`, which git ignores.
-- `scripts/`: the test driver (`t.py`), the clip sweep, the node spec check against `/object_info`, and the collector
+- `scripts/`: the test driver (`driver.py`), the clip sweep, the node spec check against `/object_info`, and the collector
   that wrote `runs.json`. They expect the tunnel on `127.0.0.1:8288` and the API on `127.0.0.1:8000`.
 
 Not covered: high quality video, 15 second video, running out of memory.
