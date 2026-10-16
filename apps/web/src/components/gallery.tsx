@@ -54,6 +54,7 @@ function GalleryTile({ generation, onOpen }: { generation: Generation; onOpen: (
     return (
       <button type="button" onClick={onOpen} aria-label={generation.prompt} className={`${tileClass} group w-full`}>
         <Image
+          unoptimized
           src={cover.thumbnail_url}
           alt=""
           fill

@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
     // the rest until the proxy times out. Above the API's 50 MB upload limit, so it can refuse bigger files itself.
     proxyClientMaxBodySize: '60mb'
   },
+  images: {
+    // Only the landing page's own pictures go through the optimizer. It fetches without the visitor's cookie and
+    // caches what it gets for everyone, so private /media files are shown as they are: pictures through the
+    // preview the API makes for each (thumbnail_url), loaded with <Image unoptimized>.
+    localPatterns: [{ pathname: '/showcase/**' }]
+  },
   turbopack: {
     rules: {
       '*.css': {

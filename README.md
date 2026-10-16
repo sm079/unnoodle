@@ -20,6 +20,11 @@ a GPU render server (the renderer) and stores what it makes.
 You need Node 24 with pnpm, uv, and Docker, and for videos ffmpeg (with ffprobe) on the PATH: the API uses it to cut
 uploaded clips to what the video model uses and to make a still of each video.
 
+Grids show a still of each file rather than the file: a video's first frame, or for a picture a WebP preview at most 960
+px on its long side, made when it is stored. Pictures stored before previews existed get theirs with
+`uv run python -m app.previews` (from `apps/api`; safe to run again). Private media skips Next's image optimizer, which
+fetches without the visitor's cookie and caches for everyone; only the landing page's `/showcase` files go through it.
+
 ```sh
 pnpm install
 pnpm dev                                # web app on http://localhost:3000

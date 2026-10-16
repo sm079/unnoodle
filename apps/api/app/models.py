@@ -159,7 +159,8 @@ class Asset(Base):
     width: Mapped[int]
     height: Mapped[int]
     duration_s: Mapped[float | None]
-    # Videos only: a still of the first frame, under the media directory like storage_key
+    # A still for grids, under the media directory like storage_key: a video's first frame (always), or a picture's
+    # preview (pictures stored before previews existed have none until `python -m app.previews` runs)
     poster_key: Mapped[str | None] = mapped_column(String(255), unique=True)
     # Set for outputs: the generation that made this asset
     generation_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -170,7 +171,7 @@ class Asset(Base):
     __table_args__ = (
         CheckConstraint("(source = 'generation') = (generation_id IS NOT NULL)", name="output_has_generation"),
         CheckConstraint("(media_type = 'video') = (duration_s IS NOT NULL)", name="duration_for_video"),
-        CheckConstraint("(media_type = 'video') = (poster_key IS NOT NULL)", name="poster_for_video"),
+        CheckConstraint("media_type <> 'video' OR poster_key IS NOT NULL", name="video_has_poster"),
         # Someone's uploads, newest first
         Index("ix_assets_owner_id", "owner_id", "id"),
     )

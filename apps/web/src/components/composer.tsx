@@ -664,7 +664,7 @@ function Thumbnail({ asset, uploading }: { asset: Asset; uploading: boolean }) {
       {asset.media_type === 'video' && asset.thumbnail_url.startsWith('blob:') ? (
         <video src={asset.url} muted preload="metadata" className={className} />
       ) : (
-        <Image src={asset.thumbnail_url} alt="" width={36} height={36} className={className} />
+        <Image unoptimized src={asset.thumbnail_url} alt="" width={36} height={36} className={className} />
       )}
       {uploading && (
         <span role="img" aria-label="Uploading" className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
@@ -696,7 +696,7 @@ function LibraryPicker({ assets, disabled, onPick }: { assets: Asset[]; disabled
                 }}
                 className="relative block aspect-square w-full overflow-hidden rounded-lg bg-muted ring-white/40 transition-[scale] duration-200 ease-spring hover:ring-2 active:scale-90"
               >
-                <Image src={asset.thumbnail_url} alt="" fill sizes="64px" className="object-cover" />
+                <Image unoptimized src={asset.thumbnail_url} alt="" fill sizes="64px" className="object-cover" />
                 {asset.media_type === 'video' && <VideoIcon className="absolute top-1 left-1 size-3.5 text-white drop-shadow" />}
               </button>
             </li>

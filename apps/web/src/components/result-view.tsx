@@ -72,6 +72,7 @@ function Result({ generation, onUseAsInput }: { generation: Generation; onUseAsI
             />
           ) : (
             <Image
+              unoptimized
               key={output.id}
               src={output.url}
               alt={generation.prompt}
@@ -94,7 +95,7 @@ function Result({ generation, onUseAsInput }: { generation: Generation; onUseAsI
                 onClick={() => setShown(index)}
                 className="relative size-12 shrink-0 overflow-hidden rounded-lg opacity-50 transition-[opacity,scale] duration-200 ease-spring active:scale-90 aria-pressed:opacity-100 aria-pressed:ring-2 aria-pressed:ring-brand"
               >
-                <Image src={asset.thumbnail_url} alt="" fill sizes="48px" className="object-cover" />
+                <Image unoptimized src={asset.thumbnail_url} alt="" fill sizes="48px" className="object-cover" />
               </button>
             ))}
           </div>
@@ -142,6 +143,7 @@ function Result({ generation, onUseAsInput }: { generation: Generation; onUseAsI
               {generation.inputs.map(({ asset }, index) => (
                 <li key={`${asset.id}-${index}`} className="flex items-center gap-1 rounded-xl bg-chip p-1 pr-2">
                   <Image
+                    unoptimized
                     src={asset.thumbnail_url}
                     alt=""
                     width={36}
