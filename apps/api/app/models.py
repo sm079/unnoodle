@@ -39,7 +39,7 @@ class Capability(StrEnum):
 class InputRole(StrEnum):
     """What an attached asset is for. The output type plus the roles of the inputs decide the capability.
 
-    There is one role while every workflow treats its inputs alike; start and end frames would be others."""
+    There is one role while every pipeline treats its inputs alike; start and end frames would be others."""
 
     # A photo or clip to work from: one to change, several to combine, or a person, an outfit, a style or a motion
     # to take from it
@@ -60,7 +60,7 @@ class CreditKind(StrEnum):
 
 
 class Quality(StrEnum):
-    """How big an output is: each workflow maps these to its own sizes and the person never sees pixels."""
+    """How big an output is: each pipeline maps these to its own sizes and the person never sees pixels."""
 
     LOW = "low"
     MEDIUM = "medium"
@@ -195,7 +195,7 @@ class Project(Base):
 
 
 class Generation(Base):
-    """One request to run a workflow. The table is also the job queue: workers claim queued rows."""
+    """One request to run a pipeline. The table is also the job queue: workers claim queued rows."""
 
     __tablename__ = "generations"
 
@@ -205,8 +205,8 @@ class Generation(Base):
         string_enum(GenerationStatus, "status"), default=GenerationStatus.QUEUED
     )
     capability: Mapped[Capability] = mapped_column(string_enum(Capability, "capability"))
-    # The workflow the request resolved to
-    workflow_id: Mapped[str] = mapped_column(String(64))
+    # The pipeline the request resolved to
+    pipeline_id: Mapped[str] = mapped_column(String(64))
     prompt: Mapped[str] = mapped_column(Text)
     # The project it was made in, if any. Deleting a project leaves its generations in My generations.
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"))
@@ -217,7 +217,7 @@ class Generation(Base):
     duration_s: Mapped[float | None]
     # Chosen when the request is accepted, so running the job again gives the same result
     seed: Mapped[int] = mapped_column(BigInteger)
-    # Roughly how long it runs on the GPU, from the workflow's estimate when it was queued; Smart Queue orders by it
+    # Roughly how long it runs on the GPU, from the pipeline's estimate when it was queued; Smart Queue orders by it
     estimated_s: Mapped[float]
     # Credits taken when it was queued, and given back if it fails (app.credits)
     cost: Mapped[int] = mapped_column(default=0, server_default="0")
@@ -226,8 +226,8 @@ class Generation(Base):
     progress: Mapped[float | None]
     error: Mapped[str | None] = mapped_column(Text)
     attempts: Mapped[int] = mapped_column(default=0)
-    # ComfyUI's id for the current run, for following it and cancelling it
-    comfy_prompt_id: Mapped[str | None] = mapped_column(String(64))
+    # The renderer's id for the current run, for following it and cancelling it
+    run_id: Mapped[str | None] = mapped_column(String(64))
     # Refreshed by the worker while it runs the job; a stale one means the worker died
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

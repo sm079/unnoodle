@@ -1,10 +1,10 @@
-"""A small catalogue for tests: one workflow per kind of route, with graphs that only carry what the job says."""
+"""A small catalogue for tests: one pipeline per kind of route, with graphs that only carry what the job says."""
 
 from typing import Any
 
 from app.graph import Graph
 from app.models import Capability, InputRole, MediaType, Quality
-from app.workflows import Accepts, Job, Workflow, check_catalogue
+from app.pipelines import Accepts, Job, Pipeline, check_catalogue
 
 MEGAPIXELS = {Quality.LOW: 0.5, Quality.MEDIUM: 1.0, Quality.HIGH: 2.0}
 
@@ -24,24 +24,24 @@ def build(job: Job) -> Graph:
     return g
 
 
-def workflow(id: str, *capabilities: Capability, **fields: Any) -> Workflow:
+def pipeline(id: str, *capabilities: Capability, **fields: Any) -> Pipeline:
     defaults: dict[str, Any] = {
         "model": "test",
         "model_name": "Test",
-        "description": "A test workflow",
+        "description": "A test pipeline",
         "build": build,
         "megapixels": MEGAPIXELS,
     }
-    return Workflow(id=id, capabilities=frozenset(capabilities), **(defaults | fields))
+    return Pipeline(id=id, capabilities=frozenset(capabilities), **(defaults | fields))
 
 
-IMAGE = workflow("t2i", Capability.IMAGE_GENERATE, aspect_ratios=("1:1", "3:4"))
-EDIT = workflow(
+IMAGE = pipeline("t2i", Capability.IMAGE_GENERATE, aspect_ratios=("1:1", "3:4"))
+EDIT = pipeline(
     "edit",
     Capability.IMAGE_EDIT,
     accepts=(Accepts(InputRole.REFERENCE, MediaType.IMAGE, 3),),
 )
-VIDEO = workflow(
+VIDEO = pipeline(
     "video",
     Capability.VIDEO_GENERATE,
     Capability.VIDEO_REFERENCE,
@@ -52,10 +52,10 @@ VIDEO = workflow(
 )
 
 
-def catalogue() -> dict[str, Workflow]:
-    workflows = [IMAGE, EDIT, VIDEO]
-    check_catalogue(workflows)
-    return {w.id: w for w in workflows}
+def catalogue() -> dict[str, Pipeline]:
+    pipelines = [IMAGE, EDIT, VIDEO]
+    check_catalogue(pipelines)
+    return {w.id: w for w in pipelines}
 
 
 def node_of(graph: dict[str, Any], class_type: str) -> dict[str, Any]:

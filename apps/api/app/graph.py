@@ -1,6 +1,6 @@
-"""Building ComfyUI graphs in code, in the API format that POST /prompt takes.
+"""Building the renderer graphs in code, in the API format that POST /prompt takes.
 
-A workflow builds its graph for each request, so a graph has exactly the nodes that request needs: one image chain
+A pipeline builds its graph for each request, so a graph has exactly the nodes that request needs: one image chain
 per attached photo, and none for photos that weren't attached. Exported graphs can't do that, because they have a
 fixed number of slots.
 
@@ -8,7 +8,7 @@ fixed number of slots.
     image = g.add("LoadImage", image="unnoodle/photo.png")
     g.output(g.add("SaveImage", images=image[0], filename_prefix="unnoodle/x"))
 
-Some inputs have dots in their names: ComfyUI's growing inputs ("ref_images.ref_image_0") and the options of a
+Some inputs have dots in their names: the renderer's growing inputs ("ref_images.ref_image_0") and the options of a
 dynamic choice ("format.codec"). They are passed with ** since they aren't Python names.
 """
 

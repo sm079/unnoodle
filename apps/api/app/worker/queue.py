@@ -70,7 +70,7 @@ def claim_next(engine: Engine) -> Claim | None:
             generation.attempts += 1
             generation.started_at = generation.heartbeat_at = now()
             generation.progress = 0
-            generation.comfy_prompt_id = None
+            generation.run_id = None
             return Claim(generation.id, generation.attempts)
     return None
 
@@ -97,7 +97,7 @@ def beat(engine: Engine, claim: Claim, progress: float | None = None) -> None:
 
 
 def release(engine: Engine, claim: Claim) -> None:
-    """Puts a job back in the queue without counting the attempt, for when ComfyUI couldn't be reached."""
+    """Puts a job back in the queue without counting the attempt, for when the renderer couldn't be reached."""
     with Session(engine) as session, session.begin():
         session.execute(
             update(Generation)

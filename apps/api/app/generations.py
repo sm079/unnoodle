@@ -1,4 +1,4 @@
-"""Generations: requests to run a workflow, from being queued to their outputs."""
+"""Generations: requests to run a pipeline, from being queued to their outputs."""
 
 import secrets
 import uuid
@@ -28,10 +28,10 @@ from app.models import (
     new_id,
 )
 from app.moderation import banned_in
+from app.pipelines import AspectRatio, Pipeline, PipelinesDep, Work, ratio_of
 from app.routing import RoutingError, capability_for, route
 from app.sharing import visible_asset, visible_generation
 from app.worker import queue
-from app.workflows import AspectRatio, Work, Workflow, WorkflowsDep, ratio_of
 
 # Seeds the app picks stay within 32 bits, which every sampler takes. Ones sent in may go up to the largest
 # integer a browser holds exactly.
@@ -51,9 +51,9 @@ class InputIn(BaseModel):
 
 class Settings(BaseModel):
     quality: Quality = Quality.MEDIUM
-    # One the workflow offers, or left out for the shape of the first attachment
+    # One the pipeline offers, or left out for the shape of the first attachment
     aspect_ratio: AspectRatio | None = None
-    # Videos only, in seconds, one the workflow offers
+    # Videos only, in seconds, one the pipeline offers
     duration_s: int | None = None
 
 
@@ -65,7 +65,7 @@ class Params(Settings):
 
 
 class GenerationIn(BaseModel):
-    """What the composer sends. It names no workflow: the inputs' roles decide one."""
+    """What the composer sends. It names no pipeline: the inputs' roles decide one."""
 
     media_type: MediaType
     prompt: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
@@ -90,7 +90,7 @@ class GenerationOut(BaseModel):
     id: uuid.UUID
     status: GenerationStatus
     capability: Capability
-    workflow_id: str
+    pipeline_id: str
     prompt: str
     project_id: uuid.UUID | None
     params: ParamsOut
@@ -111,12 +111,12 @@ class GenerationOut(BaseModel):
             id=g.id,
             status=g.status,
             capability=g.capability,
-            workflow_id=g.workflow_id,
+            pipeline_id=g.pipeline_id,
             prompt=g.prompt,
             project_id=g.project_id,
             params=ParamsOut(
                 quality=g.quality,
-                # Checked against the workflow when the request was accepted
+                # Checked against the pipeline when the request was accepted
                 aspect_ratio=cast(AspectRatio | None, g.aspect_ratio),
                 duration_s=None if g.duration_s is None else round(g.duration_s),
                 seed=g.seed,
@@ -132,7 +132,7 @@ class GenerationOut(BaseModel):
 
 
 class RequestError(ValueError):
-    """A request that doesn't fit its workflow. The message is written for the person who sent it."""
+    """A request that doesn't fit its pipeline. The message is written for the person who sent it."""
 
 
 router = APIRouter()
@@ -148,7 +148,7 @@ router = APIRouter()
     },
 )
 def create_generation(
-    body: GenerationIn, user: CurrentUser, session: SessionDep, workflows: WorkflowsDep
+    body: GenerationIn, user: CurrentUser, session: SessionDep, pipelines: PipelinesDep
 ) -> list[GenerationOut]:
     """Queues count generations, oldest first in the answer."""
     try:
@@ -157,8 +157,8 @@ def create_generation(
             raise RequestError(f'"{word}" isn\'t allowed in prompts here. Try saying it another way.')
         assets = attached_assets(session, user, body.inputs)
         attached = [(i.role, assets[i.asset_id].media_type) for i in body.inputs]
-        workflow = route(workflows.values(), body.media_type, attached, body.model)
-        check_params(workflow, body.params, attached=len(body.inputs))
+        pipeline = route(pipelines.values(), body.media_type, attached, body.model)
+        check_params(pipeline, body.params, attached=len(body.inputs))
         if body.project_id is not None:
             project = session.get(Project, body.project_id)
             if project is not None and project.is_demo and project.owner_id != user.id:
@@ -170,9 +170,9 @@ def create_generation(
 
     p = body.params
     attached_assets_in_order = [assets[i.asset_id] for i in body.inputs]
-    estimated_s = estimate(workflow, p, attached_assets_in_order)
+    estimated_s = estimate(pipeline, p, attached_assets_in_order)
     clips = sum(a.media_type is MediaType.VIDEO for a in attached_assets_in_order)
-    cost = credits.cost_of(workflow.media_type, p.quality, p.duration_s, clips)
+    cost = credits.cost_of(pipeline.media_type, p.quality, p.duration_s, clips)
 
     # Locks the account first, so two requests at once are counted one after the other
     have = credits.locked_balance(session, user.id)
@@ -198,7 +198,7 @@ def create_generation(
             id=new_id(),
             owner_id=user.id,
             capability=capability_for(body.media_type, attached),
-            workflow_id=workflow.id,
+            pipeline_id=pipeline.id,
             prompt=body.prompt,
             project_id=body.project_id,
             quality=p.quality,
@@ -256,36 +256,36 @@ def get_generation(generation_id: uuid.UUID, user: CurrentUser, session: Session
     return GenerationOut.of(generation)
 
 
-def check_params(workflow: Workflow, params: Params, attached: int) -> None:
+def check_params(pipeline: Pipeline, params: Params, attached: int) -> None:
     if params.aspect_ratio is None and not attached:
         raise RequestError("Pick a shape")
-    if params.aspect_ratio is not None and params.aspect_ratio not in workflow.aspect_ratios:
+    if params.aspect_ratio is not None and params.aspect_ratio not in pipeline.aspect_ratios:
         raise RequestError("That shape isn't offered here")
     if params.count > MAX_QUEUED:
         raise RequestError(f"You can make up to {MAX_QUEUED} at a time")
-    if workflow.media_type is MediaType.VIDEO:
-        if params.duration_s not in workflow.frames:
-            lengths = [str(s) for s in sorted(workflow.frames)]
+    if pipeline.media_type is MediaType.VIDEO:
+        if params.duration_s not in pipeline.frames:
+            lengths = [str(s) for s in sorted(pipeline.frames)]
             offered = lengths[0] if len(lengths) == 1 else f"{', '.join(lengths[:-1])} or {lengths[-1]}"
             raise RequestError(f"Videos can be {offered} seconds long")
     elif params.duration_s is not None:
         raise RequestError("Only videos have a length")
 
 
-def estimate(workflow: Workflow, params: Params, attached: list[Asset]) -> float:
+def estimate(pipeline: Pipeline, params: Params, attached: list[Asset]) -> float:
     # The same size the worker will work out, from the shape asked for or the first attachment's
     if params.aspect_ratio is not None:
         ratio = ratio_of(params.aspect_ratio)
     else:
         ratio = (attached[0].width, attached[0].height)
     work = Work(
-        size=workflow.size(params.quality, ratio),
-        frames=None if params.duration_s is None else workflow.frames[params.duration_s],
+        size=pipeline.size(params.quality, ratio),
+        frames=None if params.duration_s is None else pipeline.frames[params.duration_s],
         photos=sum(a.media_type is MediaType.IMAGE for a in attached),
         # Only clips have a duration
         clips=tuple((a.width, a.height, a.duration_s) for a in attached if a.duration_s is not None),
     )
-    return workflow.estimate(work)
+    return pipeline.estimate(work)
 
 
 def attached_assets(session: SessionDep, user: User, inputs: list[InputIn]) -> dict[uuid.UUID, Asset]:

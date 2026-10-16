@@ -1,14 +1,14 @@
 {
   "setup": {
     "gpu": "RTX 5090 32 GB (RunPod secure cloud, $1.19/h), 108 GB container RAM",
-    "comfyui": "v0.39.1",
+    "renderer": "v0.39.1",
     "transport": "SSH tunnel from the laptop to the pod; inputs uploaded and outputs downloaded through it",
-    "notes": "transfer_overhead_s is app_run_s minus the time ComfyUI spent; most of it is the tunnel (~0.5-0.7 MB/s)"
+    "notes": "transfer_overhead_s is app_run_s minus the time the renderer spent; most of it is the tunnel (~0.5-0.7 MB/s)"
   },
   "runs": [
     {
       "name": "K0-interrupt",
-      "workflow": "krea2-turbo",
+      "pipeline": "krea2-turbo",
       "status": "error",
       "error": "This was stopped before it finished",
       "quality": "medium",
@@ -35,7 +35,7 @@
     },
     {
       "name": "K1.1",
-      "workflow": "krea2-turbo",
+      "pipeline": "krea2-turbo",
       "status": "success",
       "error": null,
       "quality": "low",
@@ -73,7 +73,7 @@
     },
     {
       "name": "K1.0",
-      "workflow": "krea2-turbo",
+      "pipeline": "krea2-turbo",
       "status": "success",
       "error": null,
       "quality": "low",
@@ -112,7 +112,7 @@
     },
     {
       "name": "K2",
-      "workflow": "krea2-turbo",
+      "pipeline": "krea2-turbo",
       "status": "success",
       "error": null,
       "quality": "high",
@@ -151,7 +151,7 @@
     },
     {
       "name": "K3",
-      "workflow": "krea2-turbo",
+      "pipeline": "krea2-turbo",
       "status": "success",
       "error": null,
       "quality": "medium",
@@ -190,7 +190,7 @@
     },
     {
       "name": "K4",
-      "workflow": "krea2-turbo",
+      "pipeline": "krea2-turbo",
       "status": "success",
       "error": null,
       "quality": "medium",
@@ -229,7 +229,7 @@
     },
     {
       "name": "E1",
-      "workflow": "flux2-klein-edit",
+      "pipeline": "flux2-klein-edit",
       "status": "success",
       "error": null,
       "quality": "medium",
@@ -269,7 +269,7 @@
     },
     {
       "name": "E2",
-      "workflow": "flux2-klein-edit",
+      "pipeline": "flux2-klein-edit",
       "status": "success",
       "error": null,
       "quality": "low",
@@ -310,7 +310,7 @@
     },
     {
       "name": "E3.0",
-      "workflow": "flux2-klein-edit",
+      "pipeline": "flux2-klein-edit",
       "status": "success",
       "error": null,
       "quality": "high",
@@ -352,7 +352,7 @@
     },
     {
       "name": "E3.1",
-      "workflow": "flux2-klein-edit",
+      "pipeline": "flux2-klein-edit",
       "status": "success",
       "error": null,
       "quality": "high",
@@ -390,7 +390,7 @@
     },
     {
       "name": "V1",
-      "workflow": "minimax-h3",
+      "pipeline": "minimax-h3",
       "status": "success",
       "error": null,
       "quality": "low",
@@ -417,7 +417,7 @@
     },
     {
       "name": "V2",
-      "workflow": "minimax-h3",
+      "pipeline": "minimax-h3",
       "status": "success",
       "error": null,
       "quality": "low",
@@ -459,7 +459,7 @@
     },
     {
       "name": "V3",
-      "workflow": "minimax-h3",
+      "pipeline": "minimax-h3",
       "status": "success",
       "error": null,
       "quality": "medium",
@@ -512,7 +512,7 @@
     },
     {
       "name": "K5-behind-videos",
-      "workflow": "krea2-turbo",
+      "pipeline": "krea2-turbo",
       "status": "success",
       "error": null,
       "quality": "low",
@@ -552,7 +552,7 @@
     },
     {
       "name": "V4-no-clips",
-      "workflow": "minimax-h3",
+      "pipeline": "minimax-h3",
       "status": "success",
       "error": null,
       "quality": "medium",

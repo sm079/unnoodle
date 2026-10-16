@@ -1,11 +1,11 @@
-"""Workflows: what each one does, what it takes and offers, and the code that builds its ComfyUI graph.
+"""Pipelines: what each one does, what it takes and offers, and the code that builds its renderer graph.
 
-A workflow builds its graph for every request (see app.graph), so one workflow covers every combination of inputs it
+A pipeline builds its graph for every request (see app.graph), so one pipeline covers every combination of inputs it
 takes: an edit with one photo or with three, a video from a prompt alone or from reference photos and clips. The
 sampler settings stay inside the builder; requests only choose a quality, a shape, a length and how many.
 
-Workflows come in catalogues, chosen by name in the settings: "dev" runs on the dev ComfyUI without any models, "real"
-needs the models (on a rented GPU, say). Each catalogue is a module in app.catalogues with a WORKFLOWS list. They are
+Pipelines come in catalogues, chosen by name in the settings: "dev" runs on the dev renderer without any models, "real"
+needs the models (on a rented GPU, say). Each catalogue is a module in app.catalogues with a PIPELINES list. They are
 checked as they load, so a mistake in one stops the API from starting rather than failing a request later.
 """
 
@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from app.graph import Graph
 from app.models import Capability, InputRole, MediaType, Quality
 
-# The shapes ComfyUI's Resolution Selector offers, as width:height
+# The shapes the renderer offers, as width:height
 AspectRatio = Literal["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9", "21:9"]
 ASPECT_RATIOS: tuple[AspectRatio, ...] = get_args(AspectRatio)
 
@@ -39,13 +39,13 @@ REQUIRED_ROLES: dict[Capability, set[InputRole]] = {
 MENTION = re.compile(r"@([a-z0-9_]+)", re.IGNORECASE)
 
 
-class WorkflowError(Exception):
-    """A workflow that can't be used. The message names it and every problem found."""
+class PipelineError(Exception):
+    """A pipeline that can't be used. The message names it and every problem found."""
 
 
 @dataclass(frozen=True)
 class Accepts:
-    """How many assets of one kind a workflow takes, e.g. up to 2 reference photos."""
+    """How many assets of one kind a pipeline takes, e.g. up to 2 reference photos."""
 
     role: InputRole
     media_type: MediaType
@@ -56,7 +56,7 @@ class Accepts:
 class JobInput:
     role: InputRole
     media_type: MediaType
-    # Its name in ComfyUI's input folder, as LoadImage and LoadVideo take it
+    # Its name in the renderer's input folder, as LoadImage and LoadVideo take it
     file: str
     # (width, height) in pixels, when known
     size: tuple[int, int] | None = None
@@ -64,7 +64,7 @@ class JobInput:
 
 @dataclass(frozen=True)
 class Job:
-    """One request, as a workflow's builder sees it."""
+    """One request, as a pipeline's builder sees it."""
 
     prompt: str
     seed: int
@@ -76,9 +76,9 @@ class Job:
     frames: int | None
     # In the order they were attached, which is how the prompt numbers them
     inputs: tuple[JobInput, ...]
-    # Groups each generation's files in ComfyUI's output folder
+    # Groups each generation's files in the renderer's output folder
     filename_prefix: str
-    # The workflow's estimate of its run time, when the worker knows it. The dev stand-ins take this long.
+    # The pipeline's estimate of its run time, when the worker knows it. The dev stand-ins take this long.
     estimated_s: float | None = None
 
     def files(self, media_type: MediaType, role: InputRole | None = None) -> list[str]:
@@ -116,7 +116,7 @@ Builder = Callable[[Job], Graph]
 
 @dataclass(frozen=True)
 class Work:
-    """What a request asks of a workflow, for estimating how long it runs before any file reaches ComfyUI."""
+    """What a request asks of a pipeline, for estimating how long it runs before any file reaches the renderer."""
 
     # The output's (width, height) in pixels
     size: tuple[int, int]
@@ -135,7 +135,7 @@ def about_a_minute(_: Work) -> float:
 
 
 @dataclass(frozen=True)
-class Workflow:
+class Pipeline:
     id: str
     capabilities: frozenset[Capability]
     # Identifies the model in requests, e.g. "krea-2"
@@ -155,7 +155,7 @@ class Workflow:
     frames: Mapping[int, int] = field(default_factory=dict)
     # Whether its videos have sound
     sound: bool = False
-    # Runs when a request names no model. Needed when several workflows share a capability.
+    # Runs when a request names no model. Needed when several pipelines share a capability.
     default: bool = False
     # Seconds it takes on the GPU, roughly. Smart Queue runs quick ones first by it; only the order matters.
     estimate: Estimate = about_a_minute
@@ -168,7 +168,7 @@ class Workflow:
         return next((a.most for a in self.accepts if (a.role, a.media_type) == (role, media_type)), 0)
 
     def size(self, quality: Quality, ratio: tuple[int, int]) -> tuple[int, int]:
-        """Width and height for a quality and a shape, worked out as ComfyUI's Resolution Selector does."""
+        """Width and height for a quality and a shape, worked out with the shape rounding the renderer expects."""
         return size_for(self.megapixels[quality], ratio, self.multiple)
 
 
@@ -184,67 +184,67 @@ def size_for(megapixels: float, ratio: tuple[int, int], multiple: int) -> tuple[
     return round(w * scale / multiple) * multiple, round(h * scale / multiple) * multiple
 
 
-def load_workflows(catalogue: str) -> dict[str, Workflow]:
-    """The workflows of a catalogue in app.catalogues, by id. Raises WorkflowError if any of them can't be used."""
+def load_pipelines(catalogue: str) -> dict[str, Pipeline]:
+    """The pipelines of a catalogue in app.catalogues, by id. Raises PipelineError if any of them can't be used."""
     try:
         module = importlib.import_module(f"app.catalogues.{catalogue}")
     except ModuleNotFoundError as error:
-        raise WorkflowError(f"there is no catalogue called {catalogue!r}") from error
-    workflows: list[Workflow] = module.WORKFLOWS
-    check_catalogue(workflows)
-    return {w.id: w for w in workflows}
+        raise PipelineError(f"there is no catalogue called {catalogue!r}") from error
+    pipelines: list[Pipeline] = module.PIPELINES
+    check_catalogue(pipelines)
+    return {w.id: w for w in pipelines}
 
 
-def check_workflow(workflow: Workflow) -> list[str]:
+def check_pipeline(pipeline: Pipeline) -> list[str]:
     problems: list[str] = []
-    if not re.fullmatch(r"[a-z0-9][a-z0-9.-]*", workflow.model):
-        problems.append(f"model {workflow.model!r} must be lowercase letters, digits, dots and dashes")
-    media_types = {c.media_type for c in workflow.capabilities}
+    if not re.fullmatch(r"[a-z0-9][a-z0-9.-]*", pipeline.model):
+        problems.append(f"model {pipeline.model!r} must be lowercase letters, digits, dots and dashes")
+    media_types = {c.media_type for c in pipeline.capabilities}
     if len(media_types) != 1:
         problems.append("its capabilities must all make images or all make videos")
         return problems
-    for capability in sorted(workflow.capabilities):
+    for capability in sorted(pipeline.capabilities):
         for role in sorted(REQUIRED_ROLES[capability]):
-            if not any(a.role is role for a in workflow.accepts):
+            if not any(a.role is role for a in pipeline.accepts):
                 problems.append(f"{capability} needs it to accept a {role}")
-    if set(workflow.megapixels) != set(Quality):
+    if set(pipeline.megapixels) != set(Quality):
         problems.append("it needs megapixels for low, medium and high")
-    is_video = workflow.media_type is MediaType.VIDEO
-    if is_video and not workflow.frames:
-        problems.append("a video workflow needs the lengths it offers")
-    if not is_video and (workflow.frames or workflow.sound):
+    is_video = pipeline.media_type is MediaType.VIDEO
+    if is_video and not pipeline.frames:
+        problems.append("a video pipeline needs the lengths it offers")
+    if not is_video and (pipeline.frames or pipeline.sound):
         problems.append("lengths and sound are for videos")
     return problems
 
 
-def check_catalogue(workflows: list[Workflow]) -> None:
-    """Checks each workflow, then that ids are unique and every capability with several workflows has one default."""
-    problems = [f"{w.id}: {problem}" for w in workflows for problem in check_workflow(w)]
-    ids = [w.id for w in workflows]
-    problems += [f"{id} is used by several workflows" for id in sorted({i for i in ids if ids.count(i) > 1})]
+def check_catalogue(pipelines: list[Pipeline]) -> None:
+    """Checks each pipeline, then that ids are unique and every capability with several pipelines has one default."""
+    problems = [f"{w.id}: {problem}" for w in pipelines for problem in check_pipeline(w)]
+    ids = [w.id for w in pipelines]
+    problems += [f"{id} is used by several pipelines" for id in sorted({i for i in ids if ids.count(i) > 1})]
     for capability in Capability:
-        offering = [w for w in workflows if capability in w.capabilities]
+        offering = [w for w in pipelines if capability in w.capabilities]
         defaults = [w.id for w in offering if w.default]
         if len(offering) > 1 and len(defaults) != 1:
             problems.append(
-                f"{capability} has {len(offering)} workflows and needs exactly one default, found {defaults}"
+                f"{capability} has {len(offering)} pipelines and needs exactly one default, found {defaults}"
             )
         models = [w.model for w in offering]
         for model in sorted({m for m in models if models.count(m) > 1}):
-            problems.append(f"{capability} has several workflows for model {model!r}")
+            problems.append(f"{capability} has several pipelines for model {model!r}")
     if problems:
-        raise WorkflowError("; ".join(problems))
+        raise PipelineError("; ".join(problems))
 
 
-def default_workflow(workflows: Iterable[Workflow], capability: Capability) -> Workflow | None:
-    """The workflow that runs when a request names no model: the one marked default, or the only one there is."""
-    offering = [w for w in workflows if capability in w.capabilities]
+def default_pipeline(pipelines: Iterable[Pipeline], capability: Capability) -> Pipeline | None:
+    """The pipeline that runs when a request names no model: the one marked default, or the only one there is."""
+    offering = [w for w in pipelines if capability in w.capabilities]
     if len(offering) == 1:
         return offering[0]
     return next((w for w in offering if w.default), None)
 
 
-# What the composer needs to offer a workflow's settings
+# What the composer needs to offer a pipeline's settings
 
 
 class AcceptsOut(BaseModel):
@@ -253,7 +253,7 @@ class AcceptsOut(BaseModel):
     most: int
 
 
-class WorkflowOut(BaseModel):
+class PipelineOut(BaseModel):
     id: str
     capabilities: list[Capability]
     model: str
@@ -269,32 +269,32 @@ class WorkflowOut(BaseModel):
     accepts: list[AcceptsOut]
 
     @classmethod
-    def of(cls, workflow: Workflow, workflows: Iterable[Workflow]) -> WorkflowOut:
-        workflows = list(workflows)
+    def of(cls, pipeline: Pipeline, pipelines: Iterable[Pipeline]) -> PipelineOut:
+        pipelines = list(pipelines)
         return cls(
-            id=workflow.id,
-            capabilities=sorted(workflow.capabilities),
-            model=workflow.model,
-            model_name=workflow.model_name,
-            description=workflow.description,
-            default_for=[c for c in sorted(workflow.capabilities) if default_workflow(workflows, c) is workflow],
-            aspect_ratios=list(workflow.aspect_ratios),
-            durations_s=sorted(workflow.frames),
-            sound=workflow.sound,
-            accepts=[AcceptsOut(role=a.role, media_type=a.media_type, most=a.most) for a in workflow.accepts],
+            id=pipeline.id,
+            capabilities=sorted(pipeline.capabilities),
+            model=pipeline.model,
+            model_name=pipeline.model_name,
+            description=pipeline.description,
+            default_for=[c for c in sorted(pipeline.capabilities) if default_pipeline(pipelines, c) is pipeline],
+            aspect_ratios=list(pipeline.aspect_ratios),
+            durations_s=sorted(pipeline.frames),
+            sound=pipeline.sound,
+            accepts=[AcceptsOut(role=a.role, media_type=a.media_type, most=a.most) for a in pipeline.accepts],
         )
 
 
-def get_workflows(request: Request) -> dict[str, Workflow]:
-    workflows: dict[str, Workflow] = request.app.state.workflows
-    return workflows
+def get_pipelines(request: Request) -> dict[str, Pipeline]:
+    pipelines: dict[str, Pipeline] = request.app.state.pipelines
+    return pipelines
 
 
-WorkflowsDep = Annotated[dict[str, Workflow], Depends(get_workflows)]
+PipelinesDep = Annotated[dict[str, Pipeline], Depends(get_pipelines)]
 
 router = APIRouter()
 
 
-@router.get("/workflows")
-def list_workflows(workflows: WorkflowsDep) -> list[WorkflowOut]:
-    return [WorkflowOut.of(w, workflows.values()) for w in workflows.values()]
+@router.get("/pipelines")
+def list_pipelines(pipelines: PipelinesDep) -> list[PipelineOut]:
+    return [PipelineOut.of(w, pipelines.values()) for w in pipelines.values()]

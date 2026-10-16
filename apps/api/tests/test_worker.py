@@ -14,24 +14,24 @@ from sqlalchemy.orm import Session
 from app.main import create_app
 from app.media import MediaStore
 from app.models import Generation, GenerationStatus
+from app.pipelines import Pipeline
 from app.settings import Settings
 from app.worker import queue, runner
-from app.worker.comfy import ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
+from app.worker.renderer import OutputFile, RendererFailed, RendererRejected, RendererUnavailable
 from app.worker.runner import Outcome, run_job
-from app.workflows import Workflow
 from tests.catalogue import catalogue, node_of
 from tests.clips import clip, needs_ffmpeg
 from tests.conftest import make_admin, sign_up
 
 
 @pytest.fixture
-def workflows() -> dict[str, Workflow]:
+def pipelines() -> dict[str, Pipeline]:
     return catalogue()
 
 
 @pytest.fixture
-def client(settings: Settings, workflows: dict[str, Workflow]) -> Iterator[TestClient]:
-    with TestClient(create_app(settings, workflows)) as client:
+def client(settings: Settings, pipelines: dict[str, Pipeline]) -> Iterator[TestClient]:
+    with TestClient(create_app(settings, pipelines)) as client:
         sign_up(client)
         yield client
 
@@ -166,8 +166,8 @@ def test_smart_queue_holds_a_long_generation_back_ten_minutes_at_most(client: Te
     assert claimed_first(engine) == video
 
 
-def test_queued_generations_carry_their_workflows_estimate(client: TestClient, engine: Engine) -> None:
-    # The test catalogue's workflows have no estimate of their own
+def test_queued_generations_carry_their_pipelines_estimate(client: TestClient, engine: Engine) -> None:
+    # The test catalogue's pipelines have no estimate of their own
     assert load(engine, queue_image(client)).estimated_s == 60
 
 
@@ -192,8 +192,8 @@ def test_queueing_a_generation_wakes_the_workers(client: TestClient, test_databa
 # Running a job
 
 
-class FakeComfy:
-    """ComfyUI in memory: records what it was sent and plays back progress, files or an error."""
+class FakeRenderer:
+    """The renderer in memory: records what it was sent and plays back progress, files or an error."""
 
     def __init__(
         self,
@@ -236,17 +236,17 @@ class FakeComfy:
         self.stopped.append(prompt_id)
 
 
-def run(engine: Engine, workflows: dict[str, Workflow], settings: Settings, comfy: FakeComfy) -> Outcome:
+def run(engine: Engine, pipelines: dict[str, Pipeline], settings: Settings, renderer: FakeRenderer) -> Outcome:
     claim = queue.claim_next(engine)
     assert claim is not None
-    return run_job(engine, claim, workflows, MediaStore(settings.media_dir), comfy)
+    return run_job(engine, claim, pipelines, MediaStore(settings.media_dir), renderer)
 
 
 def test_a_finished_run_stores_its_outputs(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     generation_id = queue_image(client)
-    assert run(engine, workflows, settings, FakeComfy(files=2)) == "done"
+    assert run(engine, pipelines, settings, FakeRenderer(files=2)) == "done"
 
     g = client.get(f"/generations/{generation_id}").json()
     assert (g["status"], g["progress"], g["error"]) == ("done", None, None)
@@ -258,10 +258,10 @@ def test_a_finished_run_stores_its_outputs(
 
 @needs_ffmpeg
 def test_a_video_is_stored_with_a_poster(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     queue_video(client, "a fox runs", photos=0)
-    assert run(engine, workflows, settings, FakeComfy(files=1, output=clip(2, size=(320, 576)))) == "done"
+    assert run(engine, pipelines, settings, FakeRenderer(files=1, output=clip(2, size=(320, 576)))) == "done"
     [output] = client.get("/generations").json()[0]["outputs"]
     assert (output["media_type"], output["width"], output["height"]) == ("video", 320, 576)
     assert output["duration_s"] == pytest.approx(2, abs=0.1)
@@ -270,22 +270,22 @@ def test_a_video_is_stored_with_a_poster(
 
 
 def test_a_file_that_is_neither_picture_nor_video_fails_the_run(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     generation_id = queue_image(client)
-    assert run(engine, workflows, settings, FakeComfy(output=b"not media")) == "failed"
+    assert run(engine, pipelines, settings, FakeRenderer(output=b"not media")) == "failed"
     assert (
         client.get(f"/generations/{generation_id}").json()["error"] == "This made a kind of file the app can't show yet"
     )
 
 
 def test_the_graph_is_built_from_the_request(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     generation_id = queue_image(client, "a greenhouse at dawn")
-    comfy = FakeComfy()
-    run(engine, workflows, settings, comfy)
-    graph = comfy.graphs[0]
+    renderer = FakeRenderer()
+    run(engine, pipelines, settings, renderer)
+    graph = renderer.graphs[0]
     # Medium quality is a megapixel, here at 3:4
     assert node_of(graph, "EmptyImage") == {"width": 880, "height": 1184, "batch_size": 1, "color": 0}
     assert node_of(graph, "Job") == {"prompt": "a greenhouse at dawn", "seed": 7, "frames": None}
@@ -293,28 +293,28 @@ def test_the_graph_is_built_from_the_request(
 
 
 def test_attached_files_are_uploaded_into_the_graph(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     photos = queue_video(client, "@photo2 waves at @photo1", photos=2)
-    comfy = FakeComfy(files=1)
-    run(engine, workflows, settings, comfy)
-    assert list(comfy.uploads) == [f"{p}.png" for p in photos]
-    graph = comfy.graphs[0]
+    renderer = FakeRenderer(files=1)
+    run(engine, pipelines, settings, renderer)
+    assert list(renderer.uploads) == [f"{p}.png" for p in photos]
+    graph = renderer.graphs[0]
     loads = [n["inputs"]["image"] for n in graph.values() if n["class_type"] == "LoadImage"]
     assert loads == [f"unnoodle/{p}.png" for p in photos]
-    # Ten seconds is the frame count the workflow gives it, and the prompt names the photos as the model expects
+    # Ten seconds is the frame count the pipeline gives it, and the prompt names the photos as the model expects
     assert node_of(graph, "Job")["frames"] == 243
-    # The first photo's shape (64 by 36) at low quality's area, on the workflow's 32-pixel grid
+    # The first photo's shape (64 by 36) at low quality's area, on the pipeline's 32-pixel grid
     assert (node_of(graph, "EmptyImage")["width"], node_of(graph, "EmptyImage")["height"]) == (960, 544)
     assert node_of(graph, "Job")["prompt"] == "image 2 waves at image 1"
 
 
 def test_progress_is_recorded_while_running(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     generation_id = queue_image(client)
     seen: list[float | None] = []
-    run(engine, workflows, settings, FakeComfy(during=lambda: seen.append(load(engine, generation_id).progress)))
+    run(engine, pipelines, settings, FakeRenderer(during=lambda: seen.append(load(engine, generation_id).progress)))
     assert seen == [0.5]
 
 
@@ -322,15 +322,15 @@ def test_progress_is_recorded_while_running(
     ("error", "message"),
     [
         (
-            ComfyFailed("CUDA out of memory", "KSampler", "torch.OutOfMemoryError"),
+            RendererFailed("CUDA out of memory", "KSampler", "torch.OutOfMemoryError"),
             "This was too big to make. Try a lower quality, a shorter length or fewer at a time.",
         ),
         (
-            ComfyFailed("bad shape\nTraceback ...", "VAEDecode", "RuntimeError"),
+            RendererFailed("bad shape\nTraceback ...", "VAEDecode", "RuntimeError"),
             "Something went wrong while making this. Try again.",
         ),
-        (ComfyFailed("This was stopped before it finished"), "This was stopped before it finished"),
-        (ComfyRejected("node 7: missing input"), "Something is wrong on our side, so this couldn't start"),
+        (RendererFailed("This was stopped before it finished"), "This was stopped before it finished"),
+        (RendererRejected("node 7: missing input"), "Something is wrong on our side, so this couldn't start"),
         (ValueError("a bug"), "Something went wrong while making this. Try again."),
     ],
     ids=["out of memory", "node error", "ours", "refused graph", "unexpected"],
@@ -338,32 +338,32 @@ def test_progress_is_recorded_while_running(
 def test_a_failed_run_records_why(
     client: TestClient,
     engine: Engine,
-    workflows: dict[str, Workflow],
+    pipelines: dict[str, Pipeline],
     settings: Settings,
     error: Exception,
     message: str,
 ) -> None:
     generation_id = queue_image(client)
-    assert run(engine, workflows, settings, FakeComfy(error=error)) == "failed"
+    assert run(engine, pipelines, settings, FakeRenderer(error=error)) == "failed"
     g = client.get(f"/generations/{generation_id}").json()
     assert (g["status"], g["error"], g["outputs"], g["progress"]) == ("failed", message, [], None)
 
 
-def test_an_unreachable_comfyui_puts_the_job_back(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+def test_an_unreachable_renderer_puts_the_job_back(
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     generation_id = queue_image(client)
-    outcome = run(engine, workflows, settings, FakeComfy(error=ComfyUnavailable("connection refused")))
+    outcome = run(engine, pipelines, settings, FakeRenderer(error=RendererUnavailable("connection refused")))
     assert outcome == "released"
     assert load(engine, generation_id).status is GenerationStatus.QUEUED
 
 
 def test_outputs_of_a_run_whose_lease_was_lost_are_dropped(
-    client: TestClient, engine: Engine, workflows: dict[str, Workflow], settings: Settings
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
 ) -> None:
     generation_id = queue_image(client)
-    took_over = FakeComfy(during=lambda: set_fields(engine, generation_id, attempts=2))
-    assert run(engine, workflows, settings, took_over) == "lost"
+    took_over = FakeRenderer(during=lambda: set_fields(engine, generation_id, attempts=2))
+    assert run(engine, pipelines, settings, took_over) == "lost"
     g = load(engine, generation_id)
     assert (g.status, g.attempts) == (GenerationStatus.RUNNING, 2)
     assert client.get(f"/generations/{generation_id}").json()["outputs"] == []
@@ -372,17 +372,17 @@ def test_outputs_of_a_run_whose_lease_was_lost_are_dropped(
 def test_a_run_past_its_time_limit_is_stopped(
     client: TestClient,
     engine: Engine,
-    workflows: dict[str, Workflow],
+    pipelines: dict[str, Pipeline],
     settings: Settings,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     generation_id = queue_image(client)
     monkeypatch.setattr(runner, "time_limit_s", lambda estimated_s: -1)  # already past it at the first progress
-    comfy = FakeComfy()
-    assert run(engine, workflows, settings, comfy) == "failed"
+    renderer = FakeRenderer()
+    assert run(engine, pipelines, settings, renderer) == "failed"
     g = load(engine, generation_id)
     assert g.error == "This took much longer than it should, so it was stopped. Try again."
-    assert comfy.stopped == [g.comfy_prompt_id]
+    assert renderer.stopped == [g.run_id]
 
 
 def test_the_time_limit_is_a_multiple_of_the_estimate_with_room_to_load_a_model() -> None:

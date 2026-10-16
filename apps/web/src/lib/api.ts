@@ -118,7 +118,7 @@ export const api = {
 
 // Paths the data hooks read, which also name their cache entries
 export const paths = {
-  workflows: '/workflows',
+  pipelines: '/pipelines',
   uploads: '/assets',
   generations: '/generations',
   projects: '/projects',

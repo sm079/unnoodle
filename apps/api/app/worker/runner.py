@@ -1,4 +1,4 @@
-"""Running one claimed generation: fill its workflow in, run it on ComfyUI, store what it made."""
+"""Running one claimed generation: fill its pipeline in, run it on the renderer, store what it made."""
 
 import logging
 import time
@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 
 from app.media import MediaStore, Stored, store_image, store_video
 from app.models import Asset, AssetSource, Generation, GenerationStatus, InputRole
+from app.pipelines import Job, JobInput, Pipeline, ratio_of
 from app.video import VideoError
 from app.worker import queue
-from app.worker.comfy import Comfy, ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
-from app.workflows import Job, JobInput, Workflow, ratio_of
+from app.worker.renderer import OutputFile, Renderer, RendererFailed, RendererRejected, RendererUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -34,46 +34,46 @@ Outcome = Literal["done", "failed", "released", "lost"]
 
 
 def run_job(
-    engine: Engine, claim: queue.Claim, workflows: dict[str, Workflow], store: MediaStore, comfy: Comfy
+    engine: Engine, claim: queue.Claim, pipelines: dict[str, Pipeline], store: MediaStore, renderer: Renderer
 ) -> Outcome:
     with Session(engine, expire_on_commit=False) as session:
         generation = session.get_one(Generation, claim.generation_id)
-        workflow = workflows.get(generation.workflow_id)
-        if workflow is None:
-            return fail(engine, claim, "The workflow this used is no longer installed")
+        pipeline = pipelines.get(generation.pipeline_id)
+        if pipeline is None:
+            return fail(engine, claim, "The pipeline this used is no longer installed")
         attached = [(i.role, i.asset) for i in generation.inputs]
-        # Recorded before submitting, so the run can be found in ComfyUI (to cancel it, say) whatever happens next
+        # Recorded before submitting, so the run can be found in the renderer (to cancel it, say) whatever happens next
         prompt_id = str(uuid.uuid4())
-        generation.comfy_prompt_id = prompt_id
+        generation.run_id = prompt_id
         session.commit()
 
     try:
-        inputs = tuple(upload(store, comfy, role, asset) for role, asset in attached)
-        graph = workflow.build(job_for(generation, workflow, inputs))
-        assert graph.output_node is not None, f"{workflow.id} built a graph that saves nothing"
+        inputs = tuple(upload(store, renderer, role, asset) for role, asset in attached)
+        graph = pipeline.build(job_for(generation, pipeline, inputs))
+        assert graph.output_node is not None, f"{pipeline.id} built a graph that saves nothing"
         progress = ProgressWriter(engine, claim, time_limit_s(generation.estimated_s))
-        files = comfy.run(graph.nodes, prompt_id, graph.output_node, progress.update, progress.beat)
+        files = renderer.run(graph.nodes, prompt_id, graph.output_node, progress.update, progress.beat)
         if not files:
-            raise ComfyFailed("This finished without making anything")
+            raise RendererFailed("This finished without making anything")
         outputs = [
-            store_output(store, comfy, file, f"outputs/{generation.id}/{claim.attempt}-{n}")
+            store_output(store, renderer, file, f"outputs/{generation.id}/{claim.attempt}-{n}")
             for n, file in enumerate(files)
         ]
     except TooLong:
         logger.warning("Generation %s went past its time limit; stopping it", generation.id)
         try:
-            comfy.stop(prompt_id)
-        except ComfyUnavailable as error:
-            logger.warning("Couldn't stop generation %s in ComfyUI: %s", generation.id, error)
+            renderer.stop(prompt_id)
+        except RendererUnavailable as error:
+            logger.warning("Couldn't stop generation %s in the renderer: %s", generation.id, error)
         return fail(engine, claim, "This took much longer than it should, so it was stopped. Try again.")
-    except ComfyUnavailable as error:
-        logger.warning("ComfyUI unreachable, putting generation %s back in the queue: %s", generation.id, error)
+    except RendererUnavailable as error:
+        logger.warning("Renderer unreachable, putting generation %s back in the queue: %s", generation.id, error)
         queue.release(engine, claim)
         return "released"
-    except ComfyRejected as error:
-        logger.error("ComfyUI refused workflow %s: %s", workflow.id, error)
+    except RendererRejected as error:
+        logger.error("Renderer refused pipeline %s: %s", pipeline.id, error)
         return fail(engine, claim, "Something is wrong on our side, so this couldn't start")
-    except ComfyFailed as error:
+    except RendererFailed as error:
         logger.info("Generation %s failed in %s: %s", generation.id, error.node_type, error)
         return fail(engine, claim, failure_message(error))
     except Exception:
@@ -82,13 +82,13 @@ def run_job(
     return finish(engine, claim, outputs)
 
 
-def upload(store: MediaStore, comfy: Comfy, role: InputRole, asset: Asset) -> JobInput:
+def upload(store: MediaStore, renderer: Renderer, role: InputRole, asset: Asset) -> JobInput:
     data = store.path(asset.storage_key).read_bytes()
-    name = comfy.upload(data, f"{asset.id}{PurePath(asset.storage_key).suffix}")
+    name = renderer.upload(data, f"{asset.id}{PurePath(asset.storage_key).suffix}")
     return JobInput(role, asset.media_type, name, (asset.width, asset.height))
 
 
-def job_for(generation: Generation, workflow: Workflow, inputs: tuple[JobInput, ...]) -> Job:
+def job_for(generation: Generation, pipeline: Pipeline, inputs: tuple[JobInput, ...]) -> Job:
     if generation.aspect_ratio is not None:
         ratio = ratio_of(generation.aspect_ratio)
     else:
@@ -99,26 +99,26 @@ def job_for(generation: Generation, workflow: Workflow, inputs: tuple[JobInput, 
     return Job(
         prompt=generation.prompt,
         seed=generation.seed,
-        megapixels=workflow.megapixels[generation.quality],
-        size=workflow.size(generation.quality, ratio),
-        frames=None if duration_s is None else workflow.frames[round(duration_s)],
+        megapixels=pipeline.megapixels[generation.quality],
+        size=pipeline.size(generation.quality, ratio),
+        frames=None if duration_s is None else pipeline.frames[round(duration_s)],
         inputs=inputs,
         filename_prefix=f"unnoodle/{generation.id}",
         estimated_s=generation.estimated_s,
     )
 
 
-def store_output(store: MediaStore, comfy: Comfy, file: OutputFile, key_stem: str) -> Stored:
-    data = comfy.download(file)
+def store_output(store: MediaStore, renderer: Renderer, file: OutputFile, key_stem: str) -> Stored:
+    data = renderer.download(file)
     try:
         return store_image(store, data, key_stem) or store_video(store, data, key_stem, clip=False)
     except VideoError as error:
         logger.error("Can't store %s: %s", file.filename, error)
-        raise ComfyFailed("This made a kind of file the app can't show yet") from error
+        raise RendererFailed("This made a kind of file the app can't show yet") from error
 
 
-def failure_message(error: ComfyFailed) -> str:
-    """What the person sees. ComfyUI's own messages name nodes and tensors, so they go to the log instead."""
+def failure_message(error: RendererFailed) -> str:
+    """What the person sees. The renderer's own messages name nodes and tensors, so they go to the log instead."""
     if error.exception_type and "OutOfMemory" in error.exception_type:
         return "This was too big to make. Try a lower quality, a shorter length or fewer at a time."
     if error.node_type is None and str(error):
@@ -133,7 +133,7 @@ def time_limit_s(estimated_s: float) -> float:
 
 class ProgressWriter:
     """Writes progress to the database at most every PROGRESS_EVERY_S, renewing the lease each time. Raises TooLong
-    once the run has gone past its time limit: ComfyUI reports progress, or goes quiet, often enough for that to be
+    once the run has gone past its time limit: the renderer reports progress, or goes quiet, often enough for that to be
     checked here."""
 
     def __init__(self, engine: Engine, claim: queue.Claim, time_limit_s: float) -> None:

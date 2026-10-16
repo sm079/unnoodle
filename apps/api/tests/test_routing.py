@@ -3,7 +3,7 @@ from dataclasses import replace
 import pytest
 
 from app.models import Capability, InputRole, MediaType
-from app.routing import Attached, RoutingError, capability_for, choose_workflow, route
+from app.routing import Attached, RoutingError, capability_for, choose_pipeline, route
 from tests.catalogue import EDIT, IMAGE, VIDEO
 
 PHOTO, CLIP = MediaType.IMAGE, MediaType.VIDEO
@@ -34,25 +34,25 @@ CATALOGUE = [replace(IMAGE, default=True), OTHER, EDIT, VIDEO]
 
 
 def test_a_request_without_a_model_gets_the_default() -> None:
-    assert choose_workflow(CATALOGUE, Capability.IMAGE_GENERATE, None).id == "t2i"
-    assert choose_workflow(CATALOGUE, Capability.VIDEO_REFERENCE, None).id == "video"
+    assert choose_pipeline(CATALOGUE, Capability.IMAGE_GENERATE, None).id == "t2i"
+    assert choose_pipeline(CATALOGUE, Capability.VIDEO_REFERENCE, None).id == "video"
 
 
-def test_a_named_model_picks_its_workflow() -> None:
-    assert choose_workflow(CATALOGUE, Capability.IMAGE_GENERATE, "other").id == "other"
+def test_a_named_model_picks_its_pipeline() -> None:
+    assert choose_pipeline(CATALOGUE, Capability.IMAGE_GENERATE, "other").id == "other"
 
 
 def test_a_model_that_cannot_do_the_capability_is_refused() -> None:
     with pytest.raises(RoutingError, match="^Editing an image isn't available with that model$"):
-        choose_workflow(CATALOGUE, Capability.IMAGE_EDIT, "other")
+        choose_pipeline(CATALOGUE, Capability.IMAGE_EDIT, "other")
 
 
-def test_a_capability_without_workflows_is_refused() -> None:
+def test_a_capability_without_pipelines_is_refused() -> None:
     with pytest.raises(RoutingError, match="^Making a video isn't available yet$"):
-        choose_workflow([IMAGE], Capability.VIDEO_GENERATE, None)
+        choose_pipeline([IMAGE], Capability.VIDEO_GENERATE, None)
 
 
-def test_route_checks_the_inputs_fit_the_workflow() -> None:
+def test_route_checks_the_inputs_fit_the_pipeline() -> None:
     assert route(CATALOGUE, PHOTO, [REF_PHOTO] * 3, None).id == "edit"
     with pytest.raises(RoutingError, match="^Editing an image takes at most 3 photos$"):
         route(CATALOGUE, PHOTO, [REF_PHOTO] * 4, None)

@@ -93,7 +93,7 @@ def store_image(store: MediaStore, data: bytes, key_stem: str) -> Stored | None:
     """Stores a PNG, JPEG or WebP image as it is, or returns None if the data isn't one."""
     # The bytes decide what the file is, not its name or the type the client claims
     try:
-        # Opening reads only the header; verify catches truncated and corrupt files before ComfyUI meets them. It
+        # Opening reads only the header; verify catches truncated and corrupt files before the renderer meets them. It
         # has to come straight after opening, and leaves the image unusable, hence the second open.
         with Image.open(BytesIO(data)) as image:
             image.verify()

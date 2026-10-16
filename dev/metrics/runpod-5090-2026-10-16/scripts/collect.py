@@ -2,8 +2,8 @@
 
 python collect.py <out_dir> <since ISO time>
 
-Sources: the app's database (what was asked, when it was queued, claimed and finished, sizes), ComfyUI's /history on
-the pod (when each prompt ran there), the pod's ComfyUI log (model loads, sampler steps and speed), the driver's
+Sources: the app's database (what was asked, when it was queued, claimed and finished, sizes), the renderer's /history on
+the pod (when each prompt ran there), the pod's renderer log (model loads, sampler steps and speed), the driver's
 progress samples, and the worker log.
 """
 
@@ -36,18 +36,18 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 # ---- raw sources ----
 history = httpx.get("http://127.0.0.1:8288/history", params={"max_items": 500}, timeout=60).json()
-(RAW / "comfy-history.json").write_text(json.dumps(history, indent=1))
-log = subprocess.run(["python", "rp.py", "ssh", "cat /dev/shm/comfy/comfyui.log"], cwd=os.environ.get("RUNPOD_HELPER", "../runpod-helper"),
+(RAW / "renderer-history.json").write_text(json.dumps(history, indent=1))
+log = subprocess.run(["python", "rp.py", "ssh", "cat /dev/shm/renderer/renderer.log"], cwd=os.environ.get("RUNPOD_HELPER", "../runpod-helper"),
                      capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
 log = ANSI.sub("", log)
-(RAW / "pod-comfyui.log").write_text(log, encoding="utf-8")
+(RAW / "pod-renderer.log").write_text(log, encoding="utf-8")
 serve = pathlib.Path(os.environ["TEMP"], "unnoodle-serve.log").read_text(encoding="utf-8", errors="replace")
 (RAW / "worker.log").write_text("\n".join(l for l in serve.splitlines() if l.startswith("worker")), encoding="utf-8")
 for name in ("results.jsonl", "state.json", "sweep.jsonl"):
     if (HERE / name).exists():
         (RAW / name).write_text((HERE / name).read_text())
 
-# ---- the pod log, one segment per executed prompt (ComfyUI runs one at a time and closes each with this line) ----
+# ---- the pod log, one segment per executed prompt (the renderer runs one at a time and closes each with this line) ----
 BAR = re.compile(r"(\d+)/(\d+) \[(\d+):(\d+)<[^,\]]*(?:, *([\d.]+)(s/it|it/s))?")
 LOADED = re.compile(r"Model (\w+) prepared for dynamic VRAM loading\. (\d+)MB Staged|loaded (completely|partially)[^\n]*")
 segments, current = [], []
@@ -118,11 +118,11 @@ with Session(engine) as session:
         kinds = [i.asset.media_type.value for i in g.inputs]
         out = g.outputs[0] if g.outputs else None
         app_run_s = (g.finished_at - g.started_at).total_seconds() if g.finished_at and g.started_at else None
-        p = pod.get(g.comfy_prompt_id or "", {})
+        p = pod.get(g.run_id or "", {})
         name = names.get(str(g.id))
         runs.append({
             "name": name,
-            "workflow": g.workflow_id,
+            "pipeline": g.pipeline_id,
             "status": g.status.value,
             "error": g.error,
             "quality": g.quality.value,
@@ -144,18 +144,18 @@ with Session(engine) as session:
             else None,
             "progress_samples": results.get(name, {}).get("progress_samples"),
         })
-unmatched = {pid: v for pid, v in pod.items() if pid not in {r.get("comfy_prompt_id") for r in runs}}
+unmatched = {pid: v for pid, v in pod.items() if pid not in {r.get("run_id") for r in runs}}
 matched_ids = set()
 with Session(engine) as session:
-    matched_ids = {g.comfy_prompt_id for g in session.scalars(select(Generation).where(Generation.created_at >= SINCE))}
+    matched_ids = {g.run_id for g in session.scalars(select(Generation).where(Generation.created_at >= SINCE))}
 orphans = {pid: v for pid, v in pod.items() if pid not in matched_ids}
 
 summary = {
     "setup": {
         "gpu": "RTX 5090 32 GB (RunPod secure cloud, $1.19/h), 108 GB container RAM",
-        "comfyui": "v0.39.1",
+        "renderer": "v0.39.1",
         "transport": "SSH tunnel from the laptop to the pod; inputs uploaded and outputs downloaded through it",
-        "notes": "transfer_overhead_s is app_run_s minus the time ComfyUI spent; most of it is the tunnel (~0.5-0.7 MB/s)",
+        "notes": "transfer_overhead_s is app_run_s minus the time the renderer spent; most of it is the tunnel (~0.5-0.7 MB/s)",
     },
     "runs": runs,
     "pod_runs_without_a_generation": orphans,
@@ -164,6 +164,6 @@ summary = {
 print(f"{len(runs)} generations, {len(pod)} pod runs ({len(orphans)} unmatched), {len(segments)} log segments")
 for r in runs:
     s = r.get("sampler") or []
-    print(f"{(r['name'] or '?'):18} {r['workflow']:17} {r['status']:6} {r['quality']:6} {str(r['duration_s']):5} "
+    print(f"{(r['name'] or '?'):18} {r['pipeline']:17} {r['status']:6} {r['quality']:6} {str(r['duration_s']):5} "
           f"p{r['photos']}c{r['clips']} wait={r['queue_wait_s']} app={r['app_run_s']} pod={r.get('pod_exec_s')} "
           f"xfer={r.get('transfer_overhead_s')} steps={[(b.get('steps'), b.get('first_step_s'), b.get('s_per_step')) for b in s]}")

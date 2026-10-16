@@ -18,7 +18,7 @@ from tests.test_projects import finish_with_outputs
 # Everything else needs an account
 PUBLIC = {
     ("GET", "/health"),
-    ("GET", "/workflows"),
+    ("GET", "/pipelines"),
     ("POST", "/auth/sign-up"),
     ("POST", "/auth/sign-in"),
     ("POST", "/auth/sign-out"),
