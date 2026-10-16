@@ -15,7 +15,7 @@ from app.main import create_app
 from app.media import MediaStore
 from app.models import Generation, GenerationStatus
 from app.settings import Settings
-from app.worker import queue
+from app.worker import queue, runner
 from app.worker.comfy import ComfyFailed, ComfyRejected, ComfyUnavailable, OutputFile
 from app.worker.runner import Outcome, run_job
 from app.workflows import Workflow
@@ -204,6 +204,7 @@ class FakeComfy:
         self.output = output if output is not None else png((896, 1152))
         self.uploads: dict[str, bytes] = {}
         self.graphs: list[dict[str, Any]] = []
+        self.stopped: list[str] = []
 
     def upload(self, data: bytes, name: str) -> str:
         self.uploads[name] = data
@@ -227,6 +228,9 @@ class FakeComfy:
 
     def download(self, file: OutputFile) -> bytes:
         return self.output
+
+    def stop(self, prompt_id: str) -> None:
+        self.stopped.append(prompt_id)
 
 
 def run(engine: Engine, workflows: dict[str, Workflow], settings: Settings, comfy: FakeComfy) -> Outcome:
@@ -360,3 +364,24 @@ def test_outputs_of_a_run_whose_lease_was_lost_are_dropped(
     g = load(engine, generation_id)
     assert (g.status, g.attempts) == (GenerationStatus.RUNNING, 2)
     assert client.get(f"/generations/{generation_id}").json()["outputs"] == []
+
+
+def test_a_run_past_its_time_limit_is_stopped(
+    client: TestClient,
+    engine: Engine,
+    workflows: dict[str, Workflow],
+    settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generation_id = queue_image(client)
+    monkeypatch.setattr(runner, "time_limit_s", lambda estimated_s: -1)  # already past it at the first progress
+    comfy = FakeComfy()
+    assert run(engine, workflows, settings, comfy) == "failed"
+    g = load(engine, generation_id)
+    assert g.error == "This took much longer than it should, so it was stopped. Try again."
+    assert comfy.stopped == [g.comfy_prompt_id]
+
+
+def test_the_time_limit_is_a_multiple_of_the_estimate_with_room_to_load_a_model() -> None:
+    assert runner.time_limit_s(600) == 1800
+    assert runner.time_limit_s(6) == 120
