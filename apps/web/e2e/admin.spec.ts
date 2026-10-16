@@ -39,6 +39,7 @@ test('admins delete generations, give credits, make codes and ban words', async 
   });
 
   await page.goto('/admin');
+  await page.getByRole('tab', { name: 'Generations' }).click();
   const tiles = page.getByRole('list', { name: "Everyone's generations" }).getByRole('button');
   await expect(tiles.first()).toBeVisible();
   const before = await tiles.count();

@@ -2,9 +2,11 @@
 
 import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { ClockIcon, ImageIcon, LoaderCircleIcon, PlayIcon, TriangleAlertIcon, VideoIcon } from 'lucide-react';
+import { ClockIcon, ImageIcon, LoaderCircleIcon, MoonIcon, PlayIcon, TriangleAlertIcon, VideoIcon } from 'lucide-react';
 import { ResultView } from '@/components/result-view';
 import { capabilityLabels, outputType } from '@/lib/capabilities';
+import { useGpu } from '@/lib/data';
+import { gpuWait } from '@/lib/gpu';
 import type { Asset, Generation } from '@/lib/types';
 
 interface GalleryProps {
@@ -95,11 +97,7 @@ function GalleryTile({ generation, onOpen }: { generation: Generation; onOpen: (
 function StatusLine({ generation }: { generation: Generation }) {
   switch (generation.status) {
     case 'queued':
-      return (
-        <p className="flex items-center gap-1.5 font-semibold">
-          <ClockIcon className="size-3.5" /> Queued
-        </p>
-      );
+      return <Queued generation={generation} />;
     case 'running': {
       const percent = Math.round((generation.progress ?? 0) * 100);
       // Before the first step a model loads and sets up, which reports nothing and can take over a minute for a video
@@ -150,4 +148,34 @@ function TileBadge({ children }: { children: ReactNode }) {
 function formatDuration(seconds: number) {
   const s = Math.round(seconds);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** What a queued generation waits for: the queue, or a GPU being started for it. */
+function Queued({ generation }: { generation: Generation }) {
+  const { data: gpu } = useGpu();
+  const wait = gpuWait(gpu, generation.pipeline_id);
+  if (wait === null) {
+    return (
+      <p className="flex items-center gap-1.5 font-semibold">
+        <ClockIcon className="size-3.5" /> Queued
+      </p>
+    );
+  }
+  if (wait.resting) {
+    return (
+      <p className="flex items-start gap-1.5 font-semibold text-[#e8a33d]">
+        <MoonIcon className="mt-px size-3.5 shrink-0" /> {wait.words}
+      </p>
+    );
+  }
+  return (
+    <p className="flex items-start gap-2 font-semibold">
+      {/* A small light for the GPU, pulsing while it starts */}
+      <span className="relative mt-[0.45em] flex size-2 shrink-0">
+        <span className="absolute inset-0 animate-ping rounded-full bg-brand/70 motion-reduce:animate-none" />
+        <span className="relative size-2 rounded-full bg-brand" />
+      </span>
+      {wait.words}
+    </p>
+  );
 }

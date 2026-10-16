@@ -1,6 +1,18 @@
 // Calls to the API, which the web app passes through under /api (see next.config.ts).
 
-import type { AdminUser, Asset, Credits, Generation, GenerationRequest, Invite, InviteRequest, Preferences, Project, User } from './types';
+import type {
+  AdminGpu,
+  AdminUser,
+  Asset,
+  Credits,
+  Generation,
+  GenerationRequest,
+  Invite,
+  InviteRequest,
+  Preferences,
+  Project,
+  User
+} from './types';
 
 /** A failed call. The message is fit to show: the API's own reason when it gave one. */
 export class ApiError extends Error {
@@ -113,6 +125,15 @@ export const api = {
 
   removeBannedWord(word: string): Promise<string[]> {
     return request(`/admin/banned-words/${encodeURIComponent(word)}`, { method: 'DELETE' });
+  },
+
+  /** Each returns the GPU's stats after the change. */
+  startGpu(): Promise<AdminGpu> {
+    return request('/admin/gpu/start', { method: 'POST' });
+  },
+
+  stopGpu(): Promise<AdminGpu> {
+    return request('/admin/gpu/stop', { method: 'POST' });
   }
 };
 
@@ -125,7 +146,9 @@ export const paths = {
   preferences: '/preferences',
   me: '/auth/me',
   credits: '/credits',
+  gpu: '/gpu',
   admin: {
+    gpu: '/admin/gpu',
     generations: '/admin/generations',
     users: '/admin/users',
     invites: '/admin/invite-codes',

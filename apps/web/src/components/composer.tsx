@@ -6,6 +6,7 @@ import { AnimatePresence, m } from 'motion/react';
 import { ClockIcon, FocusIcon, GemIcon, ImageIcon, LoaderCircleIcon, MinusIcon, PlusIcon, VideoIcon, XIcon } from 'lucide-react';
 import { CreditGlyph } from '@/components/credit-glyph';
 import { CreditsSheet } from '@/components/credits-sheet';
+import { RestingSheet } from '@/components/resting-sheet';
 import { RollingValue } from '@/components/rolling-value';
 import { PipelineMenu } from '@/components/pipeline-menu';
 import {
@@ -17,10 +18,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { api, messageOf } from '@/lib/api';
+import { ApiError, api, messageOf } from '@/lib/api';
 import { qualityLabels, shapeLabels } from '@/lib/capabilities';
 import { costOf } from '@/lib/credits';
-import { useAddToCache, useCredits, useUploads, usePipelines } from '@/lib/data';
+import { useAddToCache, useCredits, useGpu, useUploads, usePipelines } from '@/lib/data';
 import { useDemo } from '@/lib/demo';
 import { handleOf } from '@/lib/mentions';
 import { menuItemClass, menuItemDelay, shake } from '@/lib/motion';
@@ -117,6 +118,9 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
   const [sending, setSending] = useState(false);
   // Opened by Generate when the request costs more credits than there are
   const [creditsOpen, setCreditsOpen] = useState(false);
+  // Opened by Generate when today's GPU time is used up
+  const [restingOpen, setRestingOpen] = useState(false);
+  const gpu = useGpu();
   // Why the last attempt to upload or send didn't work; cleared by the next change
   const [problem, setProblem] = useState<string | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -248,6 +252,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
       return;
     }
     if (demo) return demo('generate');
+    if (gpu.data?.state === 'resting') return setRestingOpen(true);
     // Not a dead end: the sheet says how far short it is, takes a code, and can carry on from there
     if (short) return setCreditsOpen(true);
     void send();
@@ -275,7 +280,11 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
       generations.forEach(addToCache.generation);
       onGenerated?.(generations[0]);
     } catch (error) {
-      setProblem(messageOf(error));
+      // The limit ran out since the GPU was last checked
+      if (error instanceof ApiError && error.status === 503) {
+        setRestingOpen(true);
+        void gpu.mutate();
+      } else setProblem(messageOf(error));
     } finally {
       setSending(false);
     }
@@ -417,6 +426,7 @@ export function Composer({ ref, projectId, onGenerated }: ComposerProps) {
       </div>
 
       <input ref={fileRef} type="file" accept="image/*,video/*" multiple hidden onChange={attachFiles} />
+      <RestingSheet open={restingOpen} onOpenChange={setRestingOpen} />
       <CreditsSheet
         open={creditsOpen}
         onOpenChange={setCreditsOpen}
