@@ -101,20 +101,27 @@ function StatusLine({ generation }: { generation: Generation }) {
       );
     case 'running': {
       const percent = Math.round((generation.progress ?? 0) * 100);
+      // Before the first step a model loads and sets up, which reports nothing and can take over a minute for a video
+      const settingUp = percent === 0;
       return (
         <div className="flex flex-col gap-1.5">
           <p className="flex items-center gap-1.5 font-semibold">
-            <LoaderCircleIcon className="size-3.5 animate-spin" /> Generating · {percent}%
+            <LoaderCircleIcon className="size-3.5 animate-spin" /> {settingUp ? 'Getting ready' : `Generating · ${percent}%`}
           </p>
           <div
             role="progressbar"
             aria-label="Progress"
-            aria-valuenow={percent}
+            // Left out while setting up, which makes it an indeterminate bar
+            aria-valuenow={settingUp ? undefined : percent}
             aria-valuemin={0}
             aria-valuemax={100}
             className="h-1 overflow-hidden rounded-full bg-white/10"
           >
-            <div className="h-full rounded-full bg-lime transition-[width] duration-700 ease-out" style={{ width: `${percent}%` }} />
+            {settingUp ? (
+              <div className="h-full w-1/3 animate-[sheen_1.6s_ease-in-out_infinite] rounded-full bg-lime/60 motion-reduce:w-full motion-reduce:animate-none motion-reduce:bg-lime/25" />
+            ) : (
+              <div className="h-full rounded-full bg-lime transition-[width] duration-700 ease-out" style={{ width: `${percent}%` }} />
+            )}
           </div>
         </div>
       );
