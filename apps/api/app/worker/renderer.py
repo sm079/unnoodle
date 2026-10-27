@@ -63,6 +63,11 @@ class Renderer(Protocol):
 
     def download(self, file: OutputFile) -> bytes: ...
 
+    def use(self, pipeline_id: str) -> None:
+        """Gets ready to run this pipeline. Models another pipeline left loaded are freed first: a run on top of them
+        can come out as pure noise."""
+        ...
+
     def stop(self, prompt_id: str) -> None:
         """Stops a run, whether it is running or still waiting in the renderer's queue."""
         ...
@@ -73,6 +78,14 @@ class RendererClient:
         self.http = httpx.Client(base_url=base_url, timeout=httpx.Timeout(30, connect=5))
         self.ws_url = base_url.replace("http", "ws", 1).rstrip("/") + "/ws"
         self.quiet_after_s = quiet_after_s
+        # The pipeline whose models may be loaded; None for a renderer that may hold anyone's
+        self.pipeline: str | None = None
+
+    def use(self, pipeline_id: str) -> None:
+        if pipeline_id == self.pipeline:
+            return
+        self.request("POST", "/free", json={"unload_models": True, "free_memory": True})
+        self.pipeline = pipeline_id
 
     def upload(self, data: bytes, name: str) -> str:
         form = {"type": "input", "subfolder": INPUT_SUBFOLDER, "overwrite": "true"}

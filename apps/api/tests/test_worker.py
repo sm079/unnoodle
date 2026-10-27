@@ -3,6 +3,7 @@ from datetime import timedelta
 from io import BytesIO
 from typing import Any
 
+import httpx
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
@@ -17,7 +18,7 @@ from app.models import Generation, GenerationStatus
 from app.pipelines import Pipeline
 from app.settings import Settings
 from app.worker import queue, runner
-from app.worker.renderer import OutputFile, RendererFailed, RendererRejected, RendererUnavailable
+from app.worker.renderer import OutputFile, RendererClient, RendererFailed, RendererRejected, RendererUnavailable
 from app.worker.runner import Outcome, run_job
 from tests.catalogue import catalogue, node_of
 from tests.clips import clip, needs_ffmpeg
@@ -208,6 +209,10 @@ class FakeRenderer:
         self.uploads: dict[str, bytes] = {}
         self.graphs: list[dict[str, Any]] = []
         self.stopped: list[str] = []
+        self.used: list[str] = []
+
+    def use(self, pipeline_id: str) -> None:
+        self.used.append(pipeline_id)
 
     def upload(self, data: bytes, name: str) -> str:
         self.uploads[name] = data
@@ -254,6 +259,30 @@ def test_a_finished_run_stores_its_outputs(
     assert [(o["width"], o["height"], o["source"]) for o in g["outputs"]] == [(896, 1152, "generation")] * 2
     for output in g["outputs"]:
         assert client.get(output["url"]).status_code == 200
+
+
+def test_the_renderer_is_told_which_pipeline_runs_before_anything_is_sent(
+    client: TestClient, engine: Engine, pipelines: dict[str, Pipeline], settings: Settings
+) -> None:
+    generation_id = queue_image(client)
+    renderer = FakeRenderer()
+    assert run(engine, pipelines, settings, renderer) == "done"
+    assert renderer.used == [client.get(f"/generations/{generation_id}").json()["pipeline_id"]]
+
+
+def test_the_renderer_frees_its_models_only_when_the_pipeline_changes() -> None:
+    sent: list[tuple[str, bytes]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        sent.append((request.url.path, request.content))
+        return httpx.Response(200)
+
+    renderer = RendererClient("http://renderer")
+    renderer.http = httpx.Client(base_url="http://renderer", transport=httpx.MockTransport(handle))
+    for pipeline_id in ["flux2-klein-edit", "flux2-klein-edit", "krea2-turbo", "krea2-turbo"]:
+        renderer.use(pipeline_id)
+    assert [path for path, _ in sent] == ["/free", "/free"]
+    assert b'"unload_models":true' in sent[0][1].replace(b" ", b"")
 
 
 @needs_ffmpeg
