@@ -215,6 +215,20 @@ def test_queued_work_rents_a_gpu_and_gets_it_ready_one_pipeline_at_a_time(
     assert shell.heartbeats == 1
 
 
+def test_the_models_waited_for_longest_are_downloaded_first(
+    client: TestClient, manager: Manager, shell: FakeShell, engine: Engine
+) -> None:
+    queue_video(client)
+    queue_picture(client)
+    manager.tick()
+    manager.tick()
+    downloads = [args for script, args in shell.ran if script == "models.sh"]
+    assert "Comfy-Org/MiniMax-H3" in downloads[0][0]
+    assert "Comfy-Org/Krea-2" in downloads[1][0]
+    assert "black-forest-labs/FLUX.2-klein-9b-fp8" in downloads[2][0]
+    assert set(last_session(engine).ready) == set(FILES)
+
+
 def test_the_worker_takes_only_what_the_gpu_has_models_for(client: TestClient, engine: Engine) -> None:
     video = queue_video(client)
     picture = queue_picture(client)
