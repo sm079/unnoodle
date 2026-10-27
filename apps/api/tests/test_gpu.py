@@ -105,7 +105,9 @@ def real_settings(settings: Settings) -> Settings:
 
 
 @pytest.fixture
-def client(real_settings: Settings) -> Iterator[TestClient]:
+def client(real_settings: Settings, clock: Clock, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    # The GPU's state is worked out on the manager's clock, or a session it launched "today" looks days old
+    monkeypatch.setattr("app.gpu.api.now", clock.now)
     with TestClient(create_app(real_settings)) as client:
         sign_up(client)
         yield client
@@ -421,6 +423,8 @@ def test_a_pod_that_went_away_meanwhile_is_replaced(
     gone = last_session(engine)
     assert gone.status is GpuStatus.STOPPED
     assert gone.stop_reason == "The pod was gone"
+    # Or it would count towards today's GPU time for ever
+    assert gone.stopped_at is not None
     assert shell.tunnel is None
 
     # The picture still waits, so the next tick asks for another
