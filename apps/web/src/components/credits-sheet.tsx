@@ -42,7 +42,7 @@ export function CreditsSheet({ open, onOpenChange, cost, balance, onContinue }: 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[94dvh] max-w-lg gap-0 overflow-y-auto overscroll-contain rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:bottom-6 lg:rounded-[28px]"
+        className="mx-auto max-h-[94dvh] max-w-lg gap-0 overflow-y-auto overscroll-contain rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <div className="flex items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-b from-[#ff8763] to-brand text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]">

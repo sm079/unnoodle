@@ -385,7 +385,7 @@ function StopSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[94dvh] max-w-md gap-0 overflow-y-auto rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:bottom-6 lg:rounded-[28px]"
+        className="mx-auto max-h-[94dvh] max-w-md gap-0 overflow-y-auto rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <SheetTitle className="font-display text-xl font-bold uppercase font-stretch-[86%]">Stop the GPU?</SheetTitle>
         <SheetDescription className="mt-1 text-sm text-[#a0a1a3]">
@@ -547,7 +547,7 @@ function DeleteSheet({
     >
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[94dvh] max-w-md gap-0 overflow-y-auto rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:bottom-6 lg:rounded-[28px]"
+        className="mx-auto max-h-[94dvh] max-w-md gap-0 overflow-y-auto rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <SheetTitle className="font-display text-xl font-bold uppercase font-stretch-[86%]">Delete this generation?</SheetTitle>
         <SheetDescription className="mt-1 text-sm text-[#a0a1a3]">
@@ -683,7 +683,7 @@ function GrantSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[94dvh] max-w-md gap-0 overflow-y-auto rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:bottom-6 lg:rounded-[28px]"
+        className="mx-auto max-h-[94dvh] max-w-md gap-0 overflow-y-auto rounded-t-[28px] border-0 bg-panel px-5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         <SheetTitle className="font-display text-xl font-bold uppercase font-stretch-[86%]">Give credits</SheetTitle>
         <SheetDescription className="mt-1 truncate text-sm text-[#a0a1a3]">
