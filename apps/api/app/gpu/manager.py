@@ -188,7 +188,14 @@ class Manager:
                 # back to asking for a GPU at the next tick
                 logger.warning("Pod %s is gone", pod.id)
                 self.shell.close_tunnel()
-                set_session(self.engine, live.id, status=GpuStatus.STOPPED, phase=None, stop_reason="The pod was gone")
+                set_session(
+                    self.engine,
+                    live.id,
+                    status=GpuStatus.STOPPED,
+                    phase=None,
+                    stop_reason="The pod was gone",
+                    stopped_at=now,
+                )
                 self.last_heartbeat = None
                 return
             else:
