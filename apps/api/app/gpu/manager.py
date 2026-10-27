@@ -299,9 +299,8 @@ class Preparation:
         if code != 0 or self.cancel.is_set():
             logger.error("Setting up the renderer failed:\n%s", output[-2000:])
             return self.fail(NO_GPU, "Setting up the renderer failed")
-        for pipeline, sources in FILES.items():
-            if pipeline in done:
-                continue
+        while (pipeline := self.next_pipeline(done)) is not None:
+            sources = FILES[pipeline]
             set_session(m.engine, self.session_id, phase=f"models:{pipeline}")
             secrets = {"HF_TOKEN": m.config.hf_token} if m.config.hf_token else None
             code, output = m.shell.run(pod, "models.sh", *(s.spec for s in sources), secrets=secrets)
@@ -318,6 +317,19 @@ class Preparation:
                 set_session(m.engine, self.session_id, ready=dict(done), active_at=live.active_at or m.now())
         set_session(m.engine, self.session_id, status=GpuStatus.READY, phase=None)
         logger.info("The GPU is ready")
+
+    def next_pipeline(self, done: dict[str, str]) -> str | None:
+        """The models to download next: those the longest-waiting generation needs, else the quickest left."""
+        with Session(self.manager.engine) as session:
+            waiting_for = session.scalars(
+                select(Generation.pipeline_id)
+                .where(Generation.status == GenerationStatus.QUEUED)
+                .order_by(Generation.created_at)
+            ).all()
+        for pipeline in [*waiting_for, *FILES]:
+            if pipeline in FILES and pipeline not in done:
+                return pipeline
+        return None
 
     def launch(self) -> Pod | None:
         m = self.manager
