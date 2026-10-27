@@ -48,6 +48,7 @@ def run_job(
         session.commit()
 
     try:
+        renderer.use(pipeline.id)
         inputs = tuple(upload(store, renderer, role, asset) for role, asset in attached)
         graph = pipeline.build(job_for(generation, pipeline, inputs))
         assert graph.output_node is not None, f"{pipeline.id} built a graph that saves nothing"
